@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Console API 설정 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .copy-btn:active { transform: scale(0.95); }
+        .step-card { transition: all 0.2s ease; }
+        .step-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .check-item:has(input:checked) { background: #f0fdf4; border-color: #22c55e; }
+        .check-item:has(input:checked) .step-number { background: #22c55e; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen py-8">
+    <div class="max-w-4xl mx-auto px-4">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Search Console API 설정 가이드</h1>
+            <p class="text-gray-600">유입 검색어 데이터를 대시보드에 연동하기 위한 설정 가이드</p>
+            <div class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg">
+                <span class="text-green-600 font-medium">사이트 URL:</span>
+                <code class="bg-green-100 px-2 py-1 rounded font-mono text-green-800">https://polarad.co.kr</code>
+            </div>
+        </div>
+
+        <!-- Prerequisites -->
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-8">
+            <h2 class="text-lg font-semibold text-amber-800 mb-2">사전 요구사항</h2>
+            <ul class="text-amber-700 space-y-1">
+                <li>GA4 설정 가이드의 1~3단계 완료 (서비스 계정 생성)</li>
+                <li>Google Search Console에 polarad.co.kr 사이트 등록</li>
+            </ul>
+        </div>
+
+        <!-- Progress Checklist -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <h2 class="text-lg font-semibold mb-4">진행 체크리스트</h2>
+            <div class="space-y-2">
+                <label class="check-item flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 text-green-500">
+                    <span class="step-number w-6 h-6 flex items-center justify-center bg-gray-200 rounded-full text-sm font-medium">1</span>
+                    <span>Search Console API 활성화</span>
+                </label>
+                <label class="check-item flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 text-green-500">
+                    <span class="step-number w-6 h-6 flex items-center justify-center bg-gray-200 rounded-full text-sm font-medium">2</span>
+                    <span>Search Console에 서비스 계정 추가</span>
+                </label>
+                <label class="check-item flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 text-green-500">
+                    <span class="step-number w-6 h-6 flex items-center justify-center bg-gray-200 rounded-full text-sm font-medium">3</span>
+                    <span>환경 변수 설정</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Step 1 -->
+        <div class="step-card bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 flex items-center justify-center bg-green-500 text-white rounded-lg font-bold shrink-0">1</div>
+                <div class="flex-1">
+                    <h3 class="text-xl font-semibold mb-2">Search Console API 활성화</h3>
+                    <ol class="space-y-3 text-gray-600">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">1.1</span>
+                            <div>
+                                <a href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank" class="text-blue-600 hover:underline font-medium">Google Search Console API 페이지</a> 접속
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">1.2</span>
+                            <div>GA4 설정 시 생성한 프로젝트(polarad-dashboard)가 선택되어 있는지 확인</div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">1.3</span>
+                            <div><span class="bg-blue-500 text-white px-2 py-0.5 rounded text-sm font-medium">사용</span> 버튼 클릭</div>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 flex items-center justify-center bg-green-500 text-white rounded-lg font-bold shrink-0">2</div>
+                <div class="flex-1">
+                    <h3 class="text-xl font-semibold mb-2">Search Console에 서비스 계정 추가</h3>
+                    <ol class="space-y-3 text-gray-600">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">2.1</span>
+                            <div>
+                                <a href="https://search.google.com/search-console" target="_blank" class="text-blue-600 hover:underline font-medium">Google Search Console</a> 접속
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">2.2</span>
+                            <div>왼쪽 메뉴에서 <span class="bg-gray-100 px-2 py-0.5 rounded font-medium">설정</span> 클릭</div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">2.3</span>
+                            <div><span class="bg-gray-100 px-2 py-0.5 rounded font-medium">사용자 및 권한</span> 클릭</div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">2.4</span>
+                            <div><span class="bg-blue-500 text-white px-2 py-0.5 rounded text-sm font-medium">사용자 추가</span> 클릭</div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">2.5</span>
+                            <div>
+                                서비스 계정 이메일 입력 (예: <code class="bg-gray-100 px-1 rounded text-sm">ga4-reader@polarad-dashboard.iam.gserviceaccount.com</code>)
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 font-medium shrink-0">2.6</span>
+                            <div>권한: <span class="bg-gray-100 px-2 py-0.5 rounded font-medium">전체</span> 또는 <span class="bg-gray-100 px-2 py-0.5 rounded font-medium">제한됨</span> 선택 → <span class="bg-blue-500 text-white px-2 py-0.5 rounded text-sm font-medium">추가</span></div>
+                        </li>
+                    </ol>
+                    <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-blue-800 mb-1">권한 설명</h4>
+                        <ul class="text-blue-700 text-sm space-y-1">
+                            <li><strong>전체:</strong> 모든 데이터 확인 가능 + 설정 변경 가능</li>
+                            <li><strong>제한됨:</strong> 대부분의 데이터 확인 가능 (권장)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-card bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 flex items-center justify-center bg-green-500 text-white rounded-lg font-bold shrink-0">3</div>
+                <div class="flex-1">
+                    <h3 class="text-xl font-semibold mb-2">환경 변수 설정</h3>
+
+                    <div class="mb-4">
+                        <p class="text-gray-600 mb-3">기존 환경 변수에 다음을 추가합니다:</p>
+                    </div>
+
+                    <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">.env.local (추가)</span>
+                            <button onclick="copyEnv()" class="copy-btn px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm font-medium">복사</button>
+                        </div>
+                        <pre class="text-green-400 text-sm overflow-x-auto" id="env-content"># Google Search Console 설정
+SEARCH_CONSOLE_SITE_URL=https://polarad.co.kr</pre>
+                    </div>
+
+                    <div class="bg-gray-50 border rounded-lg p-4">
+                        <h4 class="font-semibold mb-2">전체 환경 변수 예시</h4>
+                        <pre class="text-sm text-gray-700 overflow-x-auto">
+# Google Analytics 4 설정
+GA4_PROPERTY_ID=514776969
+
+# Google Search Console 설정
+SEARCH_CONSOLE_SITE_URL=https://polarad.co.kr
+
+# 서비스 계정 (GA4와 Search Console 공통 사용)
+GOOGLE_SERVICE_ACCOUNT_EMAIL=xxx@project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion -->
+        <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-green-800 mb-2">설정 완료!</h3>
+            <p class="text-green-600">모든 단계를 완료하면 대시보드에서 유입 검색어 데이터를 확인할 수 있습니다.</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-500 text-sm">
+            <p>폴라애드 대시보드 Search Console 설정 가이드</p>
+            <p class="mt-2">
+                <a href="ga4-setup-guide.html" class="text-blue-600 hover:underline">← GA4 설정 가이드로 돌아가기</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function copyEnv() {
+            const text = document.getElementById('env-content').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('환경 변수가 복사되었습니다!');
+            });
+        }
+    </script>
+</body>
+</html>

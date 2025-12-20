@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airtable 통계 캐시 설정 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .copy-btn:active { transform: scale(0.95); }
+        .step-complete { background: #10B981 !important; border-color: #10B981 !important; }
+        .step-complete::after { content: '✓'; color: white; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto py-8 px-4">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-8 mb-8 text-white">
+            <h1 class="text-3xl font-bold mb-2">📊 Airtable 통계 캐시 설정</h1>
+            <p class="text-purple-100">Google Analytics 데이터를 Airtable에 저장하여 API 호출을 최소화합니다</p>
+        </div>
+
+        <!-- Progress -->
+        <div class="bg-white rounded-xl p-6 mb-8 shadow-sm">
+            <h2 class="text-lg font-semibold mb-4">진행 상황</h2>
+            <div class="flex items-center gap-2">
+                <div id="step1-dot" class="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-sm font-medium cursor-pointer hover:border-purple-400" onclick="toggleStep(1)">1</div>
+                <div class="flex-1 h-1 bg-gray-200"></div>
+                <div id="step2-dot" class="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-sm font-medium cursor-pointer hover:border-purple-400" onclick="toggleStep(2)">2</div>
+                <div class="flex-1 h-1 bg-gray-200"></div>
+                <div id="step3-dot" class="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-sm font-medium cursor-pointer hover:border-purple-400" onclick="toggleStep(3)">3</div>
+                <div class="flex-1 h-1 bg-gray-200"></div>
+                <div id="step4-dot" class="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-sm font-medium cursor-pointer hover:border-purple-400" onclick="toggleStep(4)">4</div>
+            </div>
+            <div class="flex justify-between mt-2 text-xs text-gray-500">
+                <span>Base 생성</span>
+                <span>테이블 생성</span>
+                <span>API 키 발급</span>
+                <span>환경변수</span>
+            </div>
+        </div>
+
+        <!-- Step 1: Base 생성 -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-sm">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold">1</span>
+                <h2 class="text-xl font-semibold">Airtable Base 생성</h2>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mt-0.5">1</div>
+                    <div>
+                        <p class="font-medium">Airtable 접속</p>
+                        <a href="https://airtable.com" target="_blank" class="text-purple-600 hover:underline text-sm">https://airtable.com →</a>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mt-0.5">2</div>
+                    <div>
+                        <p class="font-medium">새 Base 생성</p>
+                        <p class="text-gray-600 text-sm">좌측 상단 <span class="bg-gray-100 px-2 py-0.5 rounded">+ Create</span> → <span class="bg-gray-100 px-2 py-0.5 rounded">Start from scratch</span></p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mt-0.5">3</div>
+                    <div>
+                        <p class="font-medium">Base 이름 설정</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <code class="bg-gray-100 px-3 py-1 rounded text-sm">polarad-analytics-cache</code>
+                            <button onclick="copyText('polarad-analytics-cache')" class="copy-btn text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded hover:bg-purple-200">복사</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: 테이블 생성 -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-sm">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold">2</span>
+                <h2 class="text-xl font-semibold">테이블 구조 생성</h2>
+            </div>
+
+            <p class="text-gray-600 text-sm mb-6">아래 3개의 테이블을 생성해주세요. 각 테이블의 필드를 정확히 맞춰주세요.</p>
+
+            <!-- Table 1: daily_analytics -->
+            <div class="border rounded-lg mb-6">
+                <div class="bg-blue-50 px-4 py-3 border-b flex items-center justify-between">
+                    <div>
+                        <h3 class="font-semibold text-blue-800">📅 daily_analytics</h3>
+                        <p class="text-xs text-blue-600">일별 통계 데이터 저장</p>
+                    </div>
+                    <button onclick="copyText('daily_analytics')" class="copy-btn text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200">테이블명 복사</button>
+                </div>
+                <div class="p-4">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left p-2 font-medium">필드명</th>
+                                <th class="text-left p-2 font-medium">타입</th>
+                                <th class="text-left p-2 font-medium">설명</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">date</code></td><td class="p-2">Date</td><td class="p-2 text-gray-600">날짜 (Primary)</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">visitors</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">방문자 수</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">pageviews</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">페이지뷰</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">sessions</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">세션 수</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">newUsers</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">신규 사용자</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">bounceRate</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">이탈률 (%)</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">avgDuration</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">평균 체류시간 (초)</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">collected_at</code></td><td class="p-2">Date (with time)</td><td class="p-2 text-gray-600">수집 시간</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Table 2: traffic_sources -->
+            <div class="border rounded-lg mb-6">
+                <div class="bg-green-50 px-4 py-3 border-b flex items-center justify-between">
+                    <div>
+                        <h3 class="font-semibold text-green-800">🔗 traffic_sources</h3>
+                        <p class="text-xs text-green-600">트래픽 유입 소스 데이터</p>
+                    </div>
+                    <button onclick="copyText('traffic_sources')" class="copy-btn text-xs bg-green-100 text-green-600 px-2 py-1 rounded hover:bg-green-200">테이블명 복사</button>
+                </div>
+                <div class="p-4">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left p-2 font-medium">필드명</th>
+                                <th class="text-left p-2 font-medium">타입</th>
+                                <th class="text-left p-2 font-medium">설명</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">date</code></td><td class="p-2">Date</td><td class="p-2 text-gray-600">수집 날짜</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">channel</code></td><td class="p-2">Single line text</td><td class="p-2 text-gray-600">채널 (organic, direct 등)</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">visitors</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">방문자 수</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">sessions</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">세션 수</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">percentage</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">비율 (%)</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">bounceRate</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">이탈률 (%)</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">avgDuration</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">평균 체류시간 (초)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Table 3: cache_metadata -->
+            <div class="border rounded-lg">
+                <div class="bg-orange-50 px-4 py-3 border-b flex items-center justify-between">
+                    <div>
+                        <h3 class="font-semibold text-orange-800">⚙️ cache_metadata</h3>
+                        <p class="text-xs text-orange-600">캐시 메타데이터 (마지막 업데이트 시간 등)</p>
+                    </div>
+                    <button onclick="copyText('cache_metadata')" class="copy-btn text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded hover:bg-orange-200">테이블명 복사</button>
+                </div>
+                <div class="p-4">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left p-2 font-medium">필드명</th>
+                                <th class="text-left p-2 font-medium">타입</th>
+                                <th class="text-left p-2 font-medium">설명</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">cache_key</code></td><td class="p-2">Single line text</td><td class="p-2 text-gray-600">캐시 키 (Primary)</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">last_updated</code></td><td class="p-2">Date (with time)</td><td class="p-2 text-gray-600">마지막 업데이트</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">status</code></td><td class="p-2">Single select</td><td class="p-2 text-gray-600">success / error / pending</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">record_count</code></td><td class="p-2">Number</td><td class="p-2 text-gray-600">저장된 레코드 수</td></tr>
+                            <tr><td class="p-2"><code class="bg-gray-100 px-1 rounded">error_message</code></td><td class="p-2">Long text</td><td class="p-2 text-gray-600">에러 메시지 (있는 경우)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: API 키 발급 -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-sm">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold">3</span>
+                <h2 class="text-xl font-semibold">API 키 발급</h2>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mt-0.5">1</div>
+                    <div>
+                        <p class="font-medium">Airtable API 페이지 접속</p>
+                        <a href="https://airtable.com/create/tokens" target="_blank" class="text-purple-600 hover:underline text-sm">https://airtable.com/create/tokens →</a>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mt-0.5">2</div>
+                    <div>
+                        <p class="font-medium">Personal Access Token 생성</p>
+                        <p class="text-gray-600 text-sm"><span class="bg-gray-100 px-2 py-0.5 rounded">+ Create new token</span> 클릭</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mt-0.5">3</div>
+                    <div>
+                        <p class="font-medium">토큰 설정</p>
+                        <ul class="text-gray-600 text-sm mt-1 space-y-1">
+                            <li>• Name: <code class="bg-gray-100 px-1 rounded">polarad-analytics</code></li>
+                            <li>• Scopes: <code class="bg-gray-100 px-1 rounded">data.records:read</code>, <code class="bg-gray-100 px-1 rounded">data.records:write</code></li>
+                            <li>• Access: 생성한 Base 선택 (<code class="bg-gray-100 px-1 rounded">polarad-analytics-cache</code>)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p class="text-yellow-800 text-sm font-medium">⚠️ 중요</p>
+                    <p class="text-yellow-700 text-sm">토큰은 한 번만 표시됩니다. 반드시 복사해두세요!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Base ID 확인 및 환경변수 -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-sm">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold">4</span>
+                <h2 class="text-xl font-semibold">Base ID 확인 및 환경변수 설정</h2>
+            </div>
+
+            <div class="space-y-4 mb-6">
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mt-0.5">1</div>
+                    <div>
+                        <p class="font-medium">Base ID 확인</p>
+                        <p class="text-gray-600 text-sm">생성한 Base 열기 → URL에서 <code class="bg-gray-100 px-1 rounded">app</code>으로 시작하는 부분이 Base ID</p>
+                        <p class="text-gray-500 text-xs mt-1">예: airtable.com/<strong class="text-purple-600">appXXXXXXXXXXXXXX</strong>/...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Fields -->
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Airtable API Token</label>
+                    <input type="text" id="apiToken" placeholder="pat_xxxxxxxxxxx..." class="w-full border rounded-lg px-3 py-2 text-sm" oninput="updateEnvVars()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Base ID</label>
+                    <input type="text" id="baseId" placeholder="appXXXXXXXXXXXXXX" class="w-full border rounded-lg px-3 py-2 text-sm" oninput="updateEnvVars()">
+                </div>
+            </div>
+
+            <!-- Generated Env Vars -->
+            <div class="bg-gray-900 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400 text-sm">.env.local에 추가할 내용</span>
+                    <button onclick="copyEnvVars()" class="copy-btn text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded hover:bg-gray-600">전체 복사</button>
+                </div>
+                <pre id="envVarsOutput" class="text-green-400 text-sm overflow-x-auto">
+# Airtable 캐시 설정
+AIRTABLE_API_TOKEN=<span class="text-gray-500">[위에 입력]</span>
+AIRTABLE_BASE_ID=<span class="text-gray-500">[위에 입력]</span>
+</pre>
+            </div>
+        </div>
+
+        <!-- Completion -->
+        <div class="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl p-6 text-white">
+            <h2 class="text-xl font-bold mb-2">🎉 설정 완료 후</h2>
+            <p class="text-green-100 mb-4">위 정보를 제공해주시면 다음 단계를 진행합니다:</p>
+            <ul class="space-y-2 text-sm">
+                <li class="flex items-center gap-2">
+                    <span class="w-5 h-5 bg-white/20 rounded flex items-center justify-center">1</span>
+                    <span>Airtable 라이브러리 설치</span>
+                </li>
+                <li class="flex items-center gap-2">
+                    <span class="w-5 h-5 bg-white/20 rounded flex items-center justify-center">2</span>
+                    <span>캐시 로직 구현 (lib/airtable-cache.ts)</span>
+                </li>
+                <li class="flex items-center gap-2">
+                    <span class="w-5 h-5 bg-white/20 rounded flex items-center justify-center">3</span>
+                    <span>Cron Job API 구현 (/api/cron/collect-analytics)</span>
+                </li>
+                <li class="flex items-center gap-2">
+                    <span class="w-5 h-5 bg-white/20 rounded flex items-center justify-center">4</span>
+                    <span>API 라우트 연동</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-500 text-sm">
+            <p>문제가 있으시면 말씀해주세요 😊</p>
+        </div>
+    </div>
+
+    <script>
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('복사되었습니다!');
+            });
+        }
+
+        function updateEnvVars() {
+            const token = document.getElementById('apiToken').value || '[위에 입력]';
+            const baseId = document.getElementById('baseId').value || '[위에 입력]';
+
+            document.getElementById('envVarsOutput').innerHTML = `
+# Airtable 캐시 설정
+AIRTABLE_API_TOKEN=${token}
+AIRTABLE_BASE_ID=${baseId}
+`;
+        }
+
+        function copyEnvVars() {
+            const token = document.getElementById('apiToken').value;
+            const baseId = document.getElementById('baseId').value;
+
+            if (!token || !baseId) {
+                showToast('API Token과 Base ID를 모두 입력해주세요', 'error');
+                return;
+            }
+
+            const envVars = `# Airtable 캐시 설정
+AIRTABLE_API_TOKEN=${token}
+AIRTABLE_BASE_ID=${baseId}`;
+
+            navigator.clipboard.writeText(envVars).then(() => {
+                showToast('환경변수가 복사되었습니다!');
+            });
+        }
+
+        function toggleStep(step) {
+            const dot = document.getElementById(`step${step}-dot`);
+            dot.classList.toggle('step-complete');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg text-white text-sm ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} shadow-lg z-50`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+    </script>
+</body>
+</html>
