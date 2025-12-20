@@ -7,38 +7,6 @@ import {
 } from "@/lib/airtable-cache"
 import type { AggregatedVisitorData, DailyVisitorData, WeeklyVisitorData, MonthlyVisitorData } from "@/types/analytics"
 
-// 데모 데이터 생성 함수
-function generateDemoData(days: number): AggregatedVisitorData {
-  const daily: DailyVisitorData[] = []
-  const today = new Date()
-
-  for (let i = 0; i < days; i++) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dateStr = date.toISOString().split("T")[0]
-
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6
-    const baseVisitors = isWeekend ? 150 : 280
-    const variation = Math.floor(Math.random() * 80) - 40
-
-    daily.push({
-      date: dateStr,
-      visitors: Math.max(50, baseVisitors + variation),
-      pageviews: Math.max(100, (baseVisitors + variation) * 3),
-      sessions: Math.max(60, Math.floor((baseVisitors + variation) * 1.2)),
-      newUsers: Math.max(30, Math.floor((baseVisitors + variation) * 0.6)),
-      bounceRate: 35 + Math.random() * 15,
-      avgDuration: 120 + Math.random() * 120,
-    })
-  }
-
-  const weekly = aggregateToWeekly(daily)
-  const monthly = aggregateToMonthly(daily, weekly)
-  const summary = calculateSummary(daily)
-
-  return { daily, weekly, monthly, summary }
-}
-
 // 주 시작일 계산 (월요일 기준)
 function getWeekStart(date: Date): Date {
   const d = new Date(date)
@@ -182,13 +150,12 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get("days") || "90")
     const forceRefresh = searchParams.get("refresh") === "true"
 
-    // 환경 변수 확인 - Google 설정 없으면 데모 데이터
+    // 환경 변수 확인
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-      const demoData = generateDemoData(days)
-      return NextResponse.json({
-        ...demoData,
-        isDemoData: true,
-      })
+      return NextResponse.json(
+        { error: "Google credentials not configured" },
+        { status: 500 }
+      )
     }
 
     // Airtable 캐시 확인 (강제 새로고침이 아닌 경우)
