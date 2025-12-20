@@ -11,12 +11,9 @@ import {
   Palette,
   Key,
   Save,
-  Eye,
-  EyeOff,
   CheckCircle,
   AlertCircle,
   ExternalLink,
-  Copy,
   RefreshCw,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,12 +25,11 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function SettingsPage() {
-  const [showApiKey, setShowApiKey] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
-    // 저장 로직 시뮬레이션
+    // TODO: 실제 설정 저장 API 연동 필요
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setSaving(false)
   }
@@ -163,7 +159,7 @@ export default function SettingsPage() {
                   <CheckCircle className="h-5 w-5 text-green-600" />
                   <div>
                     <p className="font-medium">연결됨</p>
-                    <p className="text-sm text-muted-foreground">속성 ID: 123456789</p>
+                    <p className="text-sm text-muted-foreground">환경변수로 설정됨</p>
                   </div>
                 </div>
                 <Badge variant="default">활성</Badge>
@@ -173,16 +169,13 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">GA4 Property ID</label>
-                <Input defaultValue="123456789" placeholder="GA4 속성 ID" />
+                <Input placeholder="환경변수 GA4_PROPERTY_ID로 설정됨" disabled />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">서비스 계정 이메일</label>
                 <div className="flex gap-2">
-                  <Input defaultValue="analytics@polarad-project.iam.gserviceaccount.com" readOnly />
-                  <Button variant="outline" size="icon">
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                  <Input placeholder="환경변수 GOOGLE_SERVICE_ACCOUNT_EMAIL로 설정됨" disabled />
                 </div>
               </div>
 
@@ -190,20 +183,13 @@ export default function SettingsPage() {
                 <label className="text-sm font-medium">서비스 계정 키 (JSON)</label>
                 <div className="flex gap-2">
                   <Input
-                    type={showApiKey ? "text" : "password"}
-                    defaultValue='{"type":"service_account"...}'
-                    readOnly
+                    type="password"
+                    placeholder="환경변수 GOOGLE_PRIVATE_KEY로 설정됨"
+                    disabled
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  보안을 위해 키는 마스킹 처리됩니다.
+                  보안을 위해 환경변수에서 직접 관리됩니다.
                 </p>
               </div>
 
@@ -349,29 +335,13 @@ export default function SettingsPage() {
               <CardDescription>외부 서비스 연동을 위한 API 키를 관리합니다.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {[
-                { name: "메인 API 키", key: "pk_live_****...****1234", created: "2024-12-01" },
-                { name: "테스트 API 키", key: "pk_test_****...****5678", created: "2024-11-15" },
-              ].map((item) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between p-4 rounded-lg border"
-                >
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-sm font-mono text-muted-foreground">{item.key}</p>
-                    <p className="text-xs text-muted-foreground mt-1">생성일: {item.created}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Key className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-1">API 키가 없습니다</h3>
+                <p className="text-sm text-muted-foreground">
+                  외부 서비스 연동이 필요하면 API 키를 생성하세요.
+                </p>
+              </div>
               <Button variant="outline">새 API 키 생성</Button>
             </CardContent>
           </Card>
@@ -382,24 +352,12 @@ export default function SettingsPage() {
               <CardDescription>최근 관리자 접근 기록입니다.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {[
-                  { action: "로그인", ip: "192.168.1.1", time: "2024-12-20 14:30:00" },
-                  { action: "설정 변경", ip: "192.168.1.1", time: "2024-12-20 14:25:00" },
-                  { action: "로그인", ip: "192.168.1.1", time: "2024-12-19 10:15:00" },
-                  { action: "콘텐츠 수정", ip: "192.168.1.1", time: "2024-12-19 10:20:00" },
-                ].map((log, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between py-2 border-b last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">{log.action}</Badge>
-                      <span className="text-sm text-muted-foreground">{log.ip}</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">{log.time}</span>
-                  </div>
-                ))}
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Shield className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-1">접근 로그 수집 중</h3>
+                <p className="text-sm text-muted-foreground">
+                  관리자 접근 기록이 쌓이면 여기에 표시됩니다.
+                </p>
               </div>
             </CardContent>
           </Card>
