@@ -8,9 +8,8 @@ import {
   Users,
   MousePointerClick,
   RefreshCw,
-  Calendar,
-  Filter,
-  Download,
+  AlertCircle,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +18,7 @@ import { StatCard } from "@/components/dashboard/stat-card"
 import { CampaignPerformanceTable } from "@/components/dashboard/campaign-performance-table"
 import { ConversionGoalsCard } from "@/components/dashboard/conversion-goals-card"
 import { FunnelChart } from "@/components/dashboard/charts/funnel-chart"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { CampaignAnalyticsData, ConversionAnalyticsData, FunnelStep } from "@/types/analytics"
 
 export default function CampaignsPage() {
@@ -26,7 +26,7 @@ export default function CampaignsPage() {
   const [campaignLoading, setCampaignLoading] = useState(true)
   const [conversionData, setConversionData] = useState<ConversionAnalyticsData & { steps?: FunnelStep[] } | null>(null)
   const [conversionLoading, setConversionLoading] = useState(true)
-  const [isDemo, setIsDemo] = useState(false)
+  const [isNotConfigured, setIsNotConfigured] = useState(false)
 
   // 캠페인 데이터 조회
   useEffect(() => {
@@ -34,10 +34,13 @@ export default function CampaignsPage() {
       try {
         setCampaignLoading(true)
         const response = await fetch("/api/analytics/campaigns")
+        if (response.status === 501) {
+          setIsNotConfigured(true)
+          return
+        }
         if (response.ok) {
           const data = await response.json()
           setCampaignData(data)
-          if (data.isDemoData) setIsDemo(true)
         }
       } catch (error) {
         console.error("Failed to fetch campaign data:", error)
@@ -55,6 +58,10 @@ export default function CampaignsPage() {
       try {
         setConversionLoading(true)
         const response = await fetch("/api/analytics/conversions?funnel=true")
+        if (response.status === 501) {
+          setIsNotConfigured(true)
+          return
+        }
         if (response.ok) {
           const data = await response.json()
           setConversionData(data)
@@ -97,17 +104,21 @@ export default function CampaignsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isDemo && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-              데모 데이터
-            </span>
-          )}
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
             새로고침
           </Button>
         </div>
       </div>
+
+      {isNotConfigured && (
+        <Alert className="border-yellow-200 bg-yellow-50">
+          <Loader2 className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            데이터 수집 준비 중입니다. GA4 API 연결이 완료되면 실제 데이터가 표시됩니다.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* 요약 카드 */}
       {campaignLoading || conversionLoading ? (

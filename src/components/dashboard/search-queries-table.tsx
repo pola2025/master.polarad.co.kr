@@ -1,4 +1,7 @@
-import { Search, TrendingUp, Eye, MousePointer } from "lucide-react"
+"use client"
+
+import { useState, useEffect } from "react"
+import { Search, TrendingUp, Eye, MousePointer, Loader2, AlertCircle } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -15,6 +18,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 interface SearchQuery {
   query: string
@@ -24,21 +29,13 @@ interface SearchQuery {
   position: number
 }
 
-interface SearchQueriesTableProps {
-  data?: SearchQuery[]
-  totalClicks?: number
-  totalImpressions?: number
-  avgCtr?: number
-  avgPosition?: number
+interface SearchData {
+  queries: SearchQuery[]
+  totalClicks: number
+  totalImpressions: number
+  avgCtr: number
+  avgPosition: number
 }
-
-const defaultData: SearchQuery[] = [
-  { query: "온라인 마케팅", clicks: 45, impressions: 890, ctr: 5.1, position: 8.2 },
-  { query: "법인 영업", clicks: 38, impressions: 720, ctr: 5.3, position: 6.5 },
-  { query: "DB 마케팅", clicks: 32, impressions: 580, ctr: 5.5, position: 7.8 },
-  { query: "리드 제너레이션", clicks: 28, impressions: 450, ctr: 6.2, position: 5.3 },
-  { query: "메타 광고 대행", clicks: 25, impressions: 410, ctr: 6.1, position: 9.1 },
-]
 
 function getPositionBadgeColor(position: number): string {
   if (position <= 3) return "bg-green-100 text-green-700 border-green-200"
@@ -47,13 +44,78 @@ function getPositionBadgeColor(position: number): string {
   return "bg-gray-100 text-gray-700 border-gray-200"
 }
 
-export function SearchQueriesTable({
-  data = defaultData,
-  totalClicks = 245,
-  totalImpressions = 4500,
-  avgCtr = 5.4,
-  avgPosition = 10.9,
-}: SearchQueriesTableProps) {
+export function SearchQueriesTable() {
+  const [data, setData] = useState<SearchData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch("/api/search-queries?period=weekly&limit=5")
+
+        if (response.status === 501) {
+          setError("데이터 수집 준비 중")
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch")
+        }
+
+        const result = await response.json()
+        setData(result)
+      } catch (err) {
+        setError("데이터를 불러올 수 없습니다")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <Card className="col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            유입 검색어
+          </CardTitle>
+          <CardDescription>Google Search Console 기준 최근 7일</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error || !data || data.queries.length === 0) {
+    return (
+      <Card className="col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            유입 검색어
+          </CardTitle>
+          <CardDescription>Google Search Console 기준 최근 7일</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="font-semibold mb-1">
+            {error || "검색어 데이터가 없습니다"}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            데이터가 수집되면 여기에 표시됩니다.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="col-span-2">
       <CardHeader>
@@ -69,17 +131,17 @@ export function SearchQueriesTable({
             <div className="flex items-center gap-1.5">
               <MousePointer className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">클릭</span>
-              <span className="font-semibold">{totalClicks.toLocaleString()}</span>
+              <span className="font-semibold">{data.totalClicks.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Eye className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">노출</span>
-              <span className="font-semibold">{totalImpressions.toLocaleString()}</span>
+              <span className="font-semibold">{data.totalImpressions.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">평균순위</span>
-              <span className="font-semibold">{avgPosition.toFixed(1)}</span>
+              <span className="font-semibold">{data.avgPosition.toFixed(1)}</span>
             </div>
           </div>
         </div>
@@ -96,7 +158,7 @@ export function SearchQueriesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.slice(0, 10).map((item, index) => (
+            {data.queries.slice(0, 5).map((item, index) => (
               <TableRow key={item.query}>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -127,6 +189,13 @@ export function SearchQueriesTable({
             ))}
           </TableBody>
         </Table>
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/analytics/keywords">
+              전체 검색어 분석 보기
+            </Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

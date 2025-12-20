@@ -12,6 +12,7 @@ import {
   Settings,
   ChevronUp,
   User2,
+  Search,
 } from "lucide-react"
 
 import {
@@ -53,6 +54,11 @@ const menuItems = [
     title: "캠페인 분석",
     url: "/analytics/campaigns",
     icon: Megaphone,
+  },
+  {
+    title: "검색어 분석",
+    url: "/analytics/keywords",
+    icon: Search,
   },
   {
     title: "콘텐츠 관리",

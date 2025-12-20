@@ -121,3 +121,95 @@ export async function getPagePerformance(days: number = 7) {
     position: row.position || 0,
   }))
 }
+
+// 기간 지정 검색어 조회 (시작일, 종료일 직접 지정)
+export async function getSearchQueriesByDateRange(
+  startDate: string,
+  endDate: string,
+  limit: number = 10
+): Promise<SearchConsoleData> {
+  const searchconsole = getSearchConsoleClient()
+
+  const response = await searchconsole.searchanalytics.query({
+    siteUrl: SITE_URL,
+    requestBody: {
+      startDate,
+      endDate,
+      dimensions: ["query"],
+      rowLimit: limit,
+      dataState: "final",
+    },
+  })
+
+  const rows = response.data.rows || []
+
+  const queries: SearchQuery[] = rows.map((row) => ({
+    query: row.keys?.[0] || "",
+    clicks: row.clicks || 0,
+    impressions: row.impressions || 0,
+    ctr: (row.ctr || 0) * 100,
+    position: row.position || 0,
+  }))
+
+  const totalClicks = queries.reduce((sum, q) => sum + q.clicks, 0)
+  const totalImpressions = queries.reduce((sum, q) => sum + q.impressions, 0)
+  const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+  const avgPosition =
+    queries.length > 0
+      ? queries.reduce((sum, q) => sum + q.position, 0) / queries.length
+      : 0
+
+  return {
+    queries,
+    totalClicks,
+    totalImpressions,
+    avgCtr,
+    avgPosition,
+  }
+}
+
+// 누적 검색어 데이터 조회 (최대 16개월)
+export async function getCumulativeSearchQueries(limit: number = 10): Promise<SearchConsoleData> {
+  const searchconsole = getSearchConsoleClient()
+
+  // Search Console API는 최대 16개월 데이터 제공
+  const endDate = getDaysAgo(1)
+  const startDate = getDaysAgo(480) // 약 16개월
+
+  const response = await searchconsole.searchanalytics.query({
+    siteUrl: SITE_URL,
+    requestBody: {
+      startDate,
+      endDate,
+      dimensions: ["query"],
+      rowLimit: limit,
+      dataState: "final",
+    },
+  })
+
+  const rows = response.data.rows || []
+
+  const queries: SearchQuery[] = rows.map((row) => ({
+    query: row.keys?.[0] || "",
+    clicks: row.clicks || 0,
+    impressions: row.impressions || 0,
+    ctr: (row.ctr || 0) * 100,
+    position: row.position || 0,
+  }))
+
+  const totalClicks = queries.reduce((sum, q) => sum + q.clicks, 0)
+  const totalImpressions = queries.reduce((sum, q) => sum + q.impressions, 0)
+  const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+  const avgPosition =
+    queries.length > 0
+      ? queries.reduce((sum, q) => sum + q.position, 0) / queries.length
+      : 0
+
+  return {
+    queries,
+    totalClicks,
+    totalImpressions,
+    avgCtr,
+    avgPosition,
+  }
+}
