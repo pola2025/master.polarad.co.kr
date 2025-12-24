@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAggregatedVisitorData } from "@/lib/google-analytics"
-import {
-  getDailyAnalyticsFromCache,
-  isCacheValid,
-  CACHE_KEYS,
-} from "@/lib/airtable-cache"
-import type { AggregatedVisitorData, DailyVisitorData, WeeklyVisitorData, MonthlyVisitorData } from "@/types/analytics"
+import { getDailyAnalyticsFromCache } from "@/lib/airtable-cache"
+import type { DailyVisitorData, WeeklyVisitorData, MonthlyVisitorData } from "@/types/analytics"
 
 // 주 시작일 계산 (월요일 기준)
 function getWeekStart(date: Date): Date {
@@ -139,78 +134,54 @@ function calculateSummary(daily: DailyVisitorData[]) {
   }
 }
 
-// 메모리 캐시 (Airtable 캐시가 없을 때 fallback)
-let memoryCachedData: AggregatedVisitorData | null = null
-let memoryCacheTime: number = 0
-const MEMORY_CACHE_DURATION = 60 * 60 * 1000 // 1시간
-
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const days = parseInt(searchParams.get("days") || "90")
-    const forceRefresh = searchParams.get("refresh") === "true"
 
-    // 환경 변수 확인
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-      return NextResponse.json(
-        { error: "Google credentials not configured" },
-        { status: 500 }
-      )
-    }
+    // Airtable 캐시에서 데이터 조회
+    const cachedDaily = await getDailyAnalyticsFromCache(days)
 
-    // Airtable 캐시 확인 (강제 새로고침이 아닌 경우)
-    if (!forceRefresh && process.env.AIRTABLE_API_TOKEN) {
-      try {
-        const cacheValid = await isCacheValid(CACHE_KEYS.DAILY_ANALYTICS, 24) // 24시간 유효
-
-        if (cacheValid) {
-          console.log("[API] Using Airtable cache for daily analytics")
-          const cachedDaily = await getDailyAnalyticsFromCache(days)
-
-          if (cachedDaily.length > 0) {
-            const weekly = aggregateToWeekly(cachedDaily)
-            const monthly = aggregateToMonthly(cachedDaily, weekly)
-            const summary = calculateSummary(cachedDaily)
-
-            return NextResponse.json({
-              daily: cachedDaily,
-              weekly,
-              monthly,
-              summary,
-              fromCache: true,
-            })
-          }
-        }
-      } catch (cacheError) {
-        console.error("[API] Airtable cache error:", cacheError)
-        // 캐시 오류 시 계속 진행
-      }
-    }
-
-    // 메모리 캐시 확인
-    const now = Date.now()
-    if (!forceRefresh && memoryCachedData && now - memoryCacheTime < MEMORY_CACHE_DURATION) {
-      console.log("[API] Using memory cache for daily analytics")
+    if (cachedDaily.length === 0) {
       return NextResponse.json({
-        ...memoryCachedData,
-        fromMemoryCache: true,
+        daily: [],
+        weekly: [],
+        monthly: [],
+        summary: {
+          total_visitors: 0,
+          total_pageviews: 0,
+          total_sessions: 0,
+          avg_bounce_rate: 0,
+          avg_session_duration: 0,
+          date_range: { start: "", end: "" },
+        },
       })
     }
 
-    // Google API에서 데이터 조회
-    console.log("[API] Fetching from Google Analytics API")
-    const data = await getAggregatedVisitorData(days)
+    const weekly = aggregateToWeekly(cachedDaily)
+    const monthly = aggregateToMonthly(cachedDaily, weekly)
+    const summary = calculateSummary(cachedDaily)
 
-    // 메모리 캐시 저장
-    memoryCachedData = data
-    memoryCacheTime = now
-
-    return NextResponse.json(data)
+    return NextResponse.json({
+      daily: cachedDaily,
+      weekly,
+      monthly,
+      summary,
+    })
   } catch (error) {
     console.error("Aggregated Analytics API Error:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch aggregated analytics data" },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      daily: [],
+      weekly: [],
+      monthly: [],
+      summary: {
+        total_visitors: 0,
+        total_pageviews: 0,
+        total_sessions: 0,
+        avg_bounce_rate: 0,
+        avg_session_duration: 0,
+        date_range: { start: "", end: "" },
+      },
+    })
   }
 }
