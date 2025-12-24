@@ -153,7 +153,7 @@ Create a visually appealing marketing thumbnail with modern design.`
     }],
     generationConfig: {
       responseModalities: ["image", "text"],
-    },
+    } as unknown as Record<string, unknown>,
   })
 
   const response = result.response
