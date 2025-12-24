@@ -140,11 +140,11 @@ export async function PUT(request: NextRequest) {
     if (fields.publishedAt !== undefined) airtableFields.publishedAt = fields.publishedAt
     if (fields.instagramPosted !== undefined) airtableFields.instagram_posted = fields.instagramPosted
 
-    const updatedRecord = await base(TABLE_NAME).update(id, airtableFields)
+    await base(TABLE_NAME).update(id, airtableFields)
 
     return NextResponse.json({
       success: true,
-      id: updatedRecord.id,
+      id,
       message: "Content updated successfully",
     })
   } catch (error) {
