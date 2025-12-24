@@ -43,3 +43,7 @@ docs/vercel-env-import.env
 docs/vercel-env-vars.txt
 
 .vercel
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md

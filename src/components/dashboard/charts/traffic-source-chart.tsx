@@ -24,12 +24,8 @@ interface TrafficSourceChartProps {
   }>
 }
 
-const defaultData = [
-  { source: "direct", visitors: 450 },
-  { source: "organic", visitors: 380 },
-  { source: "referral", visitors: 220 },
-  { source: "social", visitors: 150 },
-]
+// 빈 기본 데이터 (API 연동 전까지 빈 상태)
+const defaultData: Array<{ source: string; visitors: number }> = []
 
 const chartConfig = {
   visitors: {

@@ -23,15 +23,8 @@ interface VisitorChartProps {
   }>
 }
 
-const defaultData = [
-  { date: "12/14", visitors: 186, pageviews: 312 },
-  { date: "12/15", visitors: 305, pageviews: 521 },
-  { date: "12/16", visitors: 237, pageviews: 408 },
-  { date: "12/17", visitors: 173, pageviews: 289 },
-  { date: "12/18", visitors: 209, pageviews: 367 },
-  { date: "12/19", visitors: 264, pageviews: 445 },
-  { date: "12/20", visitors: 198, pageviews: 334 },
-]
+// 빈 기본 데이터 (API 연동 전까지 빈 상태)
+const defaultData: Array<{ date: string; visitors: number; pageviews: number }> = []
 
 const chartConfig = {
   visitors: {

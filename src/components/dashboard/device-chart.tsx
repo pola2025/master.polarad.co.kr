@@ -22,11 +22,8 @@ interface DeviceChartProps {
   }>
 }
 
-const defaultData = [
-  { device: "mobile", visitors: 680 },
-  { device: "desktop", visitors: 450 },
-  { device: "tablet", visitors: 70 },
-]
+// 빈 기본 데이터 (API 연동 전까지 빈 상태)
+const defaultData: Array<{ device: string; visitors: number }> = []
 
 const chartConfig = {
   visitors: {

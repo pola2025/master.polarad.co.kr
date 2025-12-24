@@ -23,13 +23,8 @@ interface TopPagesTableProps {
   }>
 }
 
-const defaultData = [
-  { path: "/", title: "홈", views: 1234, avgTime: "2:34" },
-  { path: "/service", title: "서비스 소개", views: 856, avgTime: "3:12" },
-  { path: "/marketing-news", title: "마케팅 뉴스", views: 623, avgTime: "4:21" },
-  { path: "/contact", title: "문의하기", views: 412, avgTime: "1:45" },
-  { path: "/portfolio", title: "포트폴리오", views: 287, avgTime: "2:58" },
-]
+// 빈 기본 데이터 (API 연동 전까지 빈 상태)
+const defaultData: Array<{ path: string; title: string; views: number; avgTime: string }> = []
 
 export function TopPagesTable({ data = defaultData }: TopPagesTableProps) {
   return (

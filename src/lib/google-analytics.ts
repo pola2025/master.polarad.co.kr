@@ -890,6 +890,338 @@ export async function getConversionAnalyticsData(
 }
 
 // =====================
+// 방문 통계 상세 데이터
+// =====================
+
+export interface VisitorStatsData {
+  overview: {
+    totalVisitors: number
+    uniqueVisitors: number
+    pageViews: number
+    avgSessionDuration: string
+    bounceRate: number
+    newVisitors: number
+    returningVisitors: number
+    changes: {
+      visitors: number
+      pageViews: number
+      bounceRate: number
+      avgSessionDuration: number
+    }
+  }
+  daily: Array<{ date: string; visitors: number; pageviews: number; sessions: number }>
+  countries: Array<{ country: string; visitors: number; percentage: number }>
+  pages: Array<{ path: string; title: string; views: number; uniqueViews: number; avgTime: string; bounceRate: number }>
+  devices: Array<{ device: string; visitors: number; percentage: number }>
+  browsers: Array<{ browser: string; visitors: number; percentage: number }>
+  hourlyTraffic: Array<{ hour: string; visitors: number }>
+}
+
+// 브라우저별 방문자
+export async function getBrowserData(days: number = 7): Promise<Array<{ browser: string; visitors: number; percentage: number }>> {
+  const client = getAnalyticsClient()
+  const startDate = getDaysAgo(days - 1)
+  const endDate = formatDate(new Date())
+
+  const [response] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate, endDate }],
+    dimensions: [{ name: "browser" }],
+    metrics: [{ name: "activeUsers" }],
+    orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+    limit: 10,
+  })
+
+  const totalVisitors = (response.rows || []).reduce(
+    (sum, row) => sum + parseInt(row.metricValues?.[0]?.value || "0"),
+    0
+  )
+
+  return (response.rows || []).map((row) => {
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    return {
+      browser: row.dimensionValues?.[0]?.value || "Unknown",
+      visitors,
+      percentage: totalVisitors > 0 ? (visitors / totalVisitors) * 100 : 0,
+    }
+  })
+}
+
+// 국가별 방문자
+export async function getCountryData(days: number = 7): Promise<Array<{ country: string; visitors: number; percentage: number }>> {
+  const client = getAnalyticsClient()
+  const startDate = getDaysAgo(days - 1)
+  const endDate = formatDate(new Date())
+
+  const [response] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate, endDate }],
+    dimensions: [{ name: "country" }],
+    metrics: [{ name: "activeUsers" }],
+    orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+    limit: 10,
+  })
+
+  const countryMapping: Record<string, string> = {
+    "South Korea": "대한민국",
+    "United States": "미국",
+    "Japan": "일본",
+    "China": "중국",
+    "(not set)": "기타",
+  }
+
+  const totalVisitors = (response.rows || []).reduce(
+    (sum, row) => sum + parseInt(row.metricValues?.[0]?.value || "0"),
+    0
+  )
+
+  return (response.rows || []).map((row) => {
+    const countryName = row.dimensionValues?.[0]?.value || "Unknown"
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    return {
+      country: countryMapping[countryName] || countryName,
+      visitors,
+      percentage: totalVisitors > 0 ? (visitors / totalVisitors) * 100 : 0,
+    }
+  })
+}
+
+// 시간대별 방문자
+export async function getHourlyTrafficData(days: number = 7): Promise<Array<{ hour: string; visitors: number }>> {
+  const client = getAnalyticsClient()
+  const startDate = getDaysAgo(days - 1)
+  const endDate = formatDate(new Date())
+
+  const [response] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate, endDate }],
+    dimensions: [{ name: "hour" }],
+    metrics: [{ name: "activeUsers" }],
+    orderBys: [{ dimension: { dimensionName: "hour" } }],
+  })
+
+  // 4시간 단위로 그룹화
+  const hourGroups: Record<string, number> = {
+    "00-04": 0,
+    "04-08": 0,
+    "08-12": 0,
+    "12-16": 0,
+    "16-20": 0,
+    "20-24": 0,
+  }
+
+  for (const row of response.rows || []) {
+    const hour = parseInt(row.dimensionValues?.[0]?.value || "0")
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+
+    if (hour >= 0 && hour < 4) hourGroups["00-04"] += visitors
+    else if (hour >= 4 && hour < 8) hourGroups["04-08"] += visitors
+    else if (hour >= 8 && hour < 12) hourGroups["08-12"] += visitors
+    else if (hour >= 12 && hour < 16) hourGroups["12-16"] += visitors
+    else if (hour >= 16 && hour < 20) hourGroups["16-20"] += visitors
+    else hourGroups["20-24"] += visitors
+  }
+
+  return Object.entries(hourGroups).map(([hour, visitors]) => ({ hour, visitors }))
+}
+
+// 기기별 상세 데이터 (퍼센트 포함)
+export async function getDeviceCategoriesWithPercent(days: number = 7): Promise<Array<{ device: string; visitors: number; percentage: number }>> {
+  const client = getAnalyticsClient()
+  const startDate = getDaysAgo(days - 1)
+  const endDate = formatDate(new Date())
+
+  const [response] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate, endDate }],
+    dimensions: [{ name: "deviceCategory" }],
+    metrics: [{ name: "activeUsers" }],
+    orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+  })
+
+  const deviceMapping: Record<string, string> = {
+    "desktop": "데스크톱",
+    "mobile": "모바일",
+    "tablet": "태블릿",
+  }
+
+  const totalVisitors = (response.rows || []).reduce(
+    (sum, row) => sum + parseInt(row.metricValues?.[0]?.value || "0"),
+    0
+  )
+
+  return (response.rows || []).map((row) => {
+    const deviceName = row.dimensionValues?.[0]?.value || "unknown"
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    return {
+      device: deviceMapping[deviceName] || deviceName,
+      visitors,
+      percentage: totalVisitors > 0 ? (visitors / totalVisitors) * 100 : 0,
+    }
+  })
+}
+
+// 페이지별 상세 데이터
+export async function getTopPagesDetailed(days: number = 7): Promise<Array<{ path: string; title: string; views: number; uniqueViews: number; avgTime: string; bounceRate: number }>> {
+  const client = getAnalyticsClient()
+  const startDate = getDaysAgo(days - 1)
+  const endDate = formatDate(new Date())
+
+  const [response] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate, endDate }],
+    dimensions: [
+      { name: "pagePath" },
+      { name: "pageTitle" },
+    ],
+    metrics: [
+      { name: "screenPageViews" },
+      { name: "activeUsers" },
+      { name: "averageSessionDuration" },
+      { name: "bounceRate" },
+    ],
+    orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+    limit: 10,
+  })
+
+  return (response.rows || []).map((row) => {
+    const duration = parseFloat(row.metricValues?.[2]?.value || "0")
+    const minutes = Math.floor(duration / 60)
+    const seconds = Math.floor(duration % 60)
+
+    return {
+      path: row.dimensionValues?.[0]?.value || "/",
+      title: row.dimensionValues?.[1]?.value || "홈",
+      views: parseInt(row.metricValues?.[0]?.value || "0"),
+      uniqueViews: parseInt(row.metricValues?.[1]?.value || "0"),
+      avgTime: `${minutes}:${seconds.toString().padStart(2, "0")}`,
+      bounceRate: parseFloat(row.metricValues?.[3]?.value || "0") * 100,
+    }
+  })
+}
+
+// 일별 방문자 추이 (sessions 포함)
+export async function getDailyMetricsWithSessions(days: number = 7): Promise<Array<{ date: string; visitors: number; pageviews: number; sessions: number }>> {
+  const client = getAnalyticsClient()
+  const startDate = getDaysAgo(days - 1)
+  const endDate = formatDate(new Date())
+
+  const [response] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate, endDate }],
+    dimensions: [{ name: "date" }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "screenPageViews" },
+      { name: "sessions" },
+    ],
+    orderBys: [{ dimension: { dimensionName: "date" } }],
+  })
+
+  return (response.rows || []).map((row) => {
+    const dateStr = row.dimensionValues?.[0]?.value || ""
+    // YYYYMMDD -> MM/DD 형식으로 변환
+    const formatted = `${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`
+    return {
+      date: formatted,
+      visitors: parseInt(row.metricValues?.[0]?.value || "0"),
+      pageviews: parseInt(row.metricValues?.[1]?.value || "0"),
+      sessions: parseInt(row.metricValues?.[2]?.value || "0"),
+    }
+  })
+}
+
+// 종합 방문 통계 데이터
+export async function getVisitorStatsData(days: number = 7): Promise<VisitorStatsData> {
+  const client = getAnalyticsClient()
+  const startDate = getDaysAgo(days - 1)
+  const endDate = formatDate(new Date())
+  const previousStartDate = getDaysAgo(days * 2 - 1)
+  const previousEndDate = getDaysAgo(days)
+
+  // 현재 기간 데이터
+  const [currentResponse] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate, endDate }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "newUsers" },
+      { name: "sessions" },
+      { name: "screenPageViews" },
+      { name: "bounceRate" },
+      { name: "averageSessionDuration" },
+    ],
+  })
+
+  // 이전 기간 데이터 (비교용)
+  const [previousResponse] = await client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate: previousStartDate, endDate: previousEndDate }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "screenPageViews" },
+      { name: "bounceRate" },
+      { name: "averageSessionDuration" },
+    ],
+  })
+
+  const currentRow = currentResponse.rows?.[0]
+  const previousRow = previousResponse.rows?.[0]
+
+  const totalVisitors = parseInt(currentRow?.metricValues?.[0]?.value || "0")
+  const newVisitors = parseInt(currentRow?.metricValues?.[1]?.value || "0")
+  const pageViews = parseInt(currentRow?.metricValues?.[3]?.value || "0")
+  const bounceRate = parseFloat(currentRow?.metricValues?.[4]?.value || "0") * 100
+  const avgDuration = parseFloat(currentRow?.metricValues?.[5]?.value || "0")
+
+  const prevVisitors = parseInt(previousRow?.metricValues?.[0]?.value || "0")
+  const prevPageViews = parseInt(previousRow?.metricValues?.[1]?.value || "0")
+  const prevBounceRate = parseFloat(previousRow?.metricValues?.[2]?.value || "0") * 100
+  const prevAvgDuration = parseFloat(previousRow?.metricValues?.[3]?.value || "0")
+
+  const calcChange = (curr: number, prev: number) => prev === 0 ? 0 : ((curr - prev) / prev) * 100
+
+  // 시간 포맷
+  const mins = Math.floor(avgDuration / 60)
+  const secs = Math.floor(avgDuration % 60)
+  const avgSessionDuration = `${mins}분 ${secs}초`
+
+  // 병렬로 상세 데이터 조회
+  const [daily, countries, pages, devices, browsers, hourlyTraffic] = await Promise.all([
+    getDailyMetricsWithSessions(days),
+    getCountryData(days),
+    getTopPagesDetailed(days),
+    getDeviceCategoriesWithPercent(days),
+    getBrowserData(days),
+    getHourlyTrafficData(days),
+  ])
+
+  return {
+    overview: {
+      totalVisitors,
+      uniqueVisitors: totalVisitors, // GA4에서는 activeUsers가 고유 사용자
+      pageViews,
+      avgSessionDuration,
+      bounceRate,
+      newVisitors,
+      returningVisitors: totalVisitors - newVisitors,
+      changes: {
+        visitors: calcChange(totalVisitors, prevVisitors),
+        pageViews: calcChange(pageViews, prevPageViews),
+        bounceRate: calcChange(bounceRate, prevBounceRate),
+        avgSessionDuration: calcChange(avgDuration, prevAvgDuration),
+      },
+    },
+    daily,
+    countries,
+    pages,
+    devices,
+    browsers,
+    hourlyTraffic,
+  }
+}
+
+// =====================
 // 캐시 설정 (5분)
 // =====================
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   FileText,
   Plus,
@@ -17,6 +17,7 @@ import {
   Loader2,
   Instagram,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface ContentItem {
   id: string
@@ -80,26 +92,86 @@ export default function ContentPage() {
   const [data, setData] = useState<ContentData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletingItem, setDeletingItem] = useState<ContentItem | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
+
+  // 데이터 조회 함수
+  const fetchContent = useCallback(async (showRefreshState = false) => {
+    try {
+      if (showRefreshState) {
+        setIsRefreshing(true)
+      } else {
+        setLoading(true)
+      }
+      const response = await fetch("/api/content")
+      if (!response.ok) {
+        throw new Error("Failed to fetch content")
+      }
+      const result = await response.json()
+      setData(result)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error")
+    } finally {
+      setLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
-    async function fetchContent() {
-      try {
-        setLoading(true)
-        const response = await fetch("/api/content")
-        if (!response.ok) {
-          throw new Error("Failed to fetch content")
-        }
-        const result = await response.json()
-        setData(result)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error")
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchContent()
-  }, [])
+  }, [fetchContent])
+
+  // 삭제 확인 다이얼로그 열기
+  const handleDeleteClick = (item: ContentItem) => {
+    setDeletingItem(item)
+    setDeleteDialogOpen(true)
+  }
+
+  // 삭제 실행
+  const handleDeleteConfirm = async () => {
+    if (!deletingItem) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/content?id=${deletingItem.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete content")
+      }
+
+      setNotification({
+        type: "success",
+        message: `"${deletingItem.title}" 콘텐츠가 삭제되었습니다.`,
+      })
+
+      // 3초 후 알림 제거
+      setTimeout(() => setNotification(null), 3000)
+
+      // 데이터 새로고침
+      await fetchContent(true)
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: err instanceof Error ? err.message : "콘텐츠를 삭제할 수 없습니다.",
+      })
+      setTimeout(() => setNotification(null), 5000)
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
+      setDeletingItem(null)
+    }
+  }
+
+  // 새로고침
+  const handleRefresh = () => {
+    fetchContent(true)
+  }
 
   const filteredPosts = data?.contents.filter(
     (post) =>
@@ -135,11 +207,36 @@ export default function ContentPage() {
             블로그 포스트를 관리합니다.
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          새 포스트 작성
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </Button>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            새 포스트 작성
+          </Button>
+        </div>
       </div>
+
+      {/* 알림 */}
+      {notification && (
+        <Alert
+          variant={notification.type === "error" ? "destructive" : "default"}
+          className={notification.type === "success" ? "border-green-200 bg-green-50 text-green-800" : ""}
+        >
+          {notification.type === "success" ? (
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          ) : (
+            <XCircle className="h-4 w-4" />
+          )}
+          <AlertDescription>{notification.message}</AlertDescription>
+        </Alert>
+      )}
 
       {/* 통계 카드 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -304,7 +401,10 @@ export default function ContentPage() {
                                   수정
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteClick(post)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   삭제
                                 </DropdownMenuItem>
@@ -346,6 +446,37 @@ export default function ContentPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>콘텐츠 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말 &ldquo;{deletingItem?.title}&rdquo; 콘텐츠를 삭제하시겠습니까?
+              <br />
+              이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  삭제 중...
+                </>
+              ) : (
+                "삭제"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

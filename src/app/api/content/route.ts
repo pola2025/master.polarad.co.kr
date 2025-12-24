@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import Airtable from "airtable"
 
 // Airtable 설정 - 폴라애드 콘텐츠 Base
@@ -98,6 +98,96 @@ export async function GET() {
     console.error("Content API Error:", error)
     return NextResponse.json(
       { error: "Failed to fetch content data" },
+      { status: 500 }
+    )
+  }
+}
+
+// 콘텐츠 수정
+export async function PUT(request: NextRequest) {
+  try {
+    if (!AIRTABLE_API_TOKEN) {
+      return NextResponse.json(
+        { error: "AIRTABLE_API_TOKEN is not configured" },
+        { status: 500 }
+      )
+    }
+
+    const body = await request.json()
+    const { id, ...fields } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Record ID is required" },
+        { status: 400 }
+      )
+    }
+
+    const base = getBase()
+
+    // Airtable 필드명 매핑
+    const airtableFields: Record<string, unknown> = {}
+    if (fields.title !== undefined) airtableFields.title = fields.title
+    if (fields.content !== undefined) airtableFields.content = fields.content
+    if (fields.category !== undefined) airtableFields.category = fields.category
+    if (fields.status !== undefined) airtableFields.status = fields.status
+    if (fields.slug !== undefined) airtableFields.slug = fields.slug
+    if (fields.description !== undefined) airtableFields.description = fields.description
+    if (fields.tags !== undefined) airtableFields.tags = fields.tags
+    if (fields.seoKeywords !== undefined) airtableFields.seoKeywords = fields.seoKeywords
+    if (fields.thumbnailUrl !== undefined) airtableFields.thumbnailUrl = fields.thumbnailUrl
+    if (fields.date !== undefined) airtableFields.date = fields.date
+    if (fields.publishedAt !== undefined) airtableFields.publishedAt = fields.publishedAt
+    if (fields.instagramPosted !== undefined) airtableFields.instagram_posted = fields.instagramPosted
+
+    const updatedRecord = await base(TABLE_NAME).update(id, airtableFields)
+
+    return NextResponse.json({
+      success: true,
+      id: updatedRecord.id,
+      message: "Content updated successfully",
+    })
+  } catch (error) {
+    console.error("Content Update Error:", error)
+    return NextResponse.json(
+      { error: "Failed to update content" },
+      { status: 500 }
+    )
+  }
+}
+
+// 콘텐츠 삭제
+export async function DELETE(request: NextRequest) {
+  try {
+    if (!AIRTABLE_API_TOKEN) {
+      return NextResponse.json(
+        { error: "AIRTABLE_API_TOKEN is not configured" },
+        { status: 500 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Record ID is required" },
+        { status: 400 }
+      )
+    }
+
+    const base = getBase()
+    await base(TABLE_NAME).destroy(id)
+
+    return NextResponse.json({
+      success: true,
+      id,
+      message: "Content deleted successfully",
+    })
+  } catch (error) {
+    console.error("Content Delete Error:", error)
+    return NextResponse.json(
+      { error: "Failed to delete content" },
       { status: 500 }
     )
   }
