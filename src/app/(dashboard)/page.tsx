@@ -1,4 +1,4 @@
-import { Users, Eye, Timer, TrendingDown, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
+import { Users, Eye, Timer, TrendingDown, AlertCircle, CheckCircle } from "lucide-react"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { VisitorChart } from "@/components/dashboard/charts/visitor-chart"
 import { TrafficSourceChart } from "@/components/dashboard/charts/traffic-source-chart"
@@ -6,7 +6,7 @@ import { TopPagesTable } from "@/components/dashboard/top-pages-table"
 import { DeviceChart } from "@/components/dashboard/device-chart"
 import { SearchQueriesTable } from "@/components/dashboard/search-queries-table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getDashboardData } from "@/lib/google-analytics"
+import { getDailyAnalyticsFromCache, getTrafficSourcesFromCache } from "@/lib/airtable-cache"
 
 interface DashboardData {
   overview: {
@@ -25,61 +25,90 @@ interface DashboardData {
   sources: Array<{ source: string; visitors: number }>
   pages: Array<{ path: string; title: string; views: number; avgTime: string }>
   devices: Array<{ device: string; visitors: number }>
-  isRateLimited?: boolean
-  isNotConfigured?: boolean
-}
-
-// 빈 데이터 (API 미설정 시)
-const EMPTY_DATA: DashboardData = {
-  overview: {
-    totalUsers: 0,
-    pageViews: 0,
-    bounceRate: 0,
-    avgSessionDuration: 0,
-    changes: {
-      users: 0,
-      pageViews: 0,
-      bounceRate: 0,
-      avgSessionDuration: 0,
-    },
-  },
-  daily: [],
-  sources: [],
-  pages: [],
-  devices: [],
-  isNotConfigured: true,
+  hasData: boolean
+  error?: string
 }
 
 async function getAnalyticsData(): Promise<DashboardData> {
-  // 환경 변수 확인
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-    return EMPTY_DATA
-  }
-
   try {
-    // 서버에서 직접 GA4 API 호출 (캐싱 적용)
-    const data = await getDashboardData()
+    // Airtable 캐시에서 데이터 조회
+    const [dailyData, trafficSources] = await Promise.all([
+      getDailyAnalyticsFromCache(30),
+      getTrafficSourcesFromCache(),
+    ])
+
+    if (dailyData.length === 0) {
+      return {
+        overview: { totalUsers: 0, pageViews: 0, bounceRate: 0, avgSessionDuration: 0, changes: { users: 0, pageViews: 0, bounceRate: 0, avgSessionDuration: 0 } },
+        daily: [],
+        sources: [],
+        pages: [],
+        devices: [],
+        hasData: false,
+      }
+    }
+
+    // 최근 7일 데이터
+    const last7Days = dailyData.slice(0, 7)
+    const prev7Days = dailyData.slice(7, 14)
+
+    // Overview 계산
+    const totalUsers = last7Days.reduce((sum, d) => sum + d.visitors, 0)
+    const pageViews = last7Days.reduce((sum, d) => sum + d.pageviews, 0)
+    const bounceRate = last7Days.length > 0 ? last7Days.reduce((sum, d) => sum + d.bounceRate, 0) / last7Days.length : 0
+    const avgSessionDuration = last7Days.length > 0 ? last7Days.reduce((sum, d) => sum + d.avgDuration, 0) / last7Days.length : 0
+
+    // 이전 기간 대비 변화율
+    const prevUsers = prev7Days.reduce((sum, d) => sum + d.visitors, 0)
+    const prevPageViews = prev7Days.reduce((sum, d) => sum + d.pageviews, 0)
+    const prevBounceRate = prev7Days.length > 0 ? prev7Days.reduce((sum, d) => sum + d.bounceRate, 0) / prev7Days.length : 0
+    const prevAvgDuration = prev7Days.length > 0 ? prev7Days.reduce((sum, d) => sum + d.avgDuration, 0) / prev7Days.length : 0
+
+    const calcChange = (curr: number, prev: number) => prev === 0 ? 0 : ((curr - prev) / prev) * 100
+
+    // 일별 차트 데이터 (MM/DD 형식으로 변환)
+    const daily = last7Days.map(d => ({
+      date: d.date.slice(5).replace("-", "/"),
+      visitors: d.visitors,
+      pageviews: d.pageviews,
+    })).reverse()
+
+    // 트래픽 소스 데이터
+    const sources = trafficSources.map(s => ({
+      source: s.channel,
+      visitors: s.visitors,
+    }))
+
     return {
       overview: {
-        totalUsers: data.overview.totalUsers,
-        pageViews: data.overview.pageViews,
-        bounceRate: data.overview.bounceRate,
-        avgSessionDuration: data.overview.avgSessionDuration,
-        changes: data.overview.changes,
+        totalUsers,
+        pageViews,
+        bounceRate,
+        avgSessionDuration,
+        changes: {
+          users: calcChange(totalUsers, prevUsers),
+          pageViews: calcChange(pageViews, prevPageViews),
+          bounceRate: calcChange(bounceRate, prevBounceRate),
+          avgSessionDuration: calcChange(avgSessionDuration, prevAvgDuration),
+        },
       },
-      daily: data.daily,
-      sources: data.sources,
-      pages: data.pages,
-      devices: data.devices,
+      daily,
+      sources,
+      pages: [], // 페이지별 데이터는 별도 캐시 필요
+      devices: [], // 기기별 데이터는 별도 캐시 필요
+      hasData: true,
     }
   } catch (error: unknown) {
-    console.error("Error fetching analytics:", error)
-    // Rate limit 에러 확인
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    if (errorMessage.includes("429") || errorMessage.includes("Too Many Requests")) {
-      return { ...EMPTY_DATA, isNotConfigured: false, isRateLimited: true }
+    console.error("Error fetching analytics from Airtable:", error)
+    return {
+      overview: { totalUsers: 0, pageViews: 0, bounceRate: 0, avgSessionDuration: 0, changes: { users: 0, pageViews: 0, bounceRate: 0, avgSessionDuration: 0 } },
+      daily: [],
+      sources: [],
+      pages: [],
+      devices: [],
+      hasData: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     }
-    return { ...EMPTY_DATA, isNotConfigured: false }
   }
 }
 
@@ -91,7 +120,7 @@ function formatDuration(seconds: number): string {
 
 export default async function DashboardPage() {
   const data = await getAnalyticsData()
-  const { overview, daily, sources, pages, devices, isNotConfigured, isRateLimited } = data
+  const { overview, daily, sources, pages, devices, hasData, error } = data
 
   return (
     <div className="space-y-6">
@@ -102,30 +131,29 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {isNotConfigured && (
-        <Alert className="border-yellow-200 bg-yellow-50">
-          <Loader2 className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            데이터 수집 준비 중입니다. GA4 API 연결이 완료되면 실제 데이터가 표시됩니다.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isRateLimited && (
+      {error && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            GA4 API 요청 한도 초과로 일시적으로 데이터를 불러올 수 없습니다.
-            잠시 후 새로고침 해주세요.
+            데이터를 불러오는 중 오류가 발생했습니다: {error}
           </AlertDescription>
         </Alert>
       )}
 
-      {!isNotConfigured && !isRateLimited && (
+      {!hasData && !error && (
+        <Alert className="border-yellow-200 bg-yellow-50">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            저장된 통계 데이터가 없습니다.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {hasData && (
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            GA4 API가 정상적으로 연결되어 실제 데이터를 표시하고 있습니다.
+            Airtable에 저장된 통계 데이터를 표시하고 있습니다.
           </AlertDescription>
         </Alert>
       )}
