@@ -127,8 +127,10 @@ export default function ContentPage() {
     tags: "",
     seoKeywords: "",
     slug: "",
+    thumbnailUrl: "",
   })
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   // 데이터 조회 함수
   const fetchContent = useCallback(async (showRefreshState = false) => {
@@ -217,8 +219,47 @@ export default function ContentPage() {
       tags: item.tags,
       seoKeywords: item.seoKeywords,
       slug: item.slug,
+      thumbnailUrl: item.thumbnailUrl,
     })
     setEditDialogOpen(true)
+  }
+
+  // 이미지 업로드
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Upload failed")
+      }
+
+      const data = await response.json()
+      setEditFormData({ ...editFormData, thumbnailUrl: data.url })
+
+      setNotification({
+        type: "success",
+        message: "이미지가 업로드되었습니다.",
+      })
+      setTimeout(() => setNotification(null), 3000)
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: err instanceof Error ? err.message : "이미지 업로드에 실패했습니다.",
+      })
+      setTimeout(() => setNotification(null), 5000)
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   // 수정 실행
@@ -683,6 +724,54 @@ export default function ContentPage() {
                 }
                 placeholder="검색 키워드1, 키워드2"
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-thumbnailUrl">썸네일 이미지</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-thumbnailUrl"
+                  value={editFormData.thumbnailUrl}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, thumbnailUrl: e.target.value })
+                  }
+                  placeholder="https://example.com/image.jpg"
+                  className="flex-1"
+                />
+                <label htmlFor="image-upload">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isUploading}
+                    asChild
+                  >
+                    <span>
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "업로드"
+                      )}
+                    </span>
+                  </Button>
+                </label>
+                <input
+                  id="image-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+              </div>
+              {editFormData.thumbnailUrl && (
+                <div className="mt-2 relative rounded-lg overflow-hidden border bg-muted/50">
+                  <img
+                    src={editFormData.thumbnailUrl}
+                    alt="썸네일 미리보기"
+                    className="w-full h-32 object-cover"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
