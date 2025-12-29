@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   BarChart3,
@@ -13,6 +13,7 @@ import {
   ChevronUp,
   User2,
   Search,
+  LogOut,
 } from "lucide-react"
 
 import {
@@ -79,6 +80,17 @@ const menuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      router.push("/login")
+      router.refresh()
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
+  }
 
   return (
     <Sidebar>
@@ -135,7 +147,8 @@ export function AppSidebar() {
                 <DropdownMenuItem>
                   <span>프로필</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
                   <span>로그아웃</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

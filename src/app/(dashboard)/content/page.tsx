@@ -49,6 +49,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface ContentItem {
@@ -97,6 +114,21 @@ export default function ContentPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
+
+  // 수정 다이얼로그 상태
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    content: "",
+    category: "",
+    status: "",
+    description: "",
+    tags: "",
+    seoKeywords: "",
+    slug: "",
+  })
+  const [isUpdating, setIsUpdating] = useState(false)
 
   // 데이터 조회 함수
   const fetchContent = useCallback(async (showRefreshState = false) => {
@@ -171,6 +203,65 @@ export default function ContentPage() {
   // 새로고침
   const handleRefresh = () => {
     fetchContent(true)
+  }
+
+  // 수정 다이얼로그 열기
+  const handleEditClick = (item: ContentItem) => {
+    setEditingItem(item)
+    setEditFormData({
+      title: item.title,
+      content: item.content,
+      category: item.category,
+      status: item.status,
+      description: item.description,
+      tags: item.tags,
+      seoKeywords: item.seoKeywords,
+      slug: item.slug,
+    })
+    setEditDialogOpen(true)
+  }
+
+  // 수정 실행
+  const handleEditSubmit = async () => {
+    if (!editingItem) return
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch("/api/content", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: editingItem.id,
+          ...editFormData,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update content")
+      }
+
+      setNotification({
+        type: "success",
+        message: `"${editFormData.title}" 콘텐츠가 수정되었습니다.`,
+      })
+
+      setTimeout(() => setNotification(null), 3000)
+
+      // 다이얼로그 닫기 및 데이터 새로고침
+      setEditDialogOpen(false)
+      setEditingItem(null)
+      await fetchContent(true)
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: err instanceof Error ? err.message : "콘텐츠를 수정할 수 없습니다.",
+      })
+      setTimeout(() => setNotification(null), 5000)
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   const filteredPosts = data?.contents.filter(
@@ -396,7 +487,7 @@ export default function ContentPage() {
                                   <ExternalLink className="mr-2 h-4 w-4" />
                                   사이트에서 보기
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleEditClick(post)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   수정
                                 </DropdownMenuItem>
@@ -477,6 +568,145 @@ export default function ContentPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 수정 다이얼로그 */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>콘텐츠 수정</DialogTitle>
+            <DialogDescription>
+              콘텐츠 정보를 수정합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-title">제목</Label>
+              <Input
+                id="edit-title"
+                value={editFormData.title}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, title: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-slug">슬러그 (URL)</Label>
+              <Input
+                id="edit-slug"
+                value={editFormData.slug}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, slug: e.target.value })
+                }
+                placeholder="url-friendly-slug"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-category">카테고리</Label>
+                <Input
+                  id="edit-category"
+                  value={editFormData.category}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, category: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-status">상태</Label>
+                <Select
+                  value={editFormData.status}
+                  onValueChange={(value) =>
+                    setEditFormData({ ...editFormData, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="상태 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">임시저장</SelectItem>
+                    <SelectItem value="published">발행됨</SelectItem>
+                    <SelectItem value="scheduled">예약됨</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">설명</Label>
+              <Textarea
+                id="edit-description"
+                value={editFormData.description}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, description: e.target.value })
+                }
+                placeholder="콘텐츠에 대한 간단한 설명"
+                rows={2}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-content">본문</Label>
+              <Textarea
+                id="edit-content"
+                value={editFormData.content}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, content: e.target.value })
+                }
+                placeholder="콘텐츠 본문"
+                rows={6}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-tags">태그</Label>
+              <Input
+                id="edit-tags"
+                value={editFormData.tags}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, tags: e.target.value })
+                }
+                placeholder="태그1, 태그2, 태그3"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-seoKeywords">SEO 키워드</Label>
+              <Input
+                id="edit-seoKeywords"
+                value={editFormData.seoKeywords}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, seoKeywords: e.target.value })
+                }
+                placeholder="검색 키워드1, 키워드2"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              disabled={isUpdating}
+            >
+              취소
+            </Button>
+            <Button onClick={handleEditSubmit} disabled={isUpdating}>
+              {isUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                "저장"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
