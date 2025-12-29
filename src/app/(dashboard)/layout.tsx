@@ -1,3 +1,5 @@
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -8,11 +10,19 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // 서버 사이드 인증 확인
+  const cookieStore = await cookies()
+  const session = cookieStore.get("admin_session")
+
+  if (!session?.value) {
+    redirect("/login")
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
