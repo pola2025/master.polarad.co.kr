@@ -6,6 +6,38 @@ const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN
 const POLARAD_BASE_ID = "appbqw2GAixv7vSBV"
 const TABLE_NAME = "뉴스레터"
 
+// 프론트엔드 캐시 무효화 설정
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://polarad.co.kr"
+const REVALIDATE_TOKEN = process.env.REVALIDATE_TOKEN || "polarad-revalidate-2025"
+
+// 프론트엔드 캐시 무효화 함수
+async function revalidateFrontend(slug?: string) {
+  try {
+    const response = await fetch(`${FRONTEND_URL}/api/revalidate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${REVALIDATE_TOKEN}`,
+      },
+      body: JSON.stringify({
+        type: "marketing-news",
+        slug,
+      }),
+    })
+
+    if (response.ok) {
+      console.log("[Revalidate] Frontend cache cleared successfully")
+      return true
+    } else {
+      console.warn("[Revalidate] Failed to clear frontend cache:", response.status)
+      return false
+    }
+  } catch (error) {
+    console.error("[Revalidate] Error calling frontend:", error)
+    return false
+  }
+}
+
 function getBase() {
   if (!AIRTABLE_API_TOKEN) {
     throw new Error("AIRTABLE_API_TOKEN is not configured")
@@ -142,10 +174,15 @@ export async function PUT(request: NextRequest) {
 
     await base(TABLE_NAME).update(id, airtableFields)
 
+    // 프론트엔드 캐시 무효화 (백그라운드 실행)
+    const slug = fields.slug as string | undefined
+    revalidateFrontend(slug).catch(() => {})
+
     return NextResponse.json({
       success: true,
       id,
       message: "Content updated successfully",
+      revalidated: true,
     })
   } catch (error) {
     console.error("Content Update Error:", error)
@@ -179,10 +216,14 @@ export async function DELETE(request: NextRequest) {
     const base = getBase()
     await base(TABLE_NAME).destroy(id)
 
+    // 프론트엔드 캐시 무효화 (백그라운드 실행)
+    revalidateFrontend().catch(() => {})
+
     return NextResponse.json({
       success: true,
       id,
       message: "Content deleted successfully",
+      revalidated: true,
     })
   } catch (error) {
     console.error("Content Delete Error:", error)
