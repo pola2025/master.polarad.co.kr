@@ -303,4 +303,338 @@ export async function isCacheValid(cacheKey: string, maxAgeHours: number = 24): 
 export const CACHE_KEYS = {
   DAILY_ANALYTICS: "daily_analytics",
   TRAFFIC_SOURCES: "traffic_sources",
+  TOP_PAGES: "top_pages",
+  DEVICES: "devices",
+  COUNTRIES: "countries",
+  HOURLY_TRAFFIC: "hourly_traffic",
 } as const
+
+// =====================
+// 페이지별 통계 캐시
+// =====================
+
+interface TopPageCache {
+  date: string
+  path: string
+  title: string
+  views: number
+  uniqueViews: number
+  avgTime: string
+  bounceRate: number
+}
+
+// 페이지별 통계 저장
+export async function saveTopPages(data: TopPageCache[]): Promise<number> {
+  const base = getBase()
+  let savedCount = 0
+  const today = formatDate(new Date())
+
+  try {
+    // 기존 오늘 데이터 삭제
+    const existingRecords = await base("top_pages")
+      .select({
+        filterByFormula: `{date} = '${today}'`,
+      })
+      .all()
+
+    if (existingRecords.length > 0) {
+      const recordIds = existingRecords.map((r) => r.id)
+      for (let i = 0; i < recordIds.length; i += 10) {
+        const batch = recordIds.slice(i, i + 10)
+        await base("top_pages").destroy(batch)
+      }
+    }
+
+    // 새 데이터 저장
+    const batchSize = 10
+    for (let i = 0; i < data.length; i += batchSize) {
+      const batch = data.slice(i, i + batchSize)
+      const records = batch.map((item) => ({
+        fields: {
+          date: item.date,
+          path: item.path,
+          title: item.title,
+          views: item.views,
+          uniqueViews: item.uniqueViews,
+          avgTime: item.avgTime,
+          bounceRate: item.bounceRate,
+        },
+      }))
+
+      await base("top_pages").create(records)
+      savedCount += batch.length
+    }
+  } catch (error) {
+    console.error("Failed to save top pages:", error)
+  }
+
+  return savedCount
+}
+
+// 페이지별 통계 조회
+export async function getTopPagesFromCache(): Promise<TopPageCache[]> {
+  try {
+    const base = getBase()
+    const records = await base("top_pages")
+      .select({
+        sort: [{ field: "date", direction: "desc" }, { field: "views", direction: "desc" }],
+        maxRecords: 20,
+      })
+      .all()
+
+    if (records.length === 0) return []
+
+    const latestDate = records[0].get("date") as string
+    const latestRecords = records.filter((r) => r.get("date") === latestDate)
+
+    return latestRecords.map((record) => ({
+      date: record.get("date") as string,
+      path: record.get("path") as string,
+      title: record.get("title") as string,
+      views: (record.get("views") as number) || 0,
+      uniqueViews: (record.get("uniqueViews") as number) || 0,
+      avgTime: (record.get("avgTime") as string) || "0:00",
+      bounceRate: (record.get("bounceRate") as number) || 0,
+    }))
+  } catch (error) {
+    console.error("Failed to get top pages from cache:", error)
+    return []
+  }
+}
+
+// =====================
+// 기기별 통계 캐시
+// =====================
+
+interface DeviceCache {
+  date: string
+  device: string
+  visitors: number
+  percentage: number
+}
+
+// 기기별 통계 저장
+export async function saveDeviceStats(data: DeviceCache[]): Promise<number> {
+  const base = getBase()
+  let savedCount = 0
+  const today = formatDate(new Date())
+
+  try {
+    // 기존 오늘 데이터 삭제
+    const existingRecords = await base("devices")
+      .select({
+        filterByFormula: `{date} = '${today}'`,
+      })
+      .all()
+
+    if (existingRecords.length > 0) {
+      const recordIds = existingRecords.map((r) => r.id)
+      for (let i = 0; i < recordIds.length; i += 10) {
+        const batch = recordIds.slice(i, i + 10)
+        await base("devices").destroy(batch)
+      }
+    }
+
+    // 새 데이터 저장
+    const records = data.map((item) => ({
+      fields: {
+        date: item.date,
+        device: item.device,
+        visitors: item.visitors,
+        percentage: item.percentage,
+      },
+    }))
+
+    await base("devices").create(records)
+    savedCount = data.length
+  } catch (error) {
+    console.error("Failed to save device stats:", error)
+  }
+
+  return savedCount
+}
+
+// 기기별 통계 조회
+export async function getDeviceStatsFromCache(): Promise<DeviceCache[]> {
+  try {
+    const base = getBase()
+    const records = await base("devices")
+      .select({
+        sort: [{ field: "date", direction: "desc" }],
+        maxRecords: 10,
+      })
+      .all()
+
+    if (records.length === 0) return []
+
+    const latestDate = records[0].get("date") as string
+    const latestRecords = records.filter((r) => r.get("date") === latestDate)
+
+    return latestRecords.map((record) => ({
+      date: record.get("date") as string,
+      device: record.get("device") as string,
+      visitors: (record.get("visitors") as number) || 0,
+      percentage: (record.get("percentage") as number) || 0,
+    }))
+  } catch (error) {
+    console.error("Failed to get device stats from cache:", error)
+    return []
+  }
+}
+
+// =====================
+// 지역별 통계 캐시
+// =====================
+
+interface CountryCache {
+  date: string
+  country: string
+  visitors: number
+  percentage: number
+}
+
+// 지역별 통계 저장
+export async function saveCountryStats(data: CountryCache[]): Promise<number> {
+  const base = getBase()
+  let savedCount = 0
+  const today = formatDate(new Date())
+
+  try {
+    // 기존 오늘 데이터 삭제
+    const existingRecords = await base("countries")
+      .select({
+        filterByFormula: `{date} = '${today}'`,
+      })
+      .all()
+
+    if (existingRecords.length > 0) {
+      const recordIds = existingRecords.map((r) => r.id)
+      for (let i = 0; i < recordIds.length; i += 10) {
+        const batch = recordIds.slice(i, i + 10)
+        await base("countries").destroy(batch)
+      }
+    }
+
+    // 새 데이터 저장
+    const records = data.map((item) => ({
+      fields: {
+        date: item.date,
+        country: item.country,
+        visitors: item.visitors,
+        percentage: item.percentage,
+      },
+    }))
+
+    await base("countries").create(records)
+    savedCount = data.length
+  } catch (error) {
+    console.error("Failed to save country stats:", error)
+  }
+
+  return savedCount
+}
+
+// 지역별 통계 조회
+export async function getCountryStatsFromCache(): Promise<CountryCache[]> {
+  try {
+    const base = getBase()
+    const records = await base("countries")
+      .select({
+        sort: [{ field: "date", direction: "desc" }, { field: "visitors", direction: "desc" }],
+        maxRecords: 20,
+      })
+      .all()
+
+    if (records.length === 0) return []
+
+    const latestDate = records[0].get("date") as string
+    const latestRecords = records.filter((r) => r.get("date") === latestDate)
+
+    return latestRecords.map((record) => ({
+      date: record.get("date") as string,
+      country: record.get("country") as string,
+      visitors: (record.get("visitors") as number) || 0,
+      percentage: (record.get("percentage") as number) || 0,
+    }))
+  } catch (error) {
+    console.error("Failed to get country stats from cache:", error)
+    return []
+  }
+}
+
+// =====================
+// 시간대별 통계 캐시
+// =====================
+
+interface HourlyTrafficCache {
+  date: string
+  hour: string
+  visitors: number
+}
+
+// 시간대별 통계 저장
+export async function saveHourlyTraffic(data: HourlyTrafficCache[]): Promise<number> {
+  const base = getBase()
+  let savedCount = 0
+  const today = formatDate(new Date())
+
+  try {
+    // 기존 오늘 데이터 삭제
+    const existingRecords = await base("hourly_traffic")
+      .select({
+        filterByFormula: `{date} = '${today}'`,
+      })
+      .all()
+
+    if (existingRecords.length > 0) {
+      const recordIds = existingRecords.map((r) => r.id)
+      for (let i = 0; i < recordIds.length; i += 10) {
+        const batch = recordIds.slice(i, i + 10)
+        await base("hourly_traffic").destroy(batch)
+      }
+    }
+
+    // 새 데이터 저장
+    const records = data.map((item) => ({
+      fields: {
+        date: item.date,
+        hour: item.hour,
+        visitors: item.visitors,
+      },
+    }))
+
+    await base("hourly_traffic").create(records)
+    savedCount = data.length
+  } catch (error) {
+    console.error("Failed to save hourly traffic:", error)
+  }
+
+  return savedCount
+}
+
+// 시간대별 통계 조회
+export async function getHourlyTrafficFromCache(): Promise<HourlyTrafficCache[]> {
+  try {
+    const base = getBase()
+    const records = await base("hourly_traffic")
+      .select({
+        sort: [{ field: "date", direction: "desc" }],
+        maxRecords: 12,
+      })
+      .all()
+
+    if (records.length === 0) return []
+
+    const latestDate = records[0].get("date") as string
+    const latestRecords = records.filter((r) => r.get("date") === latestDate)
+
+    return latestRecords.map((record) => ({
+      date: record.get("date") as string,
+      hour: record.get("hour") as string,
+      visitors: (record.get("visitors") as number) || 0,
+    }))
+  } catch (error) {
+    console.error("Failed to get hourly traffic from cache:", error)
+    return []
+  }
+}

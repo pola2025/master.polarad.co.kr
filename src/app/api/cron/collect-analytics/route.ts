@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDailyVisitorData, getTrafficChannelData } from "@/lib/google-analytics"
+import {
+  getDailyVisitorData,
+  getTrafficChannelData,
+  getTopPagesDetailed,
+  getDeviceCategoriesWithPercent,
+  getCountryData,
+  getHourlyTrafficData,
+} from "@/lib/google-analytics"
 import {
   saveDailyAnalytics,
   saveTrafficSources,
+  saveTopPages,
+  saveDeviceStats,
+  saveCountryStats,
+  saveHourlyTraffic,
   updateCacheMetadata,
   CACHE_KEYS,
 } from "@/lib/airtable-cache"
@@ -108,6 +119,162 @@ export async function GET(request: NextRequest) {
       results.collections = {
         ...results.collections as object,
         traffic_sources: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }
+    }
+
+    // 3. 페이지별 통계 수집
+    console.log("[Cron] Collecting top pages...")
+    try {
+      const pagesData = await getTopPagesDetailed(7)
+      const today = new Date().toISOString().split("T")[0]
+
+      const pagesWithDate = pagesData.map((item) => ({
+        date: today,
+        ...item,
+      }))
+
+      const savedCount = await saveTopPages(pagesWithDate)
+
+      await updateCacheMetadata({
+        cache_key: CACHE_KEYS.TOP_PAGES,
+        last_updated: new Date().toISOString(),
+        status: "success",
+        record_count: savedCount,
+      })
+
+      results.collections = {
+        ...results.collections as object,
+        top_pages: {
+          status: "success",
+          count: savedCount,
+        },
+      }
+      console.log(`[Cron] Top pages: ${savedCount} records saved`)
+    } catch (error) {
+      console.error("[Cron] Top pages error:", error)
+      results.collections = {
+        ...results.collections as object,
+        top_pages: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }
+    }
+
+    // 4. 기기별 통계 수집
+    console.log("[Cron] Collecting device stats...")
+    try {
+      const devicesData = await getDeviceCategoriesWithPercent(7)
+      const today = new Date().toISOString().split("T")[0]
+
+      const devicesWithDate = devicesData.map((item) => ({
+        date: today,
+        ...item,
+      }))
+
+      const savedCount = await saveDeviceStats(devicesWithDate)
+
+      await updateCacheMetadata({
+        cache_key: CACHE_KEYS.DEVICES,
+        last_updated: new Date().toISOString(),
+        status: "success",
+        record_count: savedCount,
+      })
+
+      results.collections = {
+        ...results.collections as object,
+        devices: {
+          status: "success",
+          count: savedCount,
+        },
+      }
+      console.log(`[Cron] Device stats: ${savedCount} records saved`)
+    } catch (error) {
+      console.error("[Cron] Device stats error:", error)
+      results.collections = {
+        ...results.collections as object,
+        devices: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }
+    }
+
+    // 5. 지역별 통계 수집
+    console.log("[Cron] Collecting country stats...")
+    try {
+      const countriesData = await getCountryData(7)
+      const today = new Date().toISOString().split("T")[0]
+
+      const countriesWithDate = countriesData.map((item) => ({
+        date: today,
+        ...item,
+      }))
+
+      const savedCount = await saveCountryStats(countriesWithDate)
+
+      await updateCacheMetadata({
+        cache_key: CACHE_KEYS.COUNTRIES,
+        last_updated: new Date().toISOString(),
+        status: "success",
+        record_count: savedCount,
+      })
+
+      results.collections = {
+        ...results.collections as object,
+        countries: {
+          status: "success",
+          count: savedCount,
+        },
+      }
+      console.log(`[Cron] Country stats: ${savedCount} records saved`)
+    } catch (error) {
+      console.error("[Cron] Country stats error:", error)
+      results.collections = {
+        ...results.collections as object,
+        countries: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }
+    }
+
+    // 6. 시간대별 통계 수집
+    console.log("[Cron] Collecting hourly traffic...")
+    try {
+      const hourlyData = await getHourlyTrafficData(7)
+      const today = new Date().toISOString().split("T")[0]
+
+      const hourlyWithDate = hourlyData.map((item) => ({
+        date: today,
+        ...item,
+      }))
+
+      const savedCount = await saveHourlyTraffic(hourlyWithDate)
+
+      await updateCacheMetadata({
+        cache_key: CACHE_KEYS.HOURLY_TRAFFIC,
+        last_updated: new Date().toISOString(),
+        status: "success",
+        record_count: savedCount,
+      })
+
+      results.collections = {
+        ...results.collections as object,
+        hourly_traffic: {
+          status: "success",
+          count: savedCount,
+        },
+      }
+      console.log(`[Cron] Hourly traffic: ${savedCount} records saved`)
+    } catch (error) {
+      console.error("[Cron] Hourly traffic error:", error)
+      results.collections = {
+        ...results.collections as object,
+        hourly_traffic: {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",
         },

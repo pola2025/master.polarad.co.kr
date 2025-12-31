@@ -6,7 +6,12 @@ import { TopPagesTable } from "@/components/dashboard/top-pages-table"
 import { DeviceChart } from "@/components/dashboard/device-chart"
 import { SearchQueriesTable } from "@/components/dashboard/search-queries-table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getDailyAnalyticsFromCache, getTrafficSourcesFromCache } from "@/lib/airtable-cache"
+import {
+  getDailyAnalyticsFromCache,
+  getTrafficSourcesFromCache,
+  getTopPagesFromCache,
+  getDeviceStatsFromCache,
+} from "@/lib/airtable-cache"
 
 interface DashboardData {
   overview: {
@@ -32,9 +37,11 @@ interface DashboardData {
 async function getAnalyticsData(): Promise<DashboardData> {
   try {
     // Airtable 캐시에서 데이터 조회
-    const [dailyData, trafficSources] = await Promise.all([
+    const [dailyData, trafficSources, topPages, deviceStats] = await Promise.all([
       getDailyAnalyticsFromCache(30),
       getTrafficSourcesFromCache(),
+      getTopPagesFromCache(),
+      getDeviceStatsFromCache(),
     ])
 
     if (dailyData.length === 0) {
@@ -79,6 +86,20 @@ async function getAnalyticsData(): Promise<DashboardData> {
       visitors: s.visitors,
     }))
 
+    // 페이지별 데이터
+    const pages = topPages.map(p => ({
+      path: p.path,
+      title: p.title,
+      views: p.views,
+      avgTime: p.avgTime,
+    }))
+
+    // 기기별 데이터
+    const devices = deviceStats.map(d => ({
+      device: d.device,
+      visitors: d.visitors,
+    }))
+
     return {
       overview: {
         totalUsers,
@@ -94,8 +115,8 @@ async function getAnalyticsData(): Promise<DashboardData> {
       },
       daily,
       sources,
-      pages: [], // 페이지별 데이터는 별도 캐시 필요
-      devices: [], // 기기별 데이터는 별도 캐시 필요
+      pages,
+      devices,
       hasData: true,
     }
   } catch (error: unknown) {
