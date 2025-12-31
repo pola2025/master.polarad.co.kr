@@ -103,9 +103,17 @@ export async function GET(request: NextRequest) {
       bounceRate: p.bounceRate,
     }))
 
-    // 기기별 데이터
+    // 기기별 데이터 (한글 → 영문 변환)
+    const deviceNameMap: Record<string, string> = {
+      '데스크톱': 'desktop',
+      '모바일': 'mobile',
+      '태블릿': 'tablet',
+      'Desktop': 'desktop',
+      'Mobile': 'mobile',
+      'Tablet': 'tablet',
+    }
     const devices = deviceStats.map(d => ({
-      device: d.device,
+      device: deviceNameMap[d.device] || d.device.toLowerCase(),
       visitors: d.visitors,
       percentage: d.percentage,
     }))
