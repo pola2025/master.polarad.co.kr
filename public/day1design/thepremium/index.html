@@ -1,0 +1,3278 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>THE PREMIUM by Day One Design — 브랜드 런칭 기획서</title>
+    <meta
+      name="robots"
+      content="noindex, nofollow, noarchive, nosnippet, noodp"
+    />
+    <meta name="googlebot" content="noindex, nofollow, noarchive" />
+    <link
+      rel="stylesheet"
+      as="style"
+      crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --black: #0c0c0c;
+        --dark: #181818;
+        --card: #222222;
+        --border: #333333;
+        --border2: #252525;
+        --gold: #c9a962;
+        --gold-bg: rgba(201, 169, 98, 0.1);
+        --gold-bd: rgba(201, 169, 98, 0.35);
+        --white: #ffffff;
+        --off: #e8e4dc;
+        --gray1: #cccccc;
+        --gray2: #aaaaaa;
+        --gray3: #666666;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        overflow-x: hidden;
+      }
+
+      body {
+        background: var(--black);
+        color: var(--white);
+        font-family:
+          "Pretendard",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Apple SD Gothic Neo",
+          sans-serif;
+        font-size: 17px;
+        font-weight: 400;
+        line-height: 1.75;
+        overflow-x: hidden;
+      }
+
+      /* ─── 공통 타이포 ─── */
+      .t-xl {
+        font-size: clamp(52px, 7vw, 88px);
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: -2px;
+      }
+      .t-h1 {
+        font-size: clamp(36px, 4vw, 56px);
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: -1px;
+      }
+      .t-h2 {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1.3;
+        letter-spacing: -0.5px;
+      }
+      .t-h3 {
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.4;
+      }
+      .t-h4 {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .t-body {
+        font-size: 17px;
+        color: var(--gray1);
+        line-height: 1.85;
+      }
+      .t-sm {
+        font-size: 15px;
+        color: var(--gray1);
+        line-height: 1.75;
+      }
+      .t-xs {
+        font-size: 14px;
+        color: var(--gray2);
+      }
+      .t-tag {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+      .gold {
+        color: var(--gold);
+      }
+      .white {
+        color: var(--white);
+      }
+
+      /* ─── 레이아웃 ─── */
+      .wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 60px;
+      }
+      .sec {
+        padding: 104px 0;
+        border-bottom: 1px solid var(--border2);
+      }
+      .sec:last-child {
+        border-bottom: none;
+      }
+      .g2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 56px;
+      }
+      .g3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 28px;
+      }
+      .g4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--border);
+        border: 1px solid var(--border);
+      }
+      .g4-2 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+      }
+
+      /* ─── 섹션 레이블 ─── */
+      .sec-lbl {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 60px;
+      }
+      .sec-lbl-num {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 1px;
+      }
+      .sec-lbl-line {
+        height: 1px;
+        width: 40px;
+        background: var(--gold-bd);
+      }
+      .sec-lbl-txt {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gray2);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      /* ─── 카드/박스 ─── */
+      .card {
+        background: var(--dark);
+        border: 1px solid var(--border);
+        padding: 40px 36px;
+      }
+      .card-inner {
+        background: var(--black);
+        padding: 40px 32px;
+      } /* grid-4 내부 */
+
+      /* ─── TAGS ─── */
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        border: 1px solid var(--gold-bd);
+        color: var(--gold);
+        padding: 6px 16px;
+      }
+      .tag-gray {
+        display: inline-flex;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 500;
+        border: 1px solid var(--border);
+        color: var(--gray2);
+        padding: 6px 16px;
+      }
+
+      /* ─── CALLOUT ─── */
+      .callout {
+        background: var(--gold-bg);
+        border: 1px solid var(--gold-bd);
+        border-left: 3px solid var(--gold);
+        padding: 24px 28px;
+      }
+      .callout-lbl {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .callout-body {
+        font-size: 16px;
+        color: var(--off);
+        line-height: 1.8;
+      }
+
+      /* ════════════ COVER ════════════ */
+      #cover {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 0 60px 88px;
+        position: relative;
+        border-bottom: 1px solid var(--border);
+        padding-top: 80px;
+      }
+      .cover-wm {
+        position: absolute;
+        top: 60px;
+        right: 48px;
+        font-size: 240px;
+        font-weight: 900;
+        color: rgba(201, 169, 98, 0.04);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+      }
+      .cover-tags {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 60px;
+        flex-wrap: wrap;
+      }
+      .cover-g {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 80px;
+        align-items: end;
+      }
+      .cover-eye {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gray3);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+      .cover-desc {
+        font-size: 18px;
+        color: var(--gray1);
+        line-height: 2;
+        margin: 28px 0 44px;
+      }
+      .cover-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--gold);
+        border: 1px solid var(--gold-bd);
+        padding: 16px 32px;
+      }
+      .cover-idx {
+        border-left: 1px solid var(--border);
+        padding-left: 52px;
+      }
+      .cover-idx-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gray3);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 32px;
+      }
+      .cover-idx-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .cover-idx-list li {
+        display: flex;
+        align-items: baseline;
+        gap: 18px;
+      }
+      .idx-num {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gold);
+        min-width: 28px;
+      }
+      .cover-idx-list a {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--gray1);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .cover-idx-list a:hover {
+        color: var(--white);
+      }
+
+      /* ════════════ NAV ════════════ */
+      .doc-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: rgba(12, 12, 12, 0.97);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(20px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 60px;
+        height: 64px;
+      }
+      .nav-brand {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        color: var(--gold);
+        text-transform: uppercase;
+      }
+      .nav-brand span {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--gray2);
+        margin-left: 14px;
+        letter-spacing: 0.3px;
+      }
+      .nav-links {
+        display: flex;
+        gap: 36px;
+        list-style: none;
+      }
+      .nav-links a {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gray2);
+        text-decoration: none;
+        letter-spacing: 0.3px;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover {
+        color: var(--gold);
+      }
+      .nav-badge {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--gray2);
+        border: 1px solid var(--border);
+        padding: 6px 14px;
+      }
+
+      /* ════════════ PILLARS ════════════ */
+      .pillar {
+        background: var(--black);
+        padding: 44px 36px;
+        display: flex;
+        flex-direction: column;
+      }
+      .pillar-num {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 2px;
+        margin-bottom: 22px;
+      }
+      .pillar-icon {
+        width: 48px;
+        height: 48px;
+        border: 1px solid var(--gold-bd);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-bottom: 22px;
+        color: var(--gold);
+      }
+      .pillar-kw {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .pillar-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 14px;
+        line-height: 1.35;
+        word-break: keep-all;
+      }
+      .pillar-desc {
+        font-size: 16px;
+        color: var(--gray1);
+        line-height: 1.75;
+        word-break: keep-all;
+        flex: 1;
+      }
+      .pillar-fx {
+        margin-top: auto;
+        padding: 13px 16px;
+        background: var(--gold-bg);
+        border-left: 2px solid var(--gold);
+        font-size: 13px;
+        color: var(--gold);
+        font-weight: 600;
+        line-height: 1.6;
+        word-break: keep-all;
+      }
+
+      /* ════════════ SLOGANS ════════════ */
+      .slogan-item {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        padding: 26px 0;
+        border-bottom: 1px solid var(--border2);
+      }
+      .slogan-item:first-child {
+        border-top: 1px solid var(--border2);
+      }
+      .slogan-rank {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        min-width: 28px;
+      }
+      .slogan-text {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--white);
+        flex: 1;
+        line-height: 1.4;
+        letter-spacing: -0.3px;
+      }
+      .slogan-intent {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gray2);
+        min-width: 140px;
+        text-align: right;
+      }
+
+      /* ════════════ PERSONAS ════════════ */
+      .persona-tag {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--gold);
+        border: 1px solid var(--gold-bd);
+        padding: 6px 16px;
+        display: inline-block;
+        margin-bottom: 24px;
+      }
+      .persona-name {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 8px;
+        line-height: 1.3;
+      }
+      .persona-profile {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--gray2);
+        margin-bottom: 24px;
+      }
+      .persona-needs-lbl {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gray3);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .persona-needs {
+        font-size: 16px;
+        color: var(--gray1);
+        line-height: 1.75;
+        margin-bottom: 24px;
+      }
+      .persona-hook {
+        padding: 20px 22px;
+        background: var(--gold-bg);
+        border-left: 2px solid var(--gold);
+      }
+      .persona-hook-lbl {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .persona-hook-text {
+        font-size: 17px;
+        color: var(--white);
+        font-weight: 600;
+        line-height: 1.55;
+      }
+
+      /* ════════════ WIREFRAME SHELL ════════════ */
+      .wf-shell {
+        border: 1px solid var(--border);
+        background: var(--dark);
+        order: 2;
+      }
+      .wf-browser {
+        height: 48px;
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 9px;
+      }
+      .wf-dot {
+        width: 12px;
+        height: 12px;
+        background: var(--border);
+        border-radius: 50%;
+      }
+      .wf-url {
+        flex: 1;
+        margin: 0 16px;
+        background: var(--black);
+        border: 1px solid var(--border);
+        height: 28px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gold);
+      }
+
+      .wf-sec {
+        border-bottom: 1px dashed var(--border);
+        position: relative;
+      }
+      .wf-sec:last-child {
+        border-bottom: none;
+      }
+      .wf-tag {
+        position: absolute;
+        top: 16px;
+        right: 20px;
+        z-index: 2;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--gold);
+        background: var(--black);
+        border: 1px solid var(--gold-bd);
+        padding: 5px 12px;
+        letter-spacing: 0.5px;
+      }
+
+      /* WF NAV */
+      .wf-nav {
+        height: 64px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 52px;
+      }
+      .wf-logo-main {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 3px;
+        color: var(--white);
+      }
+      .wf-logo-sub {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--gray3);
+        margin-top: 2px;
+      }
+      .wf-nav-menu {
+        display: flex;
+        gap: 40px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gray2);
+      }
+      .wf-nav-cta {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gold);
+        border: 1px solid var(--gold-bd);
+        padding: 10px 22px;
+      }
+
+      /* WF HERO */
+      .wf-hero {
+        height: 600px;
+        background: var(--card);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        overflow: hidden;
+      }
+      .wf-img-ph {
+        position: absolute;
+        inset: 0;
+        border: 2px dashed var(--border);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+      }
+      .wf-img-icon {
+        width: 60px;
+        height: 60px;
+        border: 1px dashed var(--gray3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        color: var(--gray3);
+      }
+      .wf-img-lbl {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gray3);
+      }
+      .wf-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          transparent 30%,
+          rgba(12, 12, 12, 0.65) 80%,
+          var(--dark) 100%
+        );
+        z-index: 1;
+      }
+      .wf-hero-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .wf-hero-h1 {
+        font-size: 40px;
+        font-weight: 800;
+        color: var(--white);
+        line-height: 1.25;
+        max-width: 580px;
+        letter-spacing: -0.5px;
+      }
+      .wf-hero-sub {
+        font-size: 16px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.55);
+        letter-spacing: 1px;
+      }
+      .wf-hero-cta {
+        margin-top: 22px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+      .wf-btn {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--gold);
+        border: 1px solid var(--gold-bd);
+        padding: 15px 40px;
+      }
+      .wf-scroll {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--gray3);
+      }
+
+      /* WF PHILOSOPHY */
+      .wf-philo-wrap {
+        padding: 68px 60px;
+        display: grid;
+        grid-template-columns: 1fr 1.8fr;
+        gap: 64px;
+        align-items: start;
+      }
+      .wf-kicker {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+      }
+      .wf-h2 {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1.35;
+        color: var(--white);
+        margin-bottom: 20px;
+        letter-spacing: -0.5px;
+      }
+      .wf-body {
+        font-size: 16px;
+        color: var(--gray1);
+        line-height: 1.85;
+      }
+      .wf-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 24px;
+      }
+      .wf-pill {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gold);
+        border: 1px solid var(--gold-bd);
+        padding: 8px 18px;
+      }
+      .wf-philo-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--border);
+        border: 1px solid var(--border);
+      }
+      .wf-philo-card {
+        background: var(--black);
+        padding: 32px 28px;
+      }
+      .wf-philo-num {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 1px;
+        margin-bottom: 14px;
+      }
+      .wf-philo-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 10px;
+      }
+      .wf-philo-body {
+        font-size: 15px;
+        color: var(--gray1);
+        line-height: 1.7;
+      }
+
+      /* WF SYSTEM */
+      .wf-sys-wrap {
+        padding: 68px 60px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 64px;
+        align-items: center;
+      }
+      .wf-phone {
+        border: 2px dashed var(--border);
+        max-width: 220px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        padding: 20px 15px;
+        gap: 10px;
+      }
+      .wf-phone-notch {
+        height: 10px;
+        background: var(--border);
+        width: 38%;
+        margin: 0 auto 8px;
+        border-radius: 5px;
+      }
+      .wf-phone-row {
+        height: 38px;
+        background: var(--border2);
+        border: 1px dashed var(--gray3);
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        gap: 10px;
+      }
+      .wf-phone-dot {
+        width: 10px;
+        height: 10px;
+        background: var(--gold-bg);
+        border: 1px solid var(--gold);
+        border-radius: 50%;
+      }
+      .wf-phone-rt {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--gold);
+      }
+      .wf-phone-line {
+        height: 10px;
+        background: var(--border);
+        flex: 1;
+      }
+      .wf-phone-img {
+        flex: 1;
+        min-height: 90px;
+        border: 1px dashed var(--gray3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--gray3);
+      }
+
+      /* WF PORTFOLIO */
+      .wf-port-wrap {
+        padding: 68px 60px;
+      }
+      .wf-port-img {
+        width: 100%;
+        height: 440px;
+        border: 2px dashed var(--border);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        position: relative;
+        margin-bottom: 22px;
+      }
+      .wf-port-cap {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .wf-port-loc {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gray2);
+      }
+      .wf-port-area {
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--gold);
+      }
+      .wf-port-note {
+        margin-top: 22px;
+        padding: 18px 24px;
+        border: 1px solid var(--gold-bd);
+        background: var(--gold-bg);
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--gold);
+        line-height: 1.65;
+      }
+
+      /* WF METHOD */
+      .wf-method-wrap {
+        padding: 68px 32px;
+      }
+      .wf-method-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--border2);
+        border: 1px solid var(--border2);
+        margin-top: 40px;
+      }
+      .wf-method-card {
+        background: var(--black);
+        padding: 52px 36px;
+      }
+      .wf-method-num {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 2px;
+        margin-bottom: 28px;
+      }
+      .wf-method-q {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--white);
+        line-height: 1.4;
+        margin-bottom: 18px;
+        letter-spacing: -0.3px;
+        word-break: keep-all;
+      }
+      .wf-method-a {
+        font-size: 16px;
+        color: var(--gray1);
+        line-height: 1.85;
+        word-break: keep-all;
+        overflow-wrap: break-word;
+      }
+      .wf-method-a em {
+        color: var(--gold);
+        font-style: normal;
+        font-weight: 700;
+      }
+
+      /* WF INQUIRY */
+      .wf-inq-wrap {
+        padding: 68px 40px;
+      }
+      .wf-inq-grid {
+        display: grid;
+        grid-template-columns: 1fr 1.1fr;
+        gap: 72px;
+      }
+      .wf-flow-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gray2);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 16px;
+      }
+      .wf-flow-steps {
+        display: flex;
+        border: 1px solid var(--border);
+        margin-bottom: 36px;
+      }
+      .wf-step {
+        flex: 1;
+        padding: 18px 16px;
+        border-right: 1px solid var(--border);
+        position: relative;
+      }
+      .wf-step:last-child {
+        border-right: none;
+      }
+      .wf-step-num {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--gold);
+        margin-bottom: 7px;
+        letter-spacing: 1px;
+        white-space: nowrap;
+      }
+      .wf-step-name {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 4px;
+        white-space: nowrap;
+      }
+      .wf-step-sub {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--gray2);
+        white-space: nowrap;
+      }
+      .wf-step-arrow {
+        position: absolute;
+        right: -10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+        color: var(--gold);
+        z-index: 2;
+        font-weight: 700;
+      }
+
+      /* Calendar */
+      .wf-cal {
+        border: 1px solid var(--border);
+      }
+      .wf-cal-hdr {
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gray1);
+      }
+      .wf-cal-avail {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+      }
+      .wf-cal-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        border-bottom: 1px solid var(--border2);
+      }
+      .wf-cal-dn {
+        padding: 11px 8px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gray2);
+        border-right: 1px solid var(--border2);
+      }
+      .wf-cal-dn:last-child {
+        border-right: none;
+      }
+      .wf-cal-cells {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+      }
+      .wf-cal-cell {
+        padding: 12px 8px;
+        text-align: center;
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--gray2);
+        border-right: 1px solid var(--border2);
+        border-bottom: 1px solid var(--border2);
+        position: relative;
+      }
+      .wf-cal-cell:nth-child(7n) {
+        border-right: none;
+      }
+      .wf-cal-cell.full {
+        color: var(--gray3);
+        text-decoration: line-through;
+      }
+      .wf-cal-cell.full::after {
+        content: "FULL";
+        position: absolute;
+        bottom: 2px;
+        left: 0;
+        right: 0;
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--gray3);
+        text-align: center;
+        letter-spacing: 0.5px;
+      }
+      .wf-cal-cell.avail {
+        color: var(--gold);
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .wf-cal-cell.today {
+        border: 1px solid var(--gold);
+        color: var(--white);
+        font-weight: 800;
+      }
+      .wf-cal-cell.wknd {
+        color: var(--gray3);
+      }
+      .wf-cal-foot {
+        padding: 14px 24px;
+        border-top: 1px solid var(--border);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gold);
+      }
+
+      /* Form */
+      .wf-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .wf-fld {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .wf-flbl {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--white);
+        letter-spacing: 0.3px;
+      }
+      .wf-input {
+        height: 52px;
+        border: 1px solid var(--border);
+        background: var(--dark);
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+      }
+      .wf-ph {
+        font-size: 15px;
+        font-weight: 400;
+        color: var(--gray3);
+      }
+      .wf-select {
+        height: 52px;
+        border: 1px solid var(--border);
+        background: var(--dark);
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .wf-submit {
+        height: 58px;
+        border: 1px solid var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+      .wf-disc {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--gray3);
+        line-height: 1.75;
+        border-top: 1px solid var(--border2);
+        padding-top: 20px;
+      }
+
+      /* WF FOOTER */
+      .wf-foot {
+        padding: 44px 60px;
+        background: var(--card);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .wf-foot-brd {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 3px;
+        color: var(--white);
+      }
+      .wf-foot-sub {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--gray3);
+        margin-top: 5px;
+      }
+      .wf-foot-links {
+        display: flex;
+        gap: 40px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gray3);
+      }
+      .wf-foot-copy {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--gray3);
+      }
+
+      /* ─── ANNOTATED LAYOUT ─── */
+      .annotated {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 40px;
+        align-items: start;
+      }
+      .side-notes {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: sticky;
+        top: 84px;
+        order: 1;
+      }
+      .sn {
+        border: 1px solid var(--border);
+        padding: 16px 18px;
+      }
+      .sn-lbl {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--gold);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 7px;
+      }
+      .sn-txt {
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--gray1);
+        line-height: 1.6;
+        word-break: keep-all;
+      }
+
+      /* ─── COMPARE TABLE ─── */
+      .cmp {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid var(--border);
+      }
+      .cmp th {
+        padding: 20px 24px;
+        text-align: left;
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--white);
+        border-bottom: 1px solid var(--border);
+      }
+      .cmp th.pm {
+        color: var(--gold);
+        border-left: 1px solid var(--gold-bd);
+      }
+      .cmp td {
+        padding: 20px 24px;
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--gray1);
+        border-bottom: 1px solid var(--border2);
+        line-height: 1.6;
+      }
+      .cmp td:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--gray2);
+        width: 160px;
+      }
+      .cmp td.pm {
+        border-left: 1px solid var(--gold-bd);
+        color: var(--white);
+        font-weight: 600;
+      }
+      .cmp tr:last-child td {
+        border-bottom: none;
+      }
+      .cmp tr:hover td {
+        background: var(--dark);
+      }
+
+      /* ─── RISK ─── */
+      .risk {
+        border: 1px solid var(--border);
+      }
+      .risk-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 100px;
+        border-bottom: 1px solid var(--border2);
+      }
+      .risk-row:last-child {
+        border-bottom: none;
+      }
+      .risk-cell {
+        padding: 24px 28px;
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--gray1);
+        border-right: 1px solid var(--border2);
+        line-height: 1.65;
+      }
+      .risk-cell:last-child {
+        border-right: none;
+      }
+      .risk-cell-lbl {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gray3);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 9px;
+      }
+      .risk-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        border: 1px solid var(--gold-bd);
+        padding: 8px;
+        text-align: center;
+        line-height: 1.4;
+      }
+
+      /* ─── ADDON ─── */
+      .addon-inner {
+        background: var(--black);
+        padding: 36px 30px;
+      }
+      .addon-num {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        margin-bottom: 16px;
+      }
+      .addon-name {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 10px;
+      }
+      .addon-desc {
+        font-size: 15px;
+        color: var(--gray1);
+        line-height: 1.65;
+      }
+      .addon-fx {
+        margin-top: 14px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gold);
+      }
+
+      /* ─── BRAND ARCH ─── */
+      .brand-arch {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 40px;
+        align-items: center;
+      }
+      .brand-box {
+        border: 1px solid var(--border);
+        padding: 40px;
+      }
+      .brand-box.pm-box {
+        border-color: var(--gold-bd);
+      }
+      .brand-box-tag {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--gray3);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .brand-box-name {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 8px;
+      }
+      .brand-box-url {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--gray2);
+        margin-bottom: 24px;
+      }
+      .brand-box-feat {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .brand-box-feat li {
+        font-size: 15px;
+        font-weight: 400;
+        color: var(--gray1);
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        line-height: 1.5;
+      }
+      .brand-box-feat li::before {
+        content: "—";
+        color: var(--gray3);
+        font-size: 14px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .brand-conn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      .brand-conn-line {
+        width: 1px;
+        height: 88px;
+        background: linear-gradient(
+          to bottom,
+          transparent,
+          var(--gold),
+          transparent
+        );
+      }
+      .brand-conn-lbl {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gold);
+        text-align: center;
+        max-width: 110px;
+        line-height: 1.5;
+      }
+      .brand-conn-badge {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        border: 1px solid var(--gold-bd);
+        padding: 12px 16px;
+        text-align: center;
+        line-height: 1.4;
+      }
+
+      /* ─── POS MAP ─── */
+      .pos-map {
+        position: relative;
+        height: 280px;
+        border-left: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+      .pos-ax-x {
+        position: absolute;
+        bottom: -28px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--gray3);
+      }
+      .pos-ax-y {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -32px;
+        writing-mode: vertical-rl;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--gray3);
+        display: flex;
+        align-items: center;
+      }
+      .pos-dot {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+
+      /* ─── HIGHLIGHT BOX ─── */
+      .hl-box {
+        border: 1px solid var(--gold-bd);
+        background: var(--gold-bg);
+        padding: 48px 64px;
+        text-align: center;
+      }
+      .hl-box .t-h2 {
+        color: var(--gold);
+        margin-bottom: 16px;
+      }
+      .hl-box p {
+        font-size: 17px;
+        font-weight: 400;
+        color: rgba(201, 169, 98, 0.8);
+        max-width: 640px;
+        margin: 0 auto;
+        line-height: 1.9;
+      }
+
+      /* ─── DOC FOOTER ─── */
+      .doc-footer {
+        padding: 72px 60px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .footer-brand {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--gold);
+      }
+      .footer-brand-sub {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--gray2);
+        margin-top: 6px;
+      }
+      .footer-meta {
+        text-align: right;
+        font-size: 15px;
+        font-weight: 400;
+        color: var(--gray2);
+        line-height: 1.9;
+      }
+
+      /* ─── GOLD SHIMMER TEXT ─── */
+      @keyframes gold-shimmer {
+        0% {
+          background-position: -300% center;
+        }
+        100% {
+          background-position: 300% center;
+        }
+      }
+      .shimmer {
+        background: linear-gradient(
+          90deg,
+          #9a7c3d 0%,
+          #c9a962 25%,
+          #f0d88a 45%,
+          #ffe8b0 50%,
+          #f0d88a 55%,
+          #c9a962 75%,
+          #9a7c3d 100%
+        );
+        background-size: 300% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: gold-shimmer 5s linear infinite;
+      }
+
+      /* ─── CARD LIGHT SWEEP ─── */
+      .pillar,
+      .card,
+      .sn {
+        position: relative;
+        overflow: hidden;
+      }
+      .pillar::before,
+      .card::before,
+      .sn::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -120%;
+        width: 60%;
+        height: 100%;
+        background: linear-gradient(
+          105deg,
+          transparent 0%,
+          rgba(201, 169, 98, 0.04) 50%,
+          transparent 100%
+        );
+        transition: left 0.6s ease;
+        pointer-events: none;
+        z-index: 1;
+      }
+      .pillar:hover::before,
+      .card:hover::before,
+      .sn:hover::before {
+        left: 120%;
+      }
+
+      /* 와이어프레임 모바일 안내 */
+      .wf-mobile-notice {
+        display: none;
+      }
+      @media (max-width: 768px) {
+        .wf-mobile-notice {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+          padding: 56px 28px;
+          border: 1px solid var(--gold-bd);
+          background: var(--gold-bg);
+          text-align: center;
+        }
+        .wf-mobile-notice-icon {
+          font-size: 40px;
+          line-height: 1;
+        }
+        .wf-mobile-notice-title {
+          font-size: 18px;
+          font-weight: 800;
+          color: var(--gold);
+          letter-spacing: -0.3px;
+        }
+        .wf-mobile-notice-body {
+          font-size: 14px;
+          color: var(--gray2);
+          line-height: 1.8;
+        }
+        .wf-mobile-notice-url {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--gold);
+          border: 1px solid var(--gold-bd);
+          padding: 10px 20px;
+          letter-spacing: 0.3px;
+          word-break: break-all;
+        }
+        /* 와이어프레임 본문은 모바일에서 숨김 */
+        .wf-desktop-only {
+          display: none;
+        }
+      }
+
+      /* ════════════ RESPONSIVE ════════════ */
+
+      /* 터치 디바이스: hover sweep 비활성 */
+      @media (hover: none) {
+        .pillar::before,
+        .card::before,
+        .sn::before {
+          display: none;
+        }
+      }
+
+      /* ── 768px · 태블릿 ── */
+      @media (max-width: 768px) {
+        body {
+          font-size: 16px;
+        }
+
+        /* 레이아웃 */
+        .wrap {
+          padding: 0 32px;
+        }
+        .sec {
+          padding: 72px 0;
+        }
+        .g2 {
+          grid-template-columns: 1fr;
+          gap: 40px;
+        }
+        .g3 {
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+        .g4 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .g4-2 {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+        }
+
+        /* 커버 */
+        #cover {
+          padding: 80px 32px 60px;
+        }
+        #cover > div,
+        .cover-inner {
+          padding: 0 !important;
+          max-width: 100% !important;
+        }
+        .cover-g {
+          grid-template-columns: 1fr;
+          gap: 40px;
+        }
+        .cover-idx {
+          border-left: none;
+          padding-left: 0;
+          border-top: 1px solid var(--border);
+          padding-top: 32px;
+        }
+        .cover-wm {
+          font-size: 160px;
+        }
+
+        /* 네비 */
+        .doc-nav {
+          padding: 0 32px;
+        }
+        .nav-links {
+          display: none;
+        }
+        .nav-badge {
+          font-size: 12px;
+          padding: 5px 10px;
+        }
+
+        /* 어노테이션 레이아웃: 노트 패널 숨김 */
+        .annotated {
+          grid-template-columns: 1fr;
+        }
+        .side-notes {
+          display: none;
+        }
+
+        /* WF 내부 섹션 */
+        .wf-philo-wrap {
+          grid-template-columns: 1fr;
+          gap: 40px;
+          padding: 48px 32px;
+        }
+        .wf-sys-wrap {
+          grid-template-columns: 1fr;
+          gap: 40px;
+          padding: 48px 32px;
+        }
+        .wf-inq-wrap {
+          padding: 48px 32px;
+        }
+        .wf-inq-grid {
+          grid-template-columns: 1fr;
+          gap: 40px;
+        }
+        .wf-method-wrap {
+          padding: 48px 24px;
+        }
+        .wf-method-grid {
+          grid-template-columns: 1fr;
+        }
+        .wf-port-wrap {
+          padding: 48px 32px;
+        }
+        .wf-port-img {
+          height: 300px;
+        }
+        .wf-nav {
+          padding: 0 28px;
+        }
+        .wf-nav-menu {
+          display: none;
+        }
+        .wf-foot {
+          flex-direction: column;
+          gap: 24px;
+          align-items: flex-start;
+          padding: 36px 32px;
+        }
+
+        /* 브랜드 아키텍처: 세로 스택 */
+        .brand-arch {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        .brand-conn {
+          flex-direction: row;
+          gap: 12px;
+        }
+        .brand-conn-line {
+          width: 60px;
+          height: 1px;
+          background: linear-gradient(
+            to right,
+            transparent,
+            var(--gold),
+            transparent
+          );
+        }
+
+        /* 리스크 테이블: 2컬럼 */
+        .risk-row {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        /* 비교표 스크롤 */
+        .table-scroll {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* 슬로건 */
+        .slogan-intent {
+          min-width: 100px;
+        }
+
+        /* 하이라이트 박스 */
+        .hl-box {
+          padding: 36px 32px;
+        }
+
+        /* 문서 푸터 */
+        .doc-footer {
+          flex-direction: column;
+          gap: 20px;
+          padding: 48px 32px;
+          align-items: flex-start;
+        }
+        .footer-meta {
+          text-align: left;
+        }
+      }
+
+      /* ── 480px · 모바일 ── */
+      @media (max-width: 480px) {
+        /* 레이아웃 */
+        .wrap {
+          padding: 0 20px;
+        }
+        .sec {
+          padding: 60px 0;
+        }
+        .sec-lbl {
+          margin-bottom: 36px;
+        }
+        .g3 {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        /* 타이포 */
+        .t-xl {
+          font-size: clamp(36px, 10vw, 52px);
+          letter-spacing: -1px;
+        }
+        .t-h1 {
+          font-size: clamp(24px, 7vw, 36px);
+        }
+        .t-h2 {
+          font-size: 24px;
+        }
+        .t-h3 {
+          font-size: 20px;
+        }
+        .wf-h2 {
+          font-size: 22px;
+        }
+
+        /* 커버 */
+        #cover {
+          padding: 72px 20px 52px;
+        }
+        .cover-desc {
+          font-size: 16px;
+          margin: 20px 0 32px;
+        }
+        .cover-wm {
+          font-size: 100px;
+          right: 16px;
+        }
+        .cover-tags {
+          gap: 8px;
+        }
+        .cover-g {
+          gap: 32px;
+        }
+
+        /* 네비 */
+        .doc-nav {
+          padding: 0 20px;
+          height: 56px;
+        }
+        .nav-brand span {
+          display: none;
+        }
+        .nav-badge {
+          display: none;
+        }
+
+        /* 카드 */
+        .card {
+          padding: 28px 24px;
+        }
+        .card-inner {
+          padding: 28px 20px;
+        }
+        .pillar {
+          padding: 32px 24px;
+        }
+        .pillar-fx {
+          font-size: 12px;
+        }
+
+        /* 슬로건 */
+        .slogan-text {
+          font-size: 18px;
+        }
+        .slogan-intent {
+          display: none;
+        }
+        .slogan-item {
+          gap: 16px;
+        }
+
+        /* 예약 플로우: 가로 스크롤 */
+        .wf-flow-steps {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .wf-step {
+          min-width: 96px;
+          flex-shrink: 0;
+        }
+
+        /* WF 히어로 */
+        .wf-hero {
+          height: 440px;
+        }
+        .wf-hero-h1 {
+          font-size: 26px;
+          max-width: 90%;
+        }
+        .wf-hero-sub {
+          font-size: 14px;
+        }
+
+        /* WF 섹션 패딩 */
+        .wf-philo-wrap {
+          padding: 40px 20px;
+        }
+        .wf-sys-wrap {
+          padding: 40px 20px;
+        }
+        .wf-inq-wrap {
+          padding: 40px 20px;
+        }
+        .wf-method-wrap {
+          padding: 40px 16px;
+        }
+        .wf-method-card {
+          padding: 36px 24px;
+        }
+        .wf-method-q {
+          font-size: 20px;
+        }
+        .wf-port-wrap {
+          padding: 40px 20px;
+        }
+        .wf-port-img {
+          height: 240px;
+        }
+        .wf-nav {
+          padding: 0 20px;
+          height: 52px;
+        }
+        .wf-foot {
+          padding: 28px 20px;
+        }
+        .wf-foot-links {
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        /* 폰 목업 */
+        .wf-phone {
+          max-width: 160px;
+        }
+
+        /* 브랜드 박스 */
+        .brand-box {
+          padding: 28px 24px;
+        }
+
+        /* 하이라이트 박스 */
+        .hl-box {
+          padding: 28px 20px;
+        }
+        .hl-box p {
+          font-size: 15px;
+        }
+
+        /* 문서 푸터 */
+        .doc-footer {
+          padding: 40px 20px;
+        }
+
+        /* 콜아웃 */
+        .callout {
+          padding: 20px 20px;
+        }
+      }
+
+      /* ── 360px · 소형 모바일 ── */
+      @media (max-width: 360px) {
+        /* 레이아웃 */
+        .wrap {
+          padding: 0 16px;
+        }
+        .sec {
+          padding: 48px 0;
+        }
+
+        /* 타이포 */
+        .t-xl {
+          font-size: clamp(30px, 9vw, 40px);
+        }
+        .t-h1 {
+          font-size: clamp(20px, 7vw, 28px);
+        }
+
+        /* 커버 */
+        #cover {
+          padding: 72px 16px 44px;
+        }
+        .cover-wm {
+          font-size: 80px;
+        }
+        .cover-btn {
+          font-size: 14px;
+          padding: 14px 22px;
+        }
+
+        /* 네비 */
+        .doc-nav {
+          padding: 0 16px;
+        }
+        .nav-brand {
+          font-size: 13px;
+          letter-spacing: 1px;
+        }
+
+        /* 4단 그리드: 소형에서 1열 */
+        .g4 {
+          grid-template-columns: 1fr;
+        }
+        .g4-2 {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+
+        /* WF 히어로 */
+        .wf-hero {
+          height: 360px;
+        }
+        .wf-hero-h1 {
+          font-size: 22px;
+        }
+
+        /* 예약 플로우: 가로 스크롤 */
+        .wf-flow-steps {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .wf-step {
+          min-width: 96px;
+          flex-shrink: 0;
+        }
+        .wf-step-num,
+        .wf-step-name,
+        .wf-step-sub {
+          white-space: normal;
+        }
+
+        /* 리스크: 1열 */
+        .risk-row {
+          grid-template-columns: 1fr;
+        }
+        .risk-cell {
+          padding: 18px 20px;
+        }
+
+        /* 슬로건 */
+        .slogan-text {
+          font-size: 16px;
+        }
+
+        /* WF 섹션 패딩 */
+        .wf-philo-wrap {
+          padding: 32px 16px;
+        }
+        .wf-sys-wrap {
+          padding: 32px 16px;
+        }
+        .wf-inq-wrap {
+          padding: 32px 16px;
+        }
+        .wf-method-wrap {
+          padding: 32px 12px;
+        }
+        .wf-port-wrap {
+          padding: 32px 16px;
+        }
+        .wf-port-img {
+          height: 200px;
+        }
+        .wf-nav {
+          padding: 0 16px;
+        }
+        .wf-foot {
+          padding: 24px 16px;
+        }
+
+        /* 문서 푸터 */
+        .doc-footer {
+          padding: 32px 16px;
+        }
+        .footer-brand {
+          font-size: 20px;
+        }
+
+        /* 하이라이트 박스 */
+        .hl-box {
+          padding: 24px 16px;
+        }
+
+        /* 어드온 */
+        .addon-inner {
+          padding: 28px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- NAV -->
+    <nav class="doc-nav">
+      <div class="nav-brand">
+        THE PREMIUM <span>by Day One Design · 브랜드 런칭 기획서</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#strategy">브랜드전략</a></li>
+        <li><a href="#personas">페르소나</a></li>
+        <li><a href="#wireframe">와이어프레임</a></li>
+        <li><a href="#architecture">브랜드연결</a></li>
+      </ul>
+      <div class="nav-badge">기획 초안 v1.0 · 2026.02</div>
+    </nav>
+
+    <!-- ════════════ COVER ════════════ -->
+    <section id="cover">
+      <div class="cover-wm">P</div>
+      <div
+        class="cover-inner"
+        style="max-width: 1280px; margin: 0 auto; padding: 0 60px"
+      >
+        <div class="cover-tags">
+          <div class="tag">기획 초안</div>
+          <div class="tag-gray">2026.02.24</div>
+          <div class="tag-gray">강남 프리미엄 런칭</div>
+          <div class="tag-gray">Confidential</div>
+        </div>
+        <div class="cover-g">
+          <div>
+            <p class="cover-eye">Brand Launch Strategy & Wireframe</p>
+            <h1 class="t-xl" style="margin-bottom: 14px">
+              THE<br /><span class="shimmer">PREMIUM</span>
+            </h1>
+            <p
+              style="
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--gray3);
+                letter-spacing: 2px;
+                margin-bottom: 32px;
+              "
+            >
+              by Day One Design
+            </p>
+            <p class="cover-desc">
+              경기 판교 기반 데이원디자인의 강남권 프리미엄 브랜드 런칭 전략.<br />
+              1일 1팀 상담 제도, 84㎡ 이상, 전담 시공관리팀 체계를 핵심으로<br />
+              강남 고자산가 타겟의 하이엔드 인테리어 리모델링·디자인 포지셔닝
+              기획.
+            </p>
+            <div class="cover-btn">홈페이지 와이어프레임 확인 →</div>
+          </div>
+          <div class="cover-idx">
+            <div class="cover-idx-title">목차</div>
+            <ul class="cover-idx-list">
+              <li>
+                <span class="idx-num">01</span
+                ><a href="#strategy">브랜드 포지셔닝 전략</a>
+              </li>
+              <li>
+                <span class="idx-num">02</span
+                ><a href="#pillars">4대 핵심 차별화 기둥</a>
+              </li>
+              <li>
+                <span class="idx-num">03</span
+                ><a href="#slogans">브랜드 슬로건 후보</a>
+              </li>
+              <li>
+                <span class="idx-num">04</span
+                ><a href="#personas">타겟 페르소나 3가지</a>
+              </li>
+              <li>
+                <span class="idx-num">05</span
+                ><a href="#wireframe">홈페이지 와이어프레임</a>
+              </li>
+              <li>
+                <span class="idx-num">06</span
+                ><a href="#addons">추가 프리미엄 서비스 8종</a>
+              </li>
+              <li>
+                <span class="idx-num">07</span
+                ><a href="#compare">판교 vs 강남 비교표</a>
+              </li>
+              <li>
+                <span class="idx-num">08</span
+                ><a href="#architecture">브랜드 연결 아키텍처</a>
+              </li>
+              <li>
+                <span class="idx-num">09</span
+                ><a href="#risk">리스크 & 대응 전략</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap">
+      <!-- ════════════ 01 STRATEGY ════════════ -->
+      <section id="strategy" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">01</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt">브랜드 포지셔닝 전략</span>
+        </div>
+        <div class="g2" style="align-items: stretch">
+          <div>
+            <h2 class="t-h1" style="margin-bottom: 28px">
+              벨벳 로프<br /><span class="gold">전략</span>
+            </h2>
+            <p class="t-body" style="margin-bottom: 28px">
+              클럽 입장을 거절하면 오히려 줄이 길어지는 현상.<br />
+              <strong style="color: var(--white)"
+                >접근 장벽 자체가 브랜드 가치다.</strong
+              ><br /><br />
+              일반 인테리어사가 고객님께 선택받는 구조라면,<br />
+              THE PREMIUM은
+              <span class="gold" style="font-weight: 800"
+                >업체가 고객님을 선택</span
+              >하는 구조로 포지셔닝합니다.
+            </p>
+            <div class="callout">
+              <div class="callout-lbl">핵심 심리 메커니즘</div>
+              <div class="callout-body">
+                "자격이 되어야 상담받을 수 있다"는 뉘앙스 →<br />
+                타겟 고객님께 <strong>소속감 + 우월감</strong> 동시 부여.<br />
+                진입이 어렵다는 인식 = 브랜드 가치 자동 상승.
+              </div>
+            </div>
+          </div>
+          <div class="card" style="padding: 44px; height: 100%">
+            <p
+              style="
+                font-size: 14px;
+                font-weight: 800;
+                color: var(--gray3);
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                margin-bottom: 36px;
+              "
+            >
+              포지셔닝 맵
+            </p>
+            <div class="pos-map">
+              <div class="pos-ax-x">← 대중적 · · · · · · · · · 프리미엄 →</div>
+              <div class="pos-ax-y">↑ 고가격 · · · 저가격 ↓</div>
+              <div
+                class="pos-dot"
+                style="left: 18%; bottom: 22%; background: var(--gray3)"
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 20%;
+                  bottom: 17%;
+                  font-size: 14px;
+                  font-weight: 600;
+                  color: var(--gray2);
+                "
+              >
+                일반 업체군
+              </div>
+              <div
+                class="pos-dot"
+                style="left: 44%; bottom: 42%; background: var(--gray1)"
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  left: 46%;
+                  bottom: 42%;
+                  font-size: 14px;
+                  font-weight: 600;
+                  color: var(--gray1);
+                "
+              >
+                판교 데이원
+              </div>
+              <div
+                class="pos-dot"
+                style="
+                  right: 14%;
+                  top: 13%;
+                  background: var(--gold);
+                  width: 16px;
+                  height: 16px;
+                  box-shadow: 0 0 16px rgba(201, 169, 98, 0.4);
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  right: 14%;
+                  top: 5%;
+                  font-size: 15px;
+                  font-weight: 800;
+                  color: var(--gold);
+                "
+              >
+                THE PREMIUM
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  right: 22%;
+                  top: 0;
+                  bottom: 0;
+                  width: 1px;
+                  background: linear-gradient(
+                    to bottom,
+                    var(--gold-bg),
+                    transparent
+                  );
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  top: 21%;
+                  left: 0;
+                  right: 0;
+                  height: 1px;
+                  background: linear-gradient(
+                    to right,
+                    transparent,
+                    var(--gold-bg)
+                  );
+                "
+              ></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ 02 PILLARS ════════════ -->
+      <section id="pillars" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">02</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt">4대 핵심 차별화 기둥</span>
+        </div>
+        <div class="g4">
+          <div class="pillar">
+            <div class="pillar-num">PILLAR 01</div>
+            <div class="pillar-icon">◐</div>
+            <div class="pillar-kw">Privilege</div>
+            <div class="pillar-title">1일 1팀 상담</div>
+            <div class="pillar-desc">
+              상담을 하루 한 팀만 진행합니다. 동시 상담 없음.<br />
+              충분한 시간과 집중력으로 고객님의 공간과 라이프스타일을 깊이
+              파악합니다.
+            </div>
+            <div class="pillar-fx">심리: "나만을 위해 하루를 비워두었다"</div>
+          </div>
+          <div class="pillar">
+            <div class="pillar-num">PILLAR 02</div>
+            <div class="pillar-icon">▣</div>
+            <div class="pillar-kw">Exclusivity</div>
+            <div class="pillar-title">84㎡ 이하 불가</div>
+            <div class="pillar-desc">
+              프리미엄 자격 필터링. "우리는 아무 공사나 하지 않는다"는 선언.
+            </div>
+            <div class="pillar-fx">심리: "여기는 진짜들만 의뢰하는 곳"</div>
+          </div>
+          <div class="pillar">
+            <div class="pillar-num">PILLAR 03</div>
+            <div class="pillar-icon">◎</div>
+            <div class="pillar-kw">Transparency</div>
+            <div class="pillar-title">자체 시공관리 시스템</div>
+            <div class="pillar-desc">
+              전 공정 사진·영상 실시간 공개. 인테리어 최대 페인포인트 완전 제거.
+            </div>
+            <div class="pillar-fx">심리: "내가 없어도 내 눈이 거기 있다"</div>
+          </div>
+          <div class="pillar">
+            <div class="pillar-num">PILLAR 04</div>
+            <div class="pillar-icon">□</div>
+            <div class="pillar-kw">Privacy</div>
+            <div class="pillar-title">고객님 댁은 외부에 공개되지 않습니다</div>
+            <div class="pillar-desc">
+              시공 전후 사진 일절 외부 비공개.<br />
+              완성된 거실 1컷 외에는 포트폴리오·SNS·광고 어디에도 사용하지
+              않습니다.
+            </div>
+            <div class="pillar-fx">
+              심리: "내 집 사진이 포트폴리오에 쓰이지 않는다. 안심이다"
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ 03 SLOGANS ════════════ -->
+      <section id="slogans" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">03</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt"
+            >브랜드 슬로건 후보 — 방향성 선택 필요</span
+          >
+        </div>
+        <div class="slogan-item">
+          <span class="slogan-rank">01</span
+          ><span class="slogan-text">"비교하지 않습니다. 증명할 뿐입니다."</span
+          ><span class="slogan-intent">압도적 자신감</span>
+        </div>
+        <div class="slogan-item">
+          <span class="slogan-rank">02</span
+          ><span class="slogan-text">"하루 단 한 팀, 온전한 집중 상담"</span
+          ><span class="slogan-intent">1일 1팀 컨시어지 상담 강조</span>
+        </div>
+        <div class="slogan-item">
+          <span class="slogan-rank">03</span
+          ><span class="slogan-text"
+            >"84㎡ 이상의 삶, 그 정점을 디자인합니다"</span
+          ><span class="slogan-intent">타겟 필터 + 자부심</span>
+        </div>
+        <div class="slogan-item">
+          <span class="slogan-rank">04</span
+          ><span class="slogan-text">"과정은 투명하게. 결과는 작품으로."</span
+          ><span class="slogan-intent">신뢰 + 미학</span>
+        </div>
+        <div class="slogan-item">
+          <span class="slogan-rank">05</span
+          ><span class="slogan-text">"고객님의 집에 몰입하는 유일한 팀"</span
+          ><span class="slogan-intent">1팀 1일 집약</span>
+        </div>
+      </section>
+
+      <!-- ════════════ 04 PERSONAS ════════════ -->
+      <section id="personas" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">04</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt">타겟 페르소나</span>
+        </div>
+        <div class="g3">
+          <div class="card">
+            <div class="persona-tag">PERSONA A</div>
+            <div class="persona-name">시간이 곧 돈인<br />완벽주의자</div>
+            <div class="persona-profile">
+              도곡·대치동 · 40대 의사·변호사 부부
+            </div>
+            <div class="persona-needs-lbl">핵심 니즈</div>
+            <div class="persona-needs">
+              인테리어 감각은 있으나 현장을 직접 챙길 시간이 절대 부족. 알아서
+              완벽하게 해주기를 원함.
+            </div>
+            <div class="persona-hook">
+              <div class="persona-hook-lbl">소구 포인트</div>
+              <div class="persona-hook-text">
+                전담 시공관리팀 + 매일 보고<br />"현장에 없어도 매일 관리·보고"
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="persona-tag">PERSONA B</div>
+            <div class="persona-name">취향이 확고한<br />영 리치</div>
+            <div class="persona-profile">
+              청담·한남동 · 30대 사업가·크리에이터
+            </div>
+            <div class="persona-needs-lbl">핵심 니즈</div>
+            <div class="persona-needs">
+              남들과 똑같은 아파트 인테리어를 혐오. 갤러리 같은 집, 자신만의
+              공간이 필요.
+            </div>
+            <div class="persona-hook">
+              <div class="persona-hook-lbl">소구 포인트</div>
+              <div class="persona-hook-text">
+                완성 사진 1컷 포트폴리오<br />"고객님 집 자체가 하나의 작품"
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="persona-tag">PERSONA C</div>
+            <div class="persona-name">부동산 가치<br />투자자</div>
+            <div class="persona-profile">반포·압구정 재건축 · 50대 자산가</div>
+            <div class="persona-needs-lbl">핵심 니즈</div>
+            <div class="persona-needs">
+              추후 매매·임대 시 하이엔드 인테리어가 집값 방어 수단이 되어야 함.
+            </div>
+            <div class="persona-hook">
+              <div class="persona-hook-lbl">소구 포인트</div>
+              <div class="persona-hook-text">
+                "데이원디자인에서 했다"<br />= 집의 스펙이 되는 브랜드
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <!-- /wrap -->
+
+    <!-- ════════════ 05 WIREFRAME ════════════ -->
+    <div
+      id="wireframe"
+      style="
+        padding: 104px 60px;
+        border-bottom: 1px solid var(--border2);
+        max-width: 1280px;
+        margin: 0 auto;
+      "
+    >
+      <div class="sec-lbl">
+        <span class="sec-lbl-num">05</span><span class="sec-lbl-line"></span
+        ><span class="sec-lbl-txt">홈페이지 와이어프레임 — theone.kr</span>
+      </div>
+
+      <!-- 모바일 안내 메시지 -->
+      <div class="wf-mobile-notice">
+        <div class="wf-mobile-notice-icon">🖥️</div>
+        <div class="wf-mobile-notice-title">PC 화면에서 확인하세요</div>
+        <div class="wf-mobile-notice-body">
+          홈페이지 와이어프레임은 데스크탑 환경에 최적화되어 있습니다.<br />
+          PC 브라우저에서 아래 주소를 열어 확인해 주세요.
+        </div>
+        <div class="wf-mobile-notice-url">
+          polarad.co.kr/day1design/thepremium
+        </div>
+      </div>
+
+      <!-- 데스크탑 와이어프레임 본문 -->
+      <div class="wf-desktop-only">
+        <p
+          style="
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--gray2);
+            margin-bottom: 52px;
+            line-height: 1.85;
+          "
+        >
+          갤러리 사이트 컨셉 · 단일 스크롤 구조 · 섹션당 하나의 메시지<br />
+          모든 UI 요소는 기획 의도를 반영한 와이어프레임입니다.
+        </p>
+
+        <div class="annotated">
+          <div class="wf-shell">
+            <div class="wf-browser">
+              <div class="wf-dot"></div>
+              <div class="wf-dot"></div>
+              <div class="wf-dot"></div>
+              <div class="wf-url">theone.kr</div>
+            </div>
+
+            <!-- S00 NAV -->
+            <div class="wf-sec">
+              <div class="wf-tag">S00 · 네비게이션</div>
+              <div class="wf-nav">
+                <div>
+                  <div class="wf-logo-main">THE PREMIUM</div>
+                  <div class="wf-logo-sub">by Day One Design</div>
+                </div>
+                <div class="wf-nav-menu">
+                  <span>작업</span><span>방식</span><span>스튜디오</span>
+                </div>
+                <div class="wf-nav-cta">프라이빗 컨설팅 신청</div>
+              </div>
+            </div>
+
+            <!-- S01 HERO -->
+            <div class="wf-sec wf-hero">
+              <div class="wf-tag">S01 · 히어로 — 풀스크린 완성 사진 1컷</div>
+              <div class="wf-img-ph">
+                <div class="wf-img-icon">⬜</div>
+                <div class="wf-img-lbl">
+                  완성 거실 사진 1컷 (풀스크린 · 자연광)
+                </div>
+                <div
+                  style="font-size: 14px; font-weight: 500; color: var(--gray3)"
+                >
+                  가로 전체 × 100vh · 오버레이 없음
+                </div>
+              </div>
+              <div class="wf-overlay"></div>
+              <div class="wf-hero-content">
+                <h1 class="wf-hero-h1">
+                  누구나 꿈꾸는<br />하이엔드 인테리어를 실현합니다.
+                </h1>
+                <p class="wf-hero-sub">84㎡ 이상만 시공 가능 · 강남</p>
+                <div class="wf-hero-cta">
+                  <div class="wf-btn">프라이빗 컨설팅 신청</div>
+                  <div class="wf-scroll">↓ scroll</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- S02 PHILOSOPHY -->
+            <div class="wf-sec">
+              <div class="wf-tag">S02 · 철학 — 희소성 선언</div>
+              <div class="wf-philo-wrap">
+                <div>
+                  <div class="wf-kicker">저희의 기준</div>
+                  <div class="wf-h2">
+                    모든 분과<br />함께할 수는<br />없습니다.
+                  </div>
+                  <div class="wf-body">
+                    완벽한 품질 관리를 위해 1일 1팀 상담, 84㎡ 이상 현장만
+                    고집합니다. 타협하지 않는 기준이 명작을 만듭니다.
+                  </div>
+                  <div class="wf-pills">
+                    <div class="wf-pill">1일 1팀</div>
+                    <div class="wf-pill">84㎡ 이상</div>
+                    <div class="wf-pill">강남·서초·용산</div>
+                  </div>
+                </div>
+                <div class="wf-philo-grid">
+                  <div class="wf-philo-card">
+                    <div class="wf-philo-num">01</div>
+                    <div class="wf-philo-title">완전 몰입 상담</div>
+                    <div class="wf-philo-body">
+                      하루 한 팀만. 다음 상담 없이 오직 고객님의 공간에
+                      집중합니다.
+                    </div>
+                  </div>
+                  <div class="wf-philo-card">
+                    <div class="wf-philo-num">02</div>
+                    <div class="wf-philo-title">공간 기준 선별</div>
+                    <div class="wf-philo-body">
+                      84㎡ 이상. 더 작은 공간은 적합한 팀을 소개해 드립니다.
+                    </div>
+                  </div>
+                  <div class="wf-philo-card">
+                    <div class="wf-philo-num">03</div>
+                    <div class="wf-philo-title">투명한 공정</div>
+                    <div class="wf-philo-body">
+                      자재 입고부터 마감까지 전 과정을 실시간으로 공개합니다.
+                    </div>
+                  </div>
+                  <div class="wf-philo-card">
+                    <div class="wf-philo-num">04</div>
+                    <div class="wf-philo-title">결과만 기록</div>
+                    <div class="wf-philo-body">
+                      완성된 공간 사진 하나. 이전은 없습니다.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- S03 SYSTEM -->
+            <div class="wf-sec">
+              <div class="wf-tag">S03 · 시스템 — 불안 제거</div>
+              <div class="wf-sys-wrap">
+                <div>
+                  <div class="wf-kicker">전담 시공관리팀 운영</div>
+                  <div class="wf-h2">
+                    전담팀이 현장을 관리하고,<br />매일 공정 보고를<br />드립니다.
+                  </div>
+                  <div class="wf-body" style="margin-top: 20px">
+                    별도 전담 시공관리팀이 인테리어 현장을 직접 관리합니다.<br />
+                    자재 입고부터 마감까지 전 공정을 사진·영상으로 기록하며,<br />
+                    매일 담당 매니저가 고객님께 공정 리포트를 드립니다.
+                  </div>
+                  <div class="wf-pills" style="margin-top: 24px">
+                    <div class="wf-pill">실시간 현장 확인</div>
+                    <div class="wf-pill">일일 공정 리포트</div>
+                    <div class="wf-pill">자재 인증서 제공</div>
+                  </div>
+                </div>
+                <div>
+                  <p
+                    style="
+                      text-align: center;
+                      margin-bottom: 16px;
+                      font-size: 14px;
+                      font-weight: 500;
+                      color: var(--gray3);
+                    "
+                  >
+                    앱 화면 목업 · 실제 UI 교체 예정
+                  </p>
+                  <div class="wf-phone">
+                    <div class="wf-phone-notch"></div>
+                    <div class="wf-phone-row">
+                      <div class="wf-phone-dot"></div>
+                      <div class="wf-phone-rt">공정 현황</div>
+                      <div class="wf-phone-line"></div>
+                    </div>
+                    <div class="wf-phone-row">
+                      <div
+                        class="wf-phone-dot"
+                        style="
+                          background: var(--border2);
+                          border-color: var(--border);
+                        "
+                      ></div>
+                      <div class="wf-phone-line"></div>
+                    </div>
+                    <div class="wf-phone-img">오늘 공정 사진</div>
+                    <div class="wf-phone-row">
+                      <div class="wf-phone-dot"></div>
+                      <div class="wf-phone-line"></div>
+                    </div>
+                    <div class="wf-phone-img" style="min-height: 52px">
+                      매니저 메시지
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- S04 PORTFOLIO -->
+            <div class="wf-sec">
+              <div class="wf-tag">S04 · 포트폴리오 — 완성 사진 1컷</div>
+              <div class="wf-port-wrap">
+                <div class="wf-kicker" style="margin-bottom: 24px">
+                  현재 공개 프로젝트
+                </div>
+                <div class="wf-port-img">
+                  <div class="wf-img-icon">⬜</div>
+                  <div class="wf-img-lbl">완성 거실 사진 1컷</div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      font-weight: 500;
+                      color: var(--gray3);
+                    "
+                  >
+                    고객님 댁 사진 외부 비공개 · 완성 거실 1컷만
+                  </div>
+                  <div
+                    style="
+                      position: absolute;
+                      bottom: 24px;
+                      left: 24px;
+                      font-size: 14px;
+                      font-weight: 700;
+                      color: rgba(201, 169, 98, 0.65);
+                      border: 1px solid rgba(201, 169, 98, 0.3);
+                      padding: 7px 16px;
+                    "
+                  >
+                    현재 수행 중인 프로젝트는 공개되지 않습니다
+                  </div>
+                </div>
+                <div class="wf-port-cap">
+                  <div class="wf-port-loc">서울특별시 강남구 — 2025</div>
+                  <div class="wf-port-area">138㎡</div>
+                </div>
+                <div class="wf-port-note">
+                  ※ 포트폴리오 정책 : 완성된 공간만 기록합니다. 이전은 없습니다.
+                  — 사진 1장만 게재, 고객님 정보 비공개
+                </div>
+              </div>
+            </div>
+
+            <!-- S05 METHOD -->
+            <div class="wf-sec">
+              <div class="wf-tag">S05 · 방식 — 철학 선언</div>
+              <div class="wf-method-wrap">
+                <div class="wf-kicker">저희의 방식</div>
+                <div class="wf-method-grid">
+                  <div class="wf-method-card">
+                    <div class="wf-method-num">— 01 THE CONSTRAINT</div>
+                    <div class="wf-method-q">하루에 한 팀만 만납니다.</div>
+                    <div class="wf-method-a">
+                      이것은 정책이 아닙니다.<br />이것은 인테리어 디자인에 대한
+                      <em>입장</em>입니다.
+                    </div>
+                  </div>
+                  <div class="wf-method-card">
+                    <div class="wf-method-num">— 02 THE SCALE</div>
+                    <div class="wf-method-q">84㎡.</div>
+                    <div class="wf-method-a">
+                      이 면적 이하에서는 저희가 하고자 하는 것을 할 수 없습니다.
+                      더 작은 공간을 위한 팀을 <em>소개해드릴 수 있습니다.</em>
+                    </div>
+                  </div>
+                  <div class="wf-method-card">
+                    <div class="wf-method-num">— 03 THE TRANSPARENCY</div>
+                    <div class="wf-method-q">
+                      공사가 시작되면,<br />고객님은 모든 것을 보십니다.
+                    </div>
+                    <div class="wf-method-a">
+                      투명성은 신뢰가 아닙니다.<br />투명성은
+                      <em>구조</em>입니다.
+                    </div>
+                  </div>
+                  <div class="wf-method-card">
+                    <div class="wf-method-num">— 04 THE RECORD</div>
+                    <div class="wf-method-q">고객님 댁은 저희만 압니다.</div>
+                    <div class="wf-method-a">
+                      전후 사진 비공개, 완성 거실 1컷 외 외부 노출 없음.<br />
+                      그것이 저희가 지키는 <em>원칙</em>입니다.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- S06 INQUIRY -->
+            <div class="wf-sec">
+              <div class="wf-tag">S06 · 문의 — 예약 UX 플로우</div>
+              <div class="wf-inq-wrap">
+                <div class="wf-h2" style="margin-bottom: 40px">
+                  상담 가능 일정을 확인하세요.
+                </div>
+                <div class="wf-inq-grid">
+                  <div>
+                    <div class="wf-flow-title">예약 플로우 (3단계)</div>
+                    <div class="wf-flow-steps">
+                      <div class="wf-step">
+                        <div class="wf-step-num">STEP 01</div>
+                        <div class="wf-step-name">면적 확인</div>
+                        <div class="wf-step-sub">84㎡ 미만 → 거절</div>
+                        <div class="wf-step-arrow">→</div>
+                      </div>
+                      <div class="wf-step">
+                        <div class="wf-step-num">STEP 02</div>
+                        <div class="wf-step-name">날짜 선택</div>
+                        <div class="wf-step-sub">희소성 캘린더</div>
+                        <div class="wf-step-arrow">→</div>
+                      </div>
+                      <div class="wf-step">
+                        <div class="wf-step-num">STEP 03</div>
+                        <div class="wf-step-name">최소 정보</div>
+                        <div class="wf-step-sub">연락처 + 위치만</div>
+                      </div>
+                    </div>
+                    <div class="wf-cal">
+                      <div class="wf-cal-hdr">
+                        <span>← 2025.03</span>
+                        <span class="wf-cal-avail"
+                          >이번 달 2자리 남았습니다</span
+                        >
+                        <span>2025.05 →</span>
+                      </div>
+                      <div class="wf-cal-days">
+                        <div class="wf-cal-dn">월</div>
+                        <div class="wf-cal-dn">화</div>
+                        <div class="wf-cal-dn">수</div>
+                        <div class="wf-cal-dn">목</div>
+                        <div class="wf-cal-dn">금</div>
+                        <div class="wf-cal-dn">토</div>
+                        <div class="wf-cal-dn">일</div>
+                      </div>
+                      <div class="wf-cal-cells">
+                        <div class="wf-cal-cell full">1</div>
+                        <div class="wf-cal-cell full">2</div>
+                        <div class="wf-cal-cell full">3</div>
+                        <div class="wf-cal-cell full">4</div>
+                        <div class="wf-cal-cell avail">5</div>
+                        <div class="wf-cal-cell wknd">6</div>
+                        <div class="wf-cal-cell wknd">7</div>
+                        <div class="wf-cal-cell full">8</div>
+                        <div class="wf-cal-cell full">9</div>
+                        <div class="wf-cal-cell full">10</div>
+                        <div class="wf-cal-cell today">11</div>
+                        <div class="wf-cal-cell full">12</div>
+                        <div class="wf-cal-cell wknd">13</div>
+                        <div class="wf-cal-cell wknd">14</div>
+                        <div class="wf-cal-cell full">15</div>
+                        <div class="wf-cal-cell full">16</div>
+                        <div class="wf-cal-cell avail">17</div>
+                        <div class="wf-cal-cell full">18</div>
+                        <div class="wf-cal-cell full">19</div>
+                        <div class="wf-cal-cell wknd">20</div>
+                        <div class="wf-cal-cell wknd">21</div>
+                        <div class="wf-cal-cell full">22</div>
+                        <div class="wf-cal-cell full">23</div>
+                        <div class="wf-cal-cell full">24</div>
+                        <div class="wf-cal-cell full">25</div>
+                        <div class="wf-cal-cell full">26</div>
+                        <div class="wf-cal-cell wknd">27</div>
+                        <div class="wf-cal-cell wknd">28</div>
+                      </div>
+                      <div class="wf-cal-foot">
+                        ■ FULL BOOKED &nbsp; ◆ 예약 가능 &nbsp; ○ 주말
+                      </div>
+                    </div>
+                  </div>
+                  <div class="wf-form">
+                    <p
+                      style="
+                        font-size: 14px;
+                        font-weight: 800;
+                        color: var(--gray2);
+                        letter-spacing: 1.5px;
+                        text-transform: uppercase;
+                        margin-bottom: 4px;
+                      "
+                    >
+                      STEP 01 · 면적 확인
+                    </p>
+                    <div class="wf-fld">
+                      <div class="wf-select">
+                        <div class="wf-ph">시공 예정 면적을 선택해주세요</div>
+                        <span style="color: var(--gray3); font-size: 16px"
+                          >▼</span
+                        >
+                      </div>
+                      <p
+                        style="
+                          font-size: 14px;
+                          font-weight: 700;
+                          color: var(--gold);
+                          padding-left: 4px;
+                        "
+                      >
+                        → 84㎡ 미만 선택 시: 안내 후 종료
+                      </p>
+                    </div>
+                    <p
+                      style="
+                        font-size: 14px;
+                        font-weight: 800;
+                        color: var(--gray2);
+                        letter-spacing: 1.5px;
+                        text-transform: uppercase;
+                        margin-top: 8px;
+                        margin-bottom: 4px;
+                      "
+                    >
+                      STEP 03 · 고객님 정보
+                    </p>
+                    <div class="wf-fld">
+                      <div class="wf-flbl">성함</div>
+                      <div class="wf-input">
+                        <div class="wf-ph">홍길동</div>
+                      </div>
+                    </div>
+                    <div class="wf-fld">
+                      <div class="wf-flbl">연락처</div>
+                      <div class="wf-input">
+                        <div class="wf-ph">010-0000-0000</div>
+                      </div>
+                    </div>
+                    <div class="wf-fld">
+                      <div class="wf-flbl">현장 위치 (구 단위)</div>
+                      <div class="wf-input">
+                        <div class="wf-ph">강남구</div>
+                      </div>
+                    </div>
+                    <div class="wf-submit">프라이빗 컨설팅 신청</div>
+                    <div class="wf-disc">
+                      모든 문의는 48시간 내 검토됩니다.<br />적합한 프로젝트에
+                      한해 연락드립니다.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- WF FOOTER -->
+            <div class="wf-foot">
+              <div>
+                <div class="wf-foot-brd">THE PREMIUM</div>
+                <div class="wf-foot-sub">by Day One Design</div>
+              </div>
+              <div class="wf-foot-links">
+                <span>작업</span><span>방식</span><span>스튜디오</span
+                ><span>문의</span>
+              </div>
+              <div class="wf-foot-copy">
+                © 2025 Day One Design. All rights reserved.
+              </div>
+            </div>
+          </div>
+          <!-- /wf-shell -->
+
+          <!-- SIDE ANNOTATIONS -->
+          <div class="side-notes">
+            <div class="sn">
+              <div class="sn-lbl">S01 · 히어로</div>
+              <div class="sn-txt">
+                풀스크린 완성 사진 1장. 텍스트 최소화. 로고 + 헤드카피 + CTA만.
+              </div>
+            </div>
+            <div class="sn">
+              <div class="sn-lbl">S02 · 철학</div>
+              <div class="sn-txt">
+                "모든 분과 함께할 수 없습니다" — 거절이 가치를 높이는 역설적
+                선언.
+              </div>
+            </div>
+            <div class="sn">
+              <div class="sn-lbl">S03 · 시스템</div>
+              <div class="sn-txt">
+                앱 목업으로 시스템 실체감 부여. 인테리어 최대 페인포인트 정면
+                해결.
+              </div>
+            </div>
+            <div class="sn">
+              <div class="sn-lbl">S04 · 포트폴리오</div>
+              <div class="sn-txt">
+                1프로젝트 = 1사진. 주기적 교체. Before 없음. 위치 + 면적만.
+              </div>
+            </div>
+            <div class="sn">
+              <div class="sn-lbl">S05 · 방식</div>
+              <div class="sn-txt">
+                텍스트만. 설명 없음. 사과 없음. 4개 철학 선언.
+              </div>
+            </div>
+            <div class="sn">
+              <div class="sn-lbl">S06 · 문의</div>
+              <div class="sn-txt">
+                FULL BOOKED로 희소성 연출. 면적 필터로 자격 검증 UX.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /wf-desktop-only -->
+    </div>
+    <!-- /wireframe -->
+
+    <div class="wrap">
+      <!-- ════════════ 06 ADDONS ════════════ -->
+      <section id="addons" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">06</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt">추가 프리미엄 서비스 8종</span>
+        </div>
+        <p style="font-size: 16px; color: var(--gray2); margin-bottom: 40px">
+          4대 기둥 외 추가 도입 가능한 차별화 요소
+        </p>
+        <div class="g4">
+          <div class="addon-inner">
+            <div class="addon-num">01</div>
+            <div class="addon-name">컨시어지 무빙</div>
+            <div class="addon-desc">
+              이사·보관·호텔 연계 + 입주 정리 턴키 제공
+            </div>
+            <div class="addon-fx">↗ 시간 절약 극대화</div>
+          </div>
+          <div class="addon-inner">
+            <div class="addon-num">02</div>
+            <div class="addon-name">프라이빗 쇼룸</div>
+            <div class="addon-desc">
+              실제 시공 현장 오픈하우스 (소수 초청만)
+            </div>
+            <div class="addon-fx">↗ 신뢰 + 경험 마케팅</div>
+          </div>
+          <div class="addon-inner">
+            <div class="addon-num">03</div>
+            <div class="addon-name">시그니처 홈 센트</div>
+            <div class="addon-desc">입주 완료 후 자체 디퓨저로 마감</div>
+            <div class="addon-fx">↗ 후각 브랜딩</div>
+          </div>
+          <div class="addon-inner">
+            <div class="addon-num">04</div>
+            <div class="addon-name">스마트홈 큐레이션</div>
+            <div class="addon-desc">조명·커튼·보안 IoT 기본 설계 포함</div>
+            <div class="addon-fx">↗ 기술 + 럭셔리</div>
+          </div>
+          <div class="addon-inner">
+            <div class="addon-num">05</div>
+            <div class="addon-name">메인터넌스 멤버십</div>
+            <div class="addon-desc">1년·3년 차 리터치 구독 서비스</div>
+            <div class="addon-fx">↗ LTV 확장</div>
+          </div>
+          <div class="addon-inner">
+            <div class="addon-num">06</div>
+            <div class="addon-name">준공 포토북</div>
+            <div class="addon-desc">고급 양장본 + 샴페인 웰컴 키트 증정</div>
+            <div class="addon-fx">↗ 경험 소유욕 자극</div>
+          </div>
+          <div class="addon-inner">
+            <div class="addon-num">07</div>
+            <div class="addon-name">친환경 인증 문서</div>
+            <div class="addon-desc">
+              전 마감재 친환경 등급 증명서 파일링 제출
+            </div>
+            <div class="addon-fx">↗ 건강 예민 타겟</div>
+          </div>
+          <div class="addon-inner">
+            <div class="addon-num">08</div>
+            <div class="addon-name">아트 컨설팅 연계</div>
+            <div class="addon-desc">갤러리 제휴 아트워크 렌탈·구매 제안</div>
+            <div class="addon-fx">↗ 공간 완성도 극대화</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ 07 COMPARE ════════════ -->
+      <section id="compare" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">07</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt"
+            >판교 데이원디자인 vs THE PREMIUM 강남</span
+          >
+        </div>
+        <div class="table-scroll">
+          <table class="cmp">
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>데이원디자인 (판교 · 기존 유지)</th>
+                <th class="pm">THE PREMIUM by Day One Design</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>타겟</td>
+                <td>30~50대 일반 가정, 다양한 평수</td>
+                <td class="pm">40~60대 자산가·전문직, 강남권</td>
+              </tr>
+              <tr>
+                <td>컨셉</td>
+                <td>친근함, 다양한 포트폴리오, 합리적</td>
+                <td class="pm">희소성, 프라이빗, 작품성</td>
+              </tr>
+              <tr>
+                <td>포트폴리오</td>
+                <td>Before/After 다수 공개</td>
+                <td class="pm">완성 거실 1컷만 (Before 없음)</td>
+              </tr>
+              <tr>
+                <td>상담 방식</td>
+                <td>다수 고객님 동시 진행</td>
+                <td class="pm">1일 1팀 완전 몰입 상담</td>
+              </tr>
+              <tr>
+                <td>최소 면적</td>
+                <td>제한 없음</td>
+                <td class="pm">84㎡ 이상만</td>
+              </tr>
+              <tr>
+                <td>톤앤매너</td>
+                <td>White & Wood (내추럴, 밝음)</td>
+                <td class="pm">Greige & Black (시크, 모던)</td>
+              </tr>
+              <tr>
+                <td>CTA 문구</td>
+                <td>"무료 견적 받기" "문의하기"</td>
+                <td class="pm">"프라이빗 컨설팅 신청"</td>
+              </tr>
+              <tr>
+                <td>가격 전략</td>
+                <td>시장가 경쟁, 견적 중심</td>
+                <td class="pm">
+                  PM·디자인 서비스 포함 올인원, 가격 = 가치 제안
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ════════════ 08 BRAND ARCHITECTURE ════════════ -->
+      <section id="architecture" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">08</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt">브랜드 연결 아키텍처</span>
+        </div>
+        <div class="brand-arch" style="margin-bottom: 44px">
+          <div class="brand-box">
+            <div class="brand-box-tag">Existing Brand</div>
+            <div class="brand-box-name">데이원디자인</div>
+            <div class="brand-box-url">dayonedesign.kr (기존 운영)</div>
+            <ul class="brand-box-feat">
+              <li>다양한 포트폴리오 공개 유지</li>
+              <li>일반 타겟 영업·마케팅 유지</li>
+              <li>
+                하이엔드 포트폴리오 2~3건 하단에
+                <span style="color: var(--gold); font-weight: 700"
+                  >"이 프로젝트는 THE PREMIUM으로 진행"</span
+                >
+              </li>
+              <li>푸터에 theone.kr 소형 링크만 게재</li>
+            </ul>
+          </div>
+          <div class="brand-conn">
+            <div class="brand-conn-line"></div>
+            <div class="brand-conn-lbl">비밀의 문 구조</div>
+            <div class="brand-conn-badge">발견하게<br />만든다</div>
+            <div class="brand-conn-line"></div>
+          </div>
+          <div class="brand-box pm-box">
+            <div class="brand-box-tag" style="color: var(--gold)">
+              New Premium Line
+            </div>
+            <div class="brand-box-name" style="color: var(--gold)">
+              THE PREMIUM
+            </div>
+            <div class="brand-box-url">theone.kr (신규 독립)</div>
+            <ul class="brand-box-feat">
+              <li>헤더에 귀속 표시 없음</li>
+              <li>푸터에만 "by Day One Design" 소형 표기</li>
+              <li>Day One으로 돌아가는 링크 없음</li>
+              <li>갤러리 스타일 단독 사이트</li>
+              <li>84㎡ 이상 강남권만 상담</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          <div class="callout-lbl">
+            핵심 원칙 — "보여주지 않고 발견하게 만든다"
+          </div>
+          <div class="callout-body">
+            강남 신규 고객님이 theone.kr을 발견했을 때: "실적이 있는 회사네.
+            검증된 곳이군."<br />
+            기존 판교 고객님이 발견했을 때: "데이원디자인이 강남에 프리미엄
+            라인을 냈구나."<br />
+            두 감정을 동시에 충족 — <strong>신뢰와 희소성의 교차점.</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ 09 RISK ════════════ -->
+      <section id="risk" class="sec">
+        <div class="sec-lbl">
+          <span class="sec-lbl-num">09</span><span class="sec-lbl-line"></span
+          ><span class="sec-lbl-txt">리스크 & 대응 전략</span>
+        </div>
+        <div class="risk">
+          <div class="risk-row">
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">RISK</div>
+              84㎡ 이하 제한으로 인한 잠재 고객님 모수 축소
+            </div>
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">대응</div>
+              High Margin · Low Volume 전략. 30평대 3건보다 50평대 1건이 수익성
+              높도록 객단가 2~3배 설계.
+            </div>
+            <div class="risk-badge">중간</div>
+          </div>
+          <div class="risk-row">
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">RISK</div>
+              거실 1컷 포트폴리오의 정보 부족으로 의사결정 어려움
+            </div>
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">대응</div>
+              온라인 신비주의 유지. 오프라인 상담 시 태블릿으로 수전·타일·마감
+              디테일 컷 별도 공개.
+            </div>
+            <div class="risk-badge">낮음</div>
+          </div>
+          <div class="risk-row">
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">RISK</div>
+              높은 기대치에 따른 클레임 증가
+            </div>
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">대응</div>
+              사전 체크리스트 극도로 세분화 (청소기 종류·요리 빈도까지). 파악
+              내용을 설계에 반영하고 고객님께 보고.
+            </div>
+            <div class="risk-badge">높음</div>
+          </div>
+          <div class="risk-row">
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">RISK</div>
+              기존 판교 고객님과 강남 프리미엄 고객님 간 브랜드 혼란
+            </div>
+            <div class="risk-cell">
+              <div class="risk-cell-lbl">대응</div>
+              완전히 별도 사이트·채널 운영. 두 브랜드 간 시각 언어 80% 이상
+              분리. 연결은 '발견'으로만.
+            </div>
+            <div class="risk-badge">중간</div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <!-- /wrap -->
+
+    <!-- FOOTER -->
+    <footer class="doc-footer">
+      <div>
+        <div class="footer-brand">THE PREMIUM</div>
+        <div class="footer-brand-sub">
+          by Day One Design · Brand Launch Strategy
+        </div>
+      </div>
+      <div class="footer-meta">
+        기획 초안 v1.0<br />
+        2026년 02월 24일<br />
+        <span style="color: var(--gray3)"
+          >Confidential · Internal Use Only</span
+        >
+      </div>
+    </footer>
+  </body>
+</html>
