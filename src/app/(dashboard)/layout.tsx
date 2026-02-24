@@ -17,7 +17,7 @@ export default async function DashboardLayout({
 }) {
   // 서버 사이드 인증 확인
   const cookieStore = await cookies()
-  const session = cookieStore.get("admin_session")
+  const session = cookieStore.get("admin_token")
 
   if (!session?.value) {
     redirect("/login")

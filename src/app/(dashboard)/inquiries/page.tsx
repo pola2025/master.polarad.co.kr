@@ -1,26 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   MessageSquare,
   Search,
-  MoreHorizontal,
   Mail,
   Phone,
   Building,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Reply,
-  Trash2,
-  Star,
-  StarOff,
-  Filter,
   ChevronRight,
+  Loader2,
+  RefreshCw,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -30,177 +22,142 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface Inquiry {
-  id: number
+  id: string
+  no: number
   name: string
+  company: string
   email: string
   phone: string
-  company: string
-  subject: string
   message: string
-  status: "new" | "pending" | "replied"
-  starred: boolean
   createdAt: string
-  service: string
-  repliedAt?: string
 }
 
-// 실제 데이터 연동 전까지 빈 배열
-const inquiriesData: {
-  inquiries: Inquiry[]
-  stats: {
-    total: number
-    new: number
-    pending: number
-    replied: number
-    thisMonth: number
-  }
-} = {
-  inquiries: [],
-  stats: {
-    total: 0,
-    new: 0,
-    pending: 0,
-    replied: 0,
-    thisMonth: 0,
-  },
+interface InquiryStats {
+  total: number
+  thisMonth: number
 }
 
-const statusConfig = {
-  new: { label: "새 문의", icon: AlertCircle, variant: "destructive" as const, color: "text-red-600" },
-  pending: { label: "처리 중", icon: Clock, variant: "secondary" as const, color: "text-yellow-600" },
-  replied: { label: "답변 완료", icon: CheckCircle, variant: "default" as const, color: "text-green-600" },
+function formatDate(iso: string) {
+  const d = new Date(iso)
+  return d.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
 }
 
 export default function InquiriesPage() {
+  const [inquiries, setInquiries] = useState<Inquiry[]>([])
+  const [stats, setStats] = useState<InquiryStats>({ total: 0, thisMonth: 0 })
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
-  const [activeTab, setActiveTab] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  const filteredInquiries = inquiriesData.inquiries.filter((inquiry) => {
-    const matchesSearch =
-      inquiry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inquiry.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inquiry.subject.toLowerCase().includes(searchQuery.toLowerCase())
+  async function fetchInquiries() {
+    setLoading(true)
+    setError("")
+    try {
+      const res = await fetch("/api/inquiries")
+      if (!res.ok) throw new Error("조회 실패")
+      const data = await res.json()
+      setInquiries(data.inquiries || [])
+      setStats(data.stats || { total: 0, thisMonth: 0 })
+    } catch {
+      setError("문의 데이터를 불러오지 못했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    if (activeTab === "all") return matchesSearch
-    if (activeTab === "new") return matchesSearch && inquiry.status === "new"
-    if (activeTab === "pending") return matchesSearch && inquiry.status === "pending"
-    if (activeTab === "starred") return matchesSearch && inquiry.starred
-    return matchesSearch
+  useEffect(() => {
+    fetchInquiries()
+  }, [])
+
+  const filteredInquiries = inquiries.filter((inquiry) => {
+    const q = searchQuery.toLowerCase()
+    return (
+      inquiry.name.toLowerCase().includes(q) ||
+      inquiry.company.toLowerCase().includes(q) ||
+      inquiry.email.toLowerCase().includes(q) ||
+      inquiry.phone.includes(q) ||
+      inquiry.message.toLowerCase().includes(q)
+    )
   })
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">문의 관리</h1>
-        <p className="text-muted-foreground">
-          고객 문의를 확인하고 응답합니다.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">문의 관리</h1>
+          <p className="text-muted-foreground">폴라애드 홈페이지 접수 문의를 확인합니다.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchInquiries} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          새로고침
+        </Button>
       </div>
 
       {/* 통계 카드 */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">전체 문의</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{inquiriesData.stats.total}</div>
-            <p className="text-xs text-muted-foreground">이번 달 +{inquiriesData.stats.thisMonth}</p>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">누적 접수</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">새 문의</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-sm font-medium">이번 달 문의</CardTitle>
+            <MessageSquare className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{inquiriesData.stats.new}</div>
-            <p className="text-xs text-muted-foreground">답변 필요</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">처리 중</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{inquiriesData.stats.pending}</div>
-            <p className="text-xs text-muted-foreground">진행 중</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">답변 완료</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{inquiriesData.stats.replied}</div>
-            <p className="text-xs text-muted-foreground">처리 완료</p>
+            <div className="text-2xl font-bold text-blue-600">{stats.thisMonth}</div>
+            <p className="text-xs text-muted-foreground">이번 달 접수</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* 문의 목록 */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* 목록 */}
-        <div className="lg:col-span-2 space-y-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <TabsList>
-                <TabsTrigger value="all">전체</TabsTrigger>
-                <TabsTrigger value="new">
-                  새 문의
-                  {inquiriesData.stats.new > 0 && (
-                    <Badge variant="destructive" className="ml-2 h-5 px-1.5">
-                      {inquiriesData.stats.new}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="pending">처리 중</TabsTrigger>
-                <TabsTrigger value="starred">중요</TabsTrigger>
-              </TabsList>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="검색..."
-                    className="pl-8 w-[200px]"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <Button variant="outline" size="icon">
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Tabs>
+      {/* 목록 + 상세 */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="이름, 회사, 연락처, 문의내용 검색..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
           <Card>
             <CardContent className="p-0">
-              {filteredInquiries.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredInquiries.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-1">문의가 없습니다</h3>
+                  <h3 className="font-semibold mb-1">
+                    {searchQuery ? "검색 결과가 없습니다" : "문의가 없습니다"}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
                     새로운 문의가 들어오면 여기에 표시됩니다.
                   </p>
@@ -209,76 +166,51 @@ export default function InquiriesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[30px]"></TableHead>
+                      <TableHead className="w-[40px]">No</TableHead>
                       <TableHead>문의자</TableHead>
-                      <TableHead className="w-[300px]">제목</TableHead>
-                      <TableHead>서비스</TableHead>
-                      <TableHead>상태</TableHead>
+                      <TableHead>연락처</TableHead>
+                      <TableHead>문의내용</TableHead>
                       <TableHead>날짜</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="w-[30px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInquiries.map((inquiry) => {
-                      const status = statusConfig[inquiry.status]
-                      return (
-                        <TableRow
-                          key={inquiry.id}
-                          className={`cursor-pointer ${selectedInquiry?.id === inquiry.id ? "bg-muted" : ""}`}
-                          onClick={() => setSelectedInquiry(inquiry)}
-                        >
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                              }}
-                            >
-                              {inquiry.starred ? (
-                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              ) : (
-                                <StarOff className="h-4 w-4 text-muted-foreground" />
+                    {filteredInquiries.map((inquiry) => (
+                      <TableRow
+                        key={inquiry.id}
+                        className={`cursor-pointer ${selectedInquiry?.id === inquiry.id ? "bg-muted" : ""}`}
+                        onClick={() => setSelectedInquiry(inquiry)}
+                      >
+                        <TableCell className="text-muted-foreground text-sm">{inquiry.no}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs">
+                                {inquiry.name.slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{inquiry.name}</p>
+                              {inquiry.company && (
+                                <p className="text-xs text-muted-foreground">{inquiry.company}</p>
                               )}
-                            </Button>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="text-xs">
-                                  {inquiry.name.slice(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium text-sm">{inquiry.name}</p>
-                                {inquiry.company && (
-                                  <p className="text-xs text-muted-foreground">{inquiry.company}</p>
-                                )}
-                              </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <p className="font-medium line-clamp-1">{inquiry.subject}</p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{inquiry.service}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={status.variant} className="gap-1">
-                              <status.icon className="h-3 w-3" />
-                              {status.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {inquiry.createdAt.split(" ")[0]}
-                          </TableCell>
-                          <TableCell>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {inquiry.phone}
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm line-clamp-1 max-w-[200px]">{inquiry.message}</p>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                          {formatDate(inquiry.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}
@@ -291,51 +223,31 @@ export default function InquiriesPage() {
           {selectedInquiry ? (
             <Card className="sticky top-4">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback>{selectedInquiry.name.slice(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-lg">{selectedInquiry.name}</CardTitle>
-                      {selectedInquiry.company && (
-                        <CardDescription>{selectedInquiry.company}</CardDescription>
-                      )}
-                    </div>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback>{selectedInquiry.name.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <CardTitle className="text-lg">{selectedInquiry.name}</CardTitle>
+                    {selectedInquiry.company && (
+                      <CardDescription>{selectedInquiry.company}</CardDescription>
+                    )}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Reply className="mr-2 h-4 w-4" />
-                        답변하기
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Star className="mr-2 h-4 w-4" />
-                        중요 표시
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        삭제
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* 연락처 정보 */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a href={`mailto:${selectedInquiry.email}`} className="text-blue-600 hover:underline">
-                      {selectedInquiry.email}
-                    </a>
-                  </div>
+                  {selectedInquiry.email && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a
+                        href={`mailto:${selectedInquiry.email}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {selectedInquiry.email}
+                      </a>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-sm">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <a href={`tel:${selectedInquiry.phone}`} className="hover:underline">
@@ -352,34 +264,30 @@ export default function InquiriesPage() {
 
                 <Separator />
 
-                {/* 문의 내용 */}
                 <div>
-                  <h4 className="font-semibold mb-2">{selectedInquiry.subject}</h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {selectedInquiry.message}
-                  </p>
+                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">문의 내용</h4>
+                  <p className="text-sm whitespace-pre-wrap">{selectedInquiry.message}</p>
                 </div>
 
                 <Separator />
 
-                {/* 메타 정보 */}
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">{selectedInquiry.service}</Badge>
-                  <span>•</span>
-                  <span>{selectedInquiry.createdAt}</span>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  접수: {formatDate(selectedInquiry.createdAt)}
+                </p>
 
-                {/* 액션 버튼 */}
                 <div className="flex gap-2 pt-2">
-                  <Button className="flex-1">
-                    <Reply className="mr-2 h-4 w-4" />
-                    답변하기
-                  </Button>
-                  <Button variant="outline">
-                    <Mail className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline">
-                    <Phone className="h-4 w-4" />
+                  {selectedInquiry.email && (
+                    <Button className="flex-1" asChild>
+                      <a href={`mailto:${selectedInquiry.email}`}>
+                        <Mail className="mr-2 h-4 w-4" />
+                        이메일 답변
+                      </a>
+                    </Button>
+                  )}
+                  <Button variant="outline" asChild>
+                    <a href={`tel:${selectedInquiry.phone}`}>
+                      <Phone className="h-4 w-4" />
+                    </a>
                   </Button>
                 </div>
               </CardContent>

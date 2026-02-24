@@ -2,42 +2,68 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Lock, AlertCircle } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+type Step = "initial" | "sent"
+
 export default function LoginPage() {
-  const [password, setPassword] = useState("")
+  const [step, setStep] = useState<Step>("initial")
+  const [code, setCode] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null)
   const router = useRouter()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil
+
+  async function handleSend() {
     setError("")
     setLoading(true)
-
     try {
-      const response = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ password }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send" }),
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        router.push("/")
-        router.refresh()
-      } else {
-        setError(data.error || "로그인에 실패했습니다.")
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "발송 중 오류가 발생했습니다.")
+        return
       }
+      setStep("sent")
+      setCode("")
     } catch {
-      setError("서버 오류가 발생했습니다.")
+      setError("발송 중 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault()
+    if (isLocked) return
+    setError("")
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", code }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "인증에 실패했습니다.")
+        if (data.lockedUntil) setLockedUntil(data.lockedUntil)
+        return
+      }
+      router.push("/")
+      router.refresh()
+    } catch {
+      setError("인증 중 오류가 발생했습니다.")
     } finally {
       setLoading(false)
     }
@@ -47,47 +73,74 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            <Lock className="h-6 w-6 text-primary" />
-          </div>
           <CardTitle className="text-2xl">폴라애드 관리자</CardTitle>
-          <CardDescription>대시보드에 접속하려면 비밀번호를 입력하세요.</CardDescription>
+          <CardDescription>
+            {step === "initial"
+              ? "텔레그램으로 인증코드를 받아 로그인합니다."
+              : "텔레그램으로 발송된 6자리 코드를 입력하세요."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                비밀번호
-              </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="비밀번호를 입력하세요"
-                disabled={loading}
-                autoFocus
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading || !password}>
+          {step === "initial" ? (
+            <Button onClick={handleSend} disabled={loading} className="w-full">
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  로그인 중...
+                  발송 중...
                 </>
               ) : (
-                "로그인"
+                "텔레그램으로 인증코드 받기"
               )}
             </Button>
-          </form>
+          ) : (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <div>
+                <Input
+                  type="text"
+                  value={code}
+                  onChange={(e) =>
+                    setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  className="text-center text-2xl tracking-widest font-mono"
+                  placeholder="000000"
+                  maxLength={6}
+                  inputMode="numeric"
+                  autoFocus
+                  disabled={isLocked}
+                />
+                <p className="text-xs text-muted-foreground text-center mt-1">유효시간 5분</p>
+              </div>
+              <Button
+                type="submit"
+                disabled={loading || code.length !== 6 || isLocked}
+                className="w-full"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    확인 중...
+                  </>
+                ) : (
+                  "확인"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleSend}
+                disabled={loading}
+                className="w-full text-sm"
+              >
+                코드 재발송
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
