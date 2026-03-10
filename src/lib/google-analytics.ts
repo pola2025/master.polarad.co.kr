@@ -1,71 +1,71 @@
-import { BetaAnalyticsDataClient } from "@google-analytics/data"
+import { BetaAnalyticsDataClient } from "@google-analytics/data";
 
-const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || "514776969"
+const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || "514776969";
 
 // 서비스 계정 인증 설정
 function getAnalyticsClient() {
   const credentials = {
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-  }
+  };
 
   if (!credentials.client_email || !credentials.private_key) {
-    throw new Error("Google Analytics credentials not configured")
+    throw new Error("Google Analytics credentials not configured");
   }
 
   return new BetaAnalyticsDataClient({
     credentials,
-  })
+  });
 }
 
 // 날짜 포맷 함수
 function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0]
+  return date.toISOString().split("T")[0];
 }
 
 // 오늘 기준 n일 전 날짜
 function getDaysAgo(days: number): string {
-  const date = new Date()
-  date.setDate(date.getDate() - days)
-  return formatDate(date)
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return formatDate(date);
 }
 
 export interface AnalyticsOverview {
-  totalUsers: number
-  newUsers: number
-  sessions: number
-  pageViews: number
-  bounceRate: number
-  avgSessionDuration: number
+  totalUsers: number;
+  newUsers: number;
+  sessions: number;
+  pageViews: number;
+  bounceRate: number;
+  avgSessionDuration: number;
 }
 
 export interface DailyMetrics {
-  date: string
-  visitors: number
-  pageviews: number
+  date: string;
+  visitors: number;
+  pageviews: number;
 }
 
 export interface TrafficSource {
-  source: string
-  visitors: number
+  source: string;
+  visitors: number;
 }
 
 export interface TopPage {
-  path: string
-  title: string
-  views: number
-  avgTime: string
+  path: string;
+  title: string;
+  views: number;
+  avgTime: string;
 }
 
 export interface DeviceCategory {
-  device: string
-  visitors: number
+  device: string;
+  visitors: number;
 }
 
 // 오늘 데이터 조회
 export async function getTodayOverview(): Promise<AnalyticsOverview> {
-  const client = getAnalyticsClient()
-  const today = formatDate(new Date())
+  const client = getAnalyticsClient();
+  const today = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -78,10 +78,10 @@ export async function getTodayOverview(): Promise<AnalyticsOverview> {
       { name: "bounceRate" },
       { name: "averageSessionDuration" },
     ],
-  })
+  });
 
-  const row = response.rows?.[0]
-  const values = row?.metricValues || []
+  const row = response.rows?.[0];
+  const values = row?.metricValues || [];
 
   return {
     totalUsers: parseInt(values[0]?.value || "0"),
@@ -90,13 +90,13 @@ export async function getTodayOverview(): Promise<AnalyticsOverview> {
     pageViews: parseInt(values[3]?.value || "0"),
     bounceRate: parseFloat(values[4]?.value || "0") * 100,
     avgSessionDuration: parseFloat(values[5]?.value || "0"),
-  }
+  };
 }
 
 // 어제 데이터 조회 (비교용)
 export async function getYesterdayOverview(): Promise<AnalyticsOverview> {
-  const client = getAnalyticsClient()
-  const yesterday = getDaysAgo(1)
+  const client = getAnalyticsClient();
+  const yesterday = getDaysAgo(1);
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -109,10 +109,10 @@ export async function getYesterdayOverview(): Promise<AnalyticsOverview> {
       { name: "bounceRate" },
       { name: "averageSessionDuration" },
     ],
-  })
+  });
 
-  const row = response.rows?.[0]
-  const values = row?.metricValues || []
+  const row = response.rows?.[0];
+  const values = row?.metricValues || [];
 
   return {
     totalUsers: parseInt(values[0]?.value || "0"),
@@ -121,43 +121,42 @@ export async function getYesterdayOverview(): Promise<AnalyticsOverview> {
     pageViews: parseInt(values[3]?.value || "0"),
     bounceRate: parseFloat(values[4]?.value || "0") * 100,
     avgSessionDuration: parseFloat(values[5]?.value || "0"),
-  }
+  };
 }
 
 // 일별 방문자 추이 (최근 7일)
-export async function getDailyMetrics(days: number = 7): Promise<DailyMetrics[]> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+export async function getDailyMetrics(
+  days: number = 7,
+): Promise<DailyMetrics[]> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate, endDate }],
     dimensions: [{ name: "date" }],
-    metrics: [
-      { name: "activeUsers" },
-      { name: "screenPageViews" },
-    ],
+    metrics: [{ name: "activeUsers" }, { name: "screenPageViews" }],
     orderBys: [{ dimension: { dimensionName: "date" } }],
-  })
+  });
 
   return (response.rows || []).map((row) => {
-    const dateStr = row.dimensionValues?.[0]?.value || ""
+    const dateStr = row.dimensionValues?.[0]?.value || "";
     // YYYYMMDD -> MM/DD 형식으로 변환
-    const formatted = `${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`
+    const formatted = `${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`;
     return {
       date: formatted,
       visitors: parseInt(row.metricValues?.[0]?.value || "0"),
       pageviews: parseInt(row.metricValues?.[1]?.value || "0"),
-    }
-  })
+    };
+  });
 }
 
 // 유입 경로별 방문자
 export async function getTrafficSources(): Promise<TrafficSource[]> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(6)
-  const endDate = formatDate(new Date())
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(6);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -166,66 +165,60 @@ export async function getTrafficSources(): Promise<TrafficSource[]> {
     metrics: [{ name: "activeUsers" }],
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
     limit: 5,
-  })
+  });
 
   const sourceMapping: Record<string, string> = {
-    "Direct": "direct",
+    Direct: "direct",
     "Organic Search": "organic",
-    "Referral": "referral",
+    Referral: "referral",
     "Organic Social": "social",
     "Paid Search": "paid",
-    "Email": "email",
-  }
+    Email: "email",
+  };
 
   return (response.rows || []).map((row) => {
-    const sourceName = row.dimensionValues?.[0]?.value || "Other"
+    const sourceName = row.dimensionValues?.[0]?.value || "Other";
     return {
       source: sourceMapping[sourceName] || sourceName.toLowerCase(),
       visitors: parseInt(row.metricValues?.[0]?.value || "0"),
-    }
-  })
+    };
+  });
 }
 
 // 인기 페이지 Top 5
 export async function getTopPages(): Promise<TopPage[]> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(6)
-  const endDate = formatDate(new Date())
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(6);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate, endDate }],
-    dimensions: [
-      { name: "pagePath" },
-      { name: "pageTitle" },
-    ],
-    metrics: [
-      { name: "screenPageViews" },
-      { name: "averageSessionDuration" },
-    ],
+    dimensions: [{ name: "pagePath" }, { name: "pageTitle" }],
+    metrics: [{ name: "screenPageViews" }, { name: "averageSessionDuration" }],
     orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
     limit: 5,
-  })
+  });
 
   return (response.rows || []).map((row) => {
-    const duration = parseFloat(row.metricValues?.[1]?.value || "0")
-    const minutes = Math.floor(duration / 60)
-    const seconds = Math.floor(duration % 60)
+    const duration = parseFloat(row.metricValues?.[1]?.value || "0");
+    const minutes = Math.floor(duration / 60);
+    const seconds = Math.floor(duration % 60);
 
     return {
       path: row.dimensionValues?.[0]?.value || "/",
       title: row.dimensionValues?.[1]?.value || "홈",
       views: parseInt(row.metricValues?.[0]?.value || "0"),
       avgTime: `${minutes}:${seconds.toString().padStart(2, "0")}`,
-    }
-  })
+    };
+  });
 }
 
 // 기기별 분포
 export async function getDeviceCategories(): Promise<DeviceCategory[]> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(6)
-  const endDate = formatDate(new Date())
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(6);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -233,12 +226,12 @@ export async function getDeviceCategories(): Promise<DeviceCategory[]> {
     dimensions: [{ name: "deviceCategory" }],
     metrics: [{ name: "activeUsers" }],
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
-  })
+  });
 
   return (response.rows || []).map((row) => ({
     device: row.dimensionValues?.[0]?.value || "unknown",
     visitors: parseInt(row.metricValues?.[0]?.value || "0"),
-  }))
+  }));
 }
 
 // =====================
@@ -251,13 +244,15 @@ import type {
   MonthlyVisitorData,
   AggregatedVisitorData,
   VisitorSummary,
-} from "@/types/analytics"
+} from "@/types/analytics";
 
 // 일별 상세 데이터 조회
-export async function getDailyVisitorData(days: number = 30): Promise<DailyVisitorData[]> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+export async function getDailyVisitorData(
+  days: number = 30,
+): Promise<DailyVisitorData[]> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -272,12 +267,12 @@ export async function getDailyVisitorData(days: number = 30): Promise<DailyVisit
       { name: "averageSessionDuration" },
     ],
     orderBys: [{ dimension: { dimensionName: "date" }, desc: true }],
-  })
+  });
 
   return (response.rows || []).map((row) => {
-    const dateStr = row.dimensionValues?.[0]?.value || ""
+    const dateStr = row.dimensionValues?.[0]?.value || "";
     // YYYYMMDD -> YYYY-MM-DD 형식으로 변환
-    const formatted = `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`
+    const formatted = `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
     return {
       date: formatted,
       visitors: parseInt(row.metricValues?.[0]?.value || "0"),
@@ -286,60 +281,67 @@ export async function getDailyVisitorData(days: number = 30): Promise<DailyVisit
       newUsers: parseInt(row.metricValues?.[3]?.value || "0"),
       bounceRate: parseFloat(row.metricValues?.[4]?.value || "0") * 100,
       avgDuration: parseFloat(row.metricValues?.[5]?.value || "0"),
-    }
-  })
+    };
+  });
 }
 
 // 주 시작일 계산 (월요일 기준)
 function getWeekStart(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // 월요일을 주 시작으로
-  d.setDate(diff)
-  return d
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 월요일을 주 시작으로
+  d.setDate(diff);
+  return d;
 }
 
 // 주 번호 계산 (ISO 8601)
 function getWeekNumber(date: Date): string {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  const weekNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
-  return `W${weekNum.toString().padStart(2, "0")}`
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil(
+    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+  );
+  return `W${weekNum.toString().padStart(2, "0")}`;
 }
 
 // 일별 데이터를 주별로 집계
 function aggregateToWeekly(daily: DailyVisitorData[]): WeeklyVisitorData[] {
-  const weeklyMap = new Map<string, {
-    week_start: Date
-    week_end: Date
-    days: DailyVisitorData[]
-  }>()
+  const weeklyMap = new Map<
+    string,
+    {
+      week_start: Date;
+      week_end: Date;
+      days: DailyVisitorData[];
+    }
+  >();
 
   // 일별 데이터를 주별로 그룹화
   for (const day of daily) {
-    const date = new Date(day.date)
-    const weekStart = getWeekStart(date)
-    const weekKey = formatDate(weekStart)
+    const date = new Date(day.date);
+    const weekStart = getWeekStart(date);
+    const weekKey = formatDate(weekStart);
 
     if (!weeklyMap.has(weekKey)) {
-      const weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekEnd.getDate() + 6)
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
       weeklyMap.set(weekKey, {
         week_start: weekStart,
         week_end: weekEnd,
         days: [],
-      })
+      });
     }
-    weeklyMap.get(weekKey)!.days.push(day)
+    weeklyMap.get(weekKey)!.days.push(day);
   }
 
   // 주별 집계
   const weeks: WeeklyVisitorData[] = Array.from(weeklyMap.entries())
     .map(([, data]) => {
-      const { week_start, week_end, days } = data
-      const weekLabel = getWeekNumber(week_start)
+      const { week_start, week_end, days } = data;
+      const weekLabel = getWeekNumber(week_start);
 
       return {
         week_label: weekLabel,
@@ -349,59 +351,76 @@ function aggregateToWeekly(daily: DailyVisitorData[]): WeeklyVisitorData[] {
         pageviews: days.reduce((sum, d) => sum + d.pageviews, 0),
         sessions: days.reduce((sum, d) => sum + d.sessions, 0),
         newUsers: days.reduce((sum, d) => sum + d.newUsers, 0),
-        bounceRate: days.length > 0
-          ? days.reduce((sum, d) => sum + d.bounceRate, 0) / days.length
-          : 0,
-        avgDuration: days.length > 0
-          ? days.reduce((sum, d) => sum + d.avgDuration, 0) / days.length
-          : 0,
-      }
+        bounceRate:
+          days.length > 0
+            ? days.reduce((sum, d) => sum + d.bounceRate, 0) / days.length
+            : 0,
+        avgDuration:
+          days.length > 0
+            ? days.reduce((sum, d) => sum + d.avgDuration, 0) / days.length
+            : 0,
+      };
     })
-    .sort((a, b) => b.week_start.localeCompare(a.week_start)) // 최신 주가 먼저
+    .sort((a, b) => b.week_start.localeCompare(a.week_start)); // 최신 주가 먼저
 
   // 전주 대비 변화율 계산
   for (let i = 0; i < weeks.length - 1; i++) {
-    const current = weeks[i]
-    const previous = weeks[i + 1]
+    const current = weeks[i];
+    const previous = weeks[i + 1];
 
-    current.visitors_change = calculateChange(current.visitors, previous.visitors)
-    current.pageviews_change = calculateChange(current.pageviews, previous.pageviews)
-    current.sessions_change = calculateChange(current.sessions, previous.sessions)
-    current.bounceRate_change = calculateChange(current.bounceRate, previous.bounceRate)
+    current.visitors_change = calculateChange(
+      current.visitors,
+      previous.visitors,
+    );
+    current.pageviews_change = calculateChange(
+      current.pageviews,
+      previous.pageviews,
+    );
+    current.sessions_change = calculateChange(
+      current.sessions,
+      previous.sessions,
+    );
+    current.bounceRate_change = calculateChange(
+      current.bounceRate,
+      previous.bounceRate,
+    );
   }
 
-  return weeks
+  return weeks;
 }
 
 // 변화율 계산 헬퍼
 function calculateChange(current: number, previous: number): number {
-  if (previous === 0) return 0
-  return ((current - previous) / previous) * 100
+  if (previous === 0) return 0;
+  return ((current - previous) / previous) * 100;
 }
 
 // 일별 데이터를 월별로 집계
-function aggregateToMonthly(daily: DailyVisitorData[], weekly: WeeklyVisitorData[]): MonthlyVisitorData[] {
-  const monthlyMap = new Map<string, DailyVisitorData[]>()
+function aggregateToMonthly(
+  daily: DailyVisitorData[],
+  weekly: WeeklyVisitorData[],
+): MonthlyVisitorData[] {
+  const monthlyMap = new Map<string, DailyVisitorData[]>();
 
   // 일별 데이터를 월별로 그룹화
   for (const day of daily) {
-    const month = day.date.substring(0, 7) // "2025-12"
+    const month = day.date.substring(0, 7); // "2025-12"
     if (!monthlyMap.has(month)) {
-      monthlyMap.set(month, [])
+      monthlyMap.set(month, []);
     }
-    monthlyMap.get(month)!.push(day)
+    monthlyMap.get(month)!.push(day);
   }
 
   // 월별 집계
   const months: MonthlyVisitorData[] = Array.from(monthlyMap.entries())
     .map(([month, days]) => {
-      const [year, m] = month.split("-")
-      const monthLabel = `${year}년 ${parseInt(m)}월`
+      const [year, m] = month.split("-");
+      const monthLabel = `${year}년 ${parseInt(m)}월`;
 
       // 해당 월에 속하는 주 데이터 필터링
       const monthWeeks = weekly.filter((w) => {
-        return w.week_start.startsWith(month) || w.week_end.startsWith(month)
-      })
+        return w.week_start.startsWith(month) || w.week_end.startsWith(month);
+      });
 
       return {
         month,
@@ -410,71 +429,86 @@ function aggregateToMonthly(daily: DailyVisitorData[], weekly: WeeklyVisitorData
         pageviews: days.reduce((sum, d) => sum + d.pageviews, 0),
         sessions: days.reduce((sum, d) => sum + d.sessions, 0),
         newUsers: days.reduce((sum, d) => sum + d.newUsers, 0),
-        bounceRate: days.length > 0
-          ? days.reduce((sum, d) => sum + d.bounceRate, 0) / days.length
-          : 0,
-        avgDuration: days.length > 0
-          ? days.reduce((sum, d) => sum + d.avgDuration, 0) / days.length
-          : 0,
+        bounceRate:
+          days.length > 0
+            ? days.reduce((sum, d) => sum + d.bounceRate, 0) / days.length
+            : 0,
+        avgDuration:
+          days.length > 0
+            ? days.reduce((sum, d) => sum + d.avgDuration, 0) / days.length
+            : 0,
         weeks: monthWeeks,
-      }
+      };
     })
-    .sort((a, b) => b.month.localeCompare(a.month)) // 최신 월이 먼저
+    .sort((a, b) => b.month.localeCompare(a.month)); // 최신 월이 먼저
 
   // 전월 대비 변화율 계산
   for (let i = 0; i < months.length - 1; i++) {
-    const current = months[i]
-    const previous = months[i + 1]
+    const current = months[i];
+    const previous = months[i + 1];
 
-    current.visitors_change = calculateChange(current.visitors, previous.visitors)
-    current.pageviews_change = calculateChange(current.pageviews, previous.pageviews)
-    current.sessions_change = calculateChange(current.sessions, previous.sessions)
-    current.bounceRate_change = calculateChange(current.bounceRate, previous.bounceRate)
+    current.visitors_change = calculateChange(
+      current.visitors,
+      previous.visitors,
+    );
+    current.pageviews_change = calculateChange(
+      current.pageviews,
+      previous.pageviews,
+    );
+    current.sessions_change = calculateChange(
+      current.sessions,
+      previous.sessions,
+    );
+    current.bounceRate_change = calculateChange(
+      current.bounceRate,
+      previous.bounceRate,
+    );
   }
 
-  return months
+  return months;
 }
 
 // 누적 데이터 조회 (일/주/월 모두 포함)
-export async function getAggregatedVisitorData(days: number = 90): Promise<AggregatedVisitorData> {
-  const daily = await getDailyVisitorData(days)
-  const weekly = aggregateToWeekly(daily)
-  const monthly = aggregateToMonthly(daily, weekly)
+export async function getAggregatedVisitorData(
+  days: number = 90,
+): Promise<AggregatedVisitorData> {
+  const daily = await getDailyVisitorData(days);
+  const weekly = aggregateToWeekly(daily);
+  const monthly = aggregateToMonthly(daily, weekly);
 
   // 요약 데이터 계산
   const summary: VisitorSummary = {
     total_visitors: daily.reduce((sum, d) => sum + d.visitors, 0),
     total_pageviews: daily.reduce((sum, d) => sum + d.pageviews, 0),
     total_sessions: daily.reduce((sum, d) => sum + d.sessions, 0),
-    avg_bounce_rate: daily.length > 0
-      ? daily.reduce((sum, d) => sum + d.bounceRate, 0) / daily.length
-      : 0,
-    avg_session_duration: daily.length > 0
-      ? daily.reduce((sum, d) => sum + d.avgDuration, 0) / daily.length
-      : 0,
+    avg_bounce_rate:
+      daily.length > 0
+        ? daily.reduce((sum, d) => sum + d.bounceRate, 0) / daily.length
+        : 0,
+    avg_session_duration:
+      daily.length > 0
+        ? daily.reduce((sum, d) => sum + d.avgDuration, 0) / daily.length
+        : 0,
     date_range: {
       start: daily.length > 0 ? daily[daily.length - 1].date : "",
       end: daily.length > 0 ? daily[0].date : "",
     },
-  }
+  };
 
-  return { daily, weekly, monthly, summary }
+  return { daily, weekly, monthly, summary };
 }
 
 // =====================
 // 트래픽 유입 분석
 // =====================
 
-import type {
-  TrafficChannel,
-  TrafficSourcesData,
-} from "@/types/analytics"
+import type { TrafficChannel, TrafficSourcesData } from "@/types/analytics";
 
 // 채널별 트래픽 분석
 export async function getTrafficChannelData(): Promise<TrafficChannel[]> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(29)
-  const endDate = formatDate(new Date())
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(29);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -488,27 +522,27 @@ export async function getTrafficChannelData(): Promise<TrafficChannel[]> {
     ],
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
     limit: 10,
-  })
+  });
 
   const channelMapping: Record<string, string> = {
-    "Direct": "direct",
+    Direct: "direct",
     "Organic Search": "organic",
-    "Referral": "referral",
+    Referral: "referral",
     "Organic Social": "social",
     "Paid Search": "paid",
-    "Email": "email",
-    "Display": "display",
+    Email: "email",
+    Display: "display",
     "Paid Social": "paid_social",
-  }
+  };
 
   const totalVisitors = (response.rows || []).reduce(
     (sum, row) => sum + parseInt(row.metricValues?.[0]?.value || "0"),
-    0
-  )
+    0,
+  );
 
   return (response.rows || []).map((row) => {
-    const channelName = row.dimensionValues?.[0]?.value || "Other"
-    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    const channelName = row.dimensionValues?.[0]?.value || "Other";
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0");
     return {
       channel: channelMapping[channelName] || channelName.toLowerCase(),
       visitors,
@@ -516,27 +550,24 @@ export async function getTrafficChannelData(): Promise<TrafficChannel[]> {
       percentage: totalVisitors > 0 ? (visitors / totalVisitors) * 100 : 0,
       bounceRate: parseFloat(row.metricValues?.[2]?.value || "0") * 100,
       avgDuration: parseFloat(row.metricValues?.[3]?.value || "0"),
-    }
-  })
+    };
+  });
 }
 
 // 유입 출처별 상세 분석
 export async function getTrafficSourcesDetailData(): Promise<TrafficSourcesData> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(29)
-  const endDate = formatDate(new Date())
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(29);
+  const endDate = formatDate(new Date());
 
   // 채널 데이터
-  const channels = await getTrafficChannelData()
+  const channels = await getTrafficChannelData();
 
   // 출처/매체별 데이터
   const [sourcesResponse] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate, endDate }],
-    dimensions: [
-      { name: "sessionSource" },
-      { name: "sessionMedium" },
-    ],
+    dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
     metrics: [
       { name: "activeUsers" },
       { name: "sessions" },
@@ -545,7 +576,7 @@ export async function getTrafficSourcesDetailData(): Promise<TrafficSourcesData>
     ],
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
     limit: 15,
-  })
+  });
 
   const sources = (sourcesResponse.rows || []).map((row) => ({
     source: row.dimensionValues?.[0]?.value || "(direct)",
@@ -554,16 +585,13 @@ export async function getTrafficSourcesDetailData(): Promise<TrafficSourcesData>
     sessions: parseInt(row.metricValues?.[1]?.value || "0"),
     bounceRate: parseFloat(row.metricValues?.[2]?.value || "0") * 100,
     avgDuration: parseFloat(row.metricValues?.[3]?.value || "0"),
-  }))
+  }));
 
   // Top Referrer 데이터
   const [referrerResponse] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate, endDate }],
-    dimensions: [
-      { name: "pageReferrer" },
-      { name: "landingPage" },
-    ],
+    dimensions: [{ name: "pageReferrer" }, { name: "landingPage" }],
     metrics: [{ name: "activeUsers" }],
     dimensionFilter: {
       filter: {
@@ -577,15 +605,15 @@ export async function getTrafficSourcesDetailData(): Promise<TrafficSourcesData>
     },
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
     limit: 10,
-  })
+  });
 
   const topReferrers = (referrerResponse.rows || []).map((row) => ({
     referrer: row.dimensionValues?.[0]?.value || "",
     landingPage: row.dimensionValues?.[1]?.value || "/",
     visitors: parseInt(row.metricValues?.[0]?.value || "0"),
-  }))
+  }));
 
-  return { channels, sources, topReferrers }
+  return { channels, sources, topReferrers };
 }
 
 // =====================
@@ -599,7 +627,7 @@ import type {
   ConversionByChannel,
   ConversionAnalyticsData,
   FunnelStep,
-} from "@/types/analytics"
+} from "@/types/analytics";
 
 // 전환 목표 정의 (GA4 이벤트 매핑)
 const CONVERSION_GOALS: { event: string; label: string; value: number }[] = [
@@ -608,17 +636,17 @@ const CONVERSION_GOALS: { event: string; label: string; value: number }[] = [
   { event: "click_kakao", label: "카카오톡 상담", value: 20000 },
   { event: "view_portfolio", label: "포트폴리오 조회", value: 5000 },
   { event: "newsletter_signup", label: "뉴스레터 구독", value: 10000 },
-]
+];
 
 // UTM 캠페인 성과 조회
 export async function getCampaignPerformanceData(
   startDate?: string,
   endDate?: string,
-  campaignFilter?: string
+  campaignFilter?: string,
 ): Promise<CampaignAnalyticsData> {
-  const client = getAnalyticsClient()
-  const start = startDate || getDaysAgo(29)
-  const end = endDate || formatDate(new Date())
+  const client = getAnalyticsClient();
+  const start = startDate || getDaysAgo(29);
+  const end = endDate || formatDate(new Date());
 
   // 캠페인별 데이터 조회
   const [response] = await client.runReport({
@@ -651,17 +679,17 @@ export async function getCampaignPerformanceData(
       : undefined,
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
     limit: 50,
-  })
+  });
 
   const campaigns: CampaignData[] = (response.rows || [])
     .filter((row) => {
-      const campaign = row.dimensionValues?.[0]?.value || "(not set)"
-      return campaign !== "(not set)" && campaign !== "(direct)"
+      const campaign = row.dimensionValues?.[0]?.value || "(not set)";
+      return campaign !== "(not set)" && campaign !== "(direct)";
     })
     .map((row) => {
-      const visitors = parseInt(row.metricValues?.[0]?.value || "0")
-      const sessions = parseInt(row.metricValues?.[1]?.value || "0")
-      const conversions = parseInt(row.metricValues?.[4]?.value || "0")
+      const visitors = parseInt(row.metricValues?.[0]?.value || "0");
+      const sessions = parseInt(row.metricValues?.[1]?.value || "0");
+      const conversions = parseInt(row.metricValues?.[4]?.value || "0");
 
       return {
         campaign: row.dimensionValues?.[0]?.value || "(not set)",
@@ -673,13 +701,13 @@ export async function getCampaignPerformanceData(
         cvr: sessions > 0 ? (conversions / sessions) * 100 : 0,
         bounceRate: parseFloat(row.metricValues?.[2]?.value || "0") * 100,
         avgDuration: parseFloat(row.metricValues?.[3]?.value || "0"),
-      }
-    })
+      };
+    });
 
   // 요약 데이터 계산
-  const totalVisitors = campaigns.reduce((sum, c) => sum + c.visitors, 0)
-  const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0)
-  const totalSessions = campaigns.reduce((sum, c) => sum + c.sessions, 0)
+  const totalVisitors = campaigns.reduce((sum, c) => sum + c.visitors, 0);
+  const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
+  const totalSessions = campaigns.reduce((sum, c) => sum + c.sessions, 0);
 
   return {
     campaigns,
@@ -689,28 +717,28 @@ export async function getCampaignPerformanceData(
       total_conversions: totalConversions,
       avg_cvr: totalSessions > 0 ? (totalConversions / totalSessions) * 100 : 0,
     },
-  }
+  };
 }
 
 // 전환 목표별 성과 조회
 export async function getConversionGoalsData(
   startDate?: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<ConversionGoal[]> {
-  const client = getAnalyticsClient()
-  const start = startDate || getDaysAgo(29)
-  const end = endDate || formatDate(new Date())
+  const client = getAnalyticsClient();
+  const start = startDate || getDaysAgo(29);
+  const end = endDate || formatDate(new Date());
 
   // 전체 세션 수 조회 (CVR 계산용)
   const [sessionsResponse] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate: start, endDate: end }],
     metrics: [{ name: "sessions" }],
-  })
+  });
 
   const totalSessions = parseInt(
-    sessionsResponse.rows?.[0]?.metricValues?.[0]?.value || "0"
-  )
+    sessionsResponse.rows?.[0]?.metricValues?.[0]?.value || "0",
+  );
 
   // 이벤트별 전환 수 조회
   const [response] = await client.runReport({
@@ -732,86 +760,88 @@ export async function getConversionGoalsData(
         })),
       },
     },
-  })
+  });
 
   // 결과 매핑
-  const eventCounts = new Map<string, number>()
+  const eventCounts = new Map<string, number>();
   for (const row of response.rows || []) {
-    const eventName = row.dimensionValues?.[0]?.value || ""
-    const count = parseInt(row.metricValues?.[0]?.value || "0")
-    eventCounts.set(eventName, count)
+    const eventName = row.dimensionValues?.[0]?.value || "";
+    const count = parseInt(row.metricValues?.[0]?.value || "0");
+    eventCounts.set(eventName, count);
   }
 
   return CONVERSION_GOALS.map((goal) => {
-    const conversions = eventCounts.get(goal.event) || 0
+    const conversions = eventCounts.get(goal.event) || 0;
     return {
       goal_name: goal.event,
       goal_label: goal.label,
       conversions,
       conversion_value: conversions * goal.value,
       cvr: totalSessions > 0 ? (conversions / totalSessions) * 100 : 0,
-    }
-  }).sort((a, b) => b.conversions - a.conversions)
+    };
+  }).sort((a, b) => b.conversions - a.conversions);
 }
 
 // 채널별 전환 성과 조회
 export async function getConversionByChannelData(
   startDate?: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<ConversionByChannel[]> {
-  const client = getAnalyticsClient()
-  const start = startDate || getDaysAgo(29)
-  const end = endDate || formatDate(new Date())
+  const client = getAnalyticsClient();
+  const start = startDate || getDaysAgo(29);
+  const end = endDate || formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate: start, endDate: end }],
     dimensions: [{ name: "sessionDefaultChannelGroup" }],
-    metrics: [
-      { name: "sessions" },
-      { name: "conversions" },
-    ],
+    metrics: [{ name: "sessions" }, { name: "conversions" }],
     orderBys: [{ metric: { metricName: "conversions" }, desc: true }],
-  })
+  });
 
   const channelMapping: Record<string, string> = {
-    "Direct": "direct",
+    Direct: "direct",
     "Organic Search": "organic",
-    "Referral": "referral",
+    Referral: "referral",
     "Organic Social": "social",
     "Paid Search": "paid",
-    "Email": "email",
-    "Display": "display",
+    Email: "email",
+    Display: "display",
     "Paid Social": "paid_social",
-  }
+  };
 
   return (response.rows || []).map((row) => {
-    const channelName = row.dimensionValues?.[0]?.value || "Other"
-    const sessions = parseInt(row.metricValues?.[0]?.value || "0")
-    const conversions = parseInt(row.metricValues?.[1]?.value || "0")
+    const channelName = row.dimensionValues?.[0]?.value || "Other";
+    const sessions = parseInt(row.metricValues?.[0]?.value || "0");
+    const conversions = parseInt(row.metricValues?.[1]?.value || "0");
     // 평균 전환 가치 계산 (간단히 50,000원 기준)
-    const avgValue = 50000
+    const avgValue = 50000;
 
     return {
       channel: channelMapping[channelName] || channelName.toLowerCase(),
       conversions,
       cvr: sessions > 0 ? (conversions / sessions) * 100 : 0,
       value: conversions * avgValue,
-    }
-  })
+    };
+  });
 }
 
 // 마케팅 퍼널 데이터 조회
 export async function getFunnelData(
   startDate?: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<{
-  steps: FunnelStep[]
-  funnel: { acquisition: number; engagement: number; interest: number; conversion: number }
+  steps: FunnelStep[];
+  funnel: {
+    acquisition: number;
+    engagement: number;
+    interest: number;
+    conversion: number;
+  };
 }> {
-  const client = getAnalyticsClient()
-  const start = startDate || getDaysAgo(29)
-  const end = endDate || formatDate(new Date())
+  const client = getAnalyticsClient();
+  const start = startDate || getDaysAgo(29);
+  const end = endDate || formatDate(new Date());
 
   // 기본 메트릭 조회
   const [response] = await client.runReport({
@@ -822,21 +852,27 @@ export async function getFunnelData(
       { name: "engagedSessions" }, // 참여
       { name: "conversions" }, // 전환
     ],
-  })
+  });
 
-  const sessions = parseInt(response.rows?.[0]?.metricValues?.[0]?.value || "0")
-  const engagedSessions = parseInt(response.rows?.[0]?.metricValues?.[1]?.value || "0")
-  const conversions = parseInt(response.rows?.[0]?.metricValues?.[2]?.value || "0")
+  const sessions = parseInt(
+    response.rows?.[0]?.metricValues?.[0]?.value || "0",
+  );
+  const engagedSessions = parseInt(
+    response.rows?.[0]?.metricValues?.[1]?.value || "0",
+  );
+  const conversions = parseInt(
+    response.rows?.[0]?.metricValues?.[2]?.value || "0",
+  );
 
   // 관심 단계: 참여 세션의 55% (핵심 페이지 도달 추정)
-  const interest = Math.round(engagedSessions * 0.55)
+  const interest = Math.round(engagedSessions * 0.55);
 
   const funnel = {
     acquisition: sessions,
     engagement: engagedSessions,
     interest,
     conversion: conversions,
-  }
+  };
 
   const steps: FunnelStep[] = [
     {
@@ -850,14 +886,18 @@ export async function getFunnelData(
       name: "참여",
       users: engagedSessions,
       rate: sessions > 0 ? (engagedSessions / sessions) * 100 : 0,
-      dropoff: sessions > 0 ? ((sessions - engagedSessions) / sessions) * 100 : 0,
+      dropoff:
+        sessions > 0 ? ((sessions - engagedSessions) / sessions) * 100 : 0,
     },
     {
       step: 3,
       name: "관심",
       users: interest,
       rate: sessions > 0 ? (interest / sessions) * 100 : 0,
-      dropoff: engagedSessions > 0 ? ((engagedSessions - interest) / engagedSessions) * 100 : 0,
+      dropoff:
+        engagedSessions > 0
+          ? ((engagedSessions - interest) / engagedSessions) * 100
+          : 0,
     },
     {
       step: 4,
@@ -866,27 +906,27 @@ export async function getFunnelData(
       rate: sessions > 0 ? (conversions / sessions) * 100 : 0,
       dropoff: interest > 0 ? ((interest - conversions) / interest) * 100 : 0,
     },
-  ]
+  ];
 
-  return { steps, funnel }
+  return { steps, funnel };
 }
 
 // 전체 전환 분석 데이터
 export async function getConversionAnalyticsData(
   startDate?: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<ConversionAnalyticsData> {
   const [goals, byChannel, funnelData] = await Promise.all([
     getConversionGoalsData(startDate, endDate),
     getConversionByChannelData(startDate, endDate),
     getFunnelData(startDate, endDate),
-  ])
+  ]);
 
   return {
     goals,
     by_channel: byChannel,
     funnel: funnelData.funnel,
-  }
+  };
 }
 
 // =====================
@@ -895,33 +935,47 @@ export async function getConversionAnalyticsData(
 
 export interface VisitorStatsData {
   overview: {
-    totalVisitors: number
-    uniqueVisitors: number
-    pageViews: number
-    avgSessionDuration: string
-    bounceRate: number
-    newVisitors: number
-    returningVisitors: number
+    totalVisitors: number;
+    uniqueVisitors: number;
+    pageViews: number;
+    avgSessionDuration: string;
+    bounceRate: number;
+    newVisitors: number;
+    returningVisitors: number;
     changes: {
-      visitors: number
-      pageViews: number
-      bounceRate: number
-      avgSessionDuration: number
-    }
-  }
-  daily: Array<{ date: string; visitors: number; pageviews: number; sessions: number }>
-  countries: Array<{ country: string; visitors: number; percentage: number }>
-  pages: Array<{ path: string; title: string; views: number; uniqueViews: number; avgTime: string; bounceRate: number }>
-  devices: Array<{ device: string; visitors: number; percentage: number }>
-  browsers: Array<{ browser: string; visitors: number; percentage: number }>
-  hourlyTraffic: Array<{ hour: string; visitors: number }>
+      visitors: number;
+      pageViews: number;
+      bounceRate: number;
+      avgSessionDuration: number;
+    };
+  };
+  daily: Array<{
+    date: string;
+    visitors: number;
+    pageviews: number;
+    sessions: number;
+  }>;
+  regions: Array<{ region: string; visitors: number; percentage: number }>;
+  pages: Array<{
+    path: string;
+    title: string;
+    views: number;
+    uniqueViews: number;
+    avgTime: string;
+    bounceRate: number;
+  }>;
+  devices: Array<{ device: string; visitors: number; percentage: number }>;
+  browsers: Array<{ browser: string; visitors: number; percentage: number }>;
+  hourlyTraffic: Array<{ hour: string; visitors: number }>;
 }
 
 // 브라우저별 방문자
-export async function getBrowserData(days: number = 7): Promise<Array<{ browser: string; visitors: number; percentage: number }>> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+export async function getBrowserData(
+  days: number = 7,
+): Promise<Array<{ browser: string; visitors: number; percentage: number }>> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -930,67 +984,84 @@ export async function getBrowserData(days: number = 7): Promise<Array<{ browser:
     metrics: [{ name: "activeUsers" }],
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
     limit: 10,
-  })
+  });
 
   const totalVisitors = (response.rows || []).reduce(
     (sum, row) => sum + parseInt(row.metricValues?.[0]?.value || "0"),
-    0
-  )
+    0,
+  );
 
   return (response.rows || []).map((row) => {
-    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0");
     return {
       browser: row.dimensionValues?.[0]?.value || "Unknown",
       visitors,
       percentage: totalVisitors > 0 ? (visitors / totalVisitors) * 100 : 0,
-    }
-  })
+    };
+  });
 }
 
-// 국가별 방문자
-export async function getCountryData(days: number = 7): Promise<Array<{ country: string; visitors: number; percentage: number }>> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+// 지역별 방문자 (IP 기반 시/도)
+export async function getRegionData(
+  days: number = 7,
+): Promise<Array<{ region: string; visitors: number; percentage: number }>> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate, endDate }],
-    dimensions: [{ name: "country" }],
+    dimensions: [{ name: "region" }],
     metrics: [{ name: "activeUsers" }],
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
-    limit: 10,
-  })
+    limit: 20,
+  });
 
-  const countryMapping: Record<string, string> = {
-    "South Korea": "대한민국",
-    "United States": "미국",
-    "Japan": "일본",
-    "China": "중국",
+  const regionMapping: Record<string, string> = {
+    Seoul: "서울",
+    "Gyeonggi-do": "경기",
+    Busan: "부산",
+    Incheon: "인천",
+    Daegu: "대구",
+    Daejeon: "대전",
+    Gwangju: "광주",
+    Ulsan: "울산",
+    "Sejong-si": "세종",
+    "Gangwon-do": "강원",
+    "Chungcheongbuk-do": "충북",
+    "Chungcheongnam-do": "충남",
+    "Jeollabuk-do": "전북",
+    "Jeollanam-do": "전남",
+    "Gyeongsangbuk-do": "경북",
+    "Gyeongsangnam-do": "경남",
+    "Jeju-do": "제주",
     "(not set)": "기타",
-  }
+  };
 
   const totalVisitors = (response.rows || []).reduce(
     (sum, row) => sum + parseInt(row.metricValues?.[0]?.value || "0"),
-    0
-  )
+    0,
+  );
 
   return (response.rows || []).map((row) => {
-    const countryName = row.dimensionValues?.[0]?.value || "Unknown"
-    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    const regionName = row.dimensionValues?.[0]?.value || "Unknown";
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0");
     return {
-      country: countryMapping[countryName] || countryName,
+      region: regionMapping[regionName] || regionName,
       visitors,
       percentage: totalVisitors > 0 ? (visitors / totalVisitors) * 100 : 0,
-    }
-  })
+    };
+  });
 }
 
 // 시간대별 방문자
-export async function getHourlyTrafficData(days: number = 7): Promise<Array<{ hour: string; visitors: number }>> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+export async function getHourlyTrafficData(
+  days: number = 7,
+): Promise<Array<{ hour: string; visitors: number }>> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -998,7 +1069,7 @@ export async function getHourlyTrafficData(days: number = 7): Promise<Array<{ ho
     dimensions: [{ name: "hour" }],
     metrics: [{ name: "activeUsers" }],
     orderBys: [{ dimension: { dimensionName: "hour" } }],
-  })
+  });
 
   // 4시간 단위로 그룹화
   const hourGroups: Record<string, number> = {
@@ -1008,28 +1079,33 @@ export async function getHourlyTrafficData(days: number = 7): Promise<Array<{ ho
     "12-16": 0,
     "16-20": 0,
     "20-24": 0,
-  }
+  };
 
   for (const row of response.rows || []) {
-    const hour = parseInt(row.dimensionValues?.[0]?.value || "0")
-    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    const hour = parseInt(row.dimensionValues?.[0]?.value || "0");
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0");
 
-    if (hour >= 0 && hour < 4) hourGroups["00-04"] += visitors
-    else if (hour >= 4 && hour < 8) hourGroups["04-08"] += visitors
-    else if (hour >= 8 && hour < 12) hourGroups["08-12"] += visitors
-    else if (hour >= 12 && hour < 16) hourGroups["12-16"] += visitors
-    else if (hour >= 16 && hour < 20) hourGroups["16-20"] += visitors
-    else hourGroups["20-24"] += visitors
+    if (hour >= 0 && hour < 4) hourGroups["00-04"] += visitors;
+    else if (hour >= 4 && hour < 8) hourGroups["04-08"] += visitors;
+    else if (hour >= 8 && hour < 12) hourGroups["08-12"] += visitors;
+    else if (hour >= 12 && hour < 16) hourGroups["12-16"] += visitors;
+    else if (hour >= 16 && hour < 20) hourGroups["16-20"] += visitors;
+    else hourGroups["20-24"] += visitors;
   }
 
-  return Object.entries(hourGroups).map(([hour, visitors]) => ({ hour, visitors }))
+  return Object.entries(hourGroups).map(([hour, visitors]) => ({
+    hour,
+    visitors,
+  }));
 }
 
 // 기기별 상세 데이터 (퍼센트 포함)
-export async function getDeviceCategoriesWithPercent(days: number = 7): Promise<Array<{ device: string; visitors: number; percentage: number }>> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+export async function getDeviceCategoriesWithPercent(
+  days: number = 7,
+): Promise<Array<{ device: string; visitors: number; percentage: number }>> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -1037,43 +1113,49 @@ export async function getDeviceCategoriesWithPercent(days: number = 7): Promise<
     dimensions: [{ name: "deviceCategory" }],
     metrics: [{ name: "activeUsers" }],
     orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
-  })
+  });
 
   const deviceMapping: Record<string, string> = {
-    "desktop": "데스크톱",
-    "mobile": "모바일",
-    "tablet": "태블릿",
-  }
+    desktop: "데스크톱",
+    mobile: "모바일",
+    tablet: "태블릿",
+  };
 
   const totalVisitors = (response.rows || []).reduce(
     (sum, row) => sum + parseInt(row.metricValues?.[0]?.value || "0"),
-    0
-  )
+    0,
+  );
 
   return (response.rows || []).map((row) => {
-    const deviceName = row.dimensionValues?.[0]?.value || "unknown"
-    const visitors = parseInt(row.metricValues?.[0]?.value || "0")
+    const deviceName = row.dimensionValues?.[0]?.value || "unknown";
+    const visitors = parseInt(row.metricValues?.[0]?.value || "0");
     return {
       device: deviceMapping[deviceName] || deviceName,
       visitors,
       percentage: totalVisitors > 0 ? (visitors / totalVisitors) * 100 : 0,
-    }
-  })
+    };
+  });
 }
 
 // 페이지별 상세 데이터
-export async function getTopPagesDetailed(days: number = 7): Promise<Array<{ path: string; title: string; views: number; uniqueViews: number; avgTime: string; bounceRate: number }>> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+export async function getTopPagesDetailed(days: number = 7): Promise<
+  Array<{
+    path: string;
+    title: string;
+    views: number;
+    uniqueViews: number;
+    avgTime: string;
+    bounceRate: number;
+  }>
+> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
     dateRanges: [{ startDate, endDate }],
-    dimensions: [
-      { name: "pagePath" },
-      { name: "pageTitle" },
-    ],
+    dimensions: [{ name: "pagePath" }, { name: "pageTitle" }],
     metrics: [
       { name: "screenPageViews" },
       { name: "activeUsers" },
@@ -1082,12 +1164,12 @@ export async function getTopPagesDetailed(days: number = 7): Promise<Array<{ pat
     ],
     orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
     limit: 10,
-  })
+  });
 
   return (response.rows || []).map((row) => {
-    const duration = parseFloat(row.metricValues?.[2]?.value || "0")
-    const minutes = Math.floor(duration / 60)
-    const seconds = Math.floor(duration % 60)
+    const duration = parseFloat(row.metricValues?.[2]?.value || "0");
+    const minutes = Math.floor(duration / 60);
+    const seconds = Math.floor(duration % 60);
 
     return {
       path: row.dimensionValues?.[0]?.value || "/",
@@ -1096,15 +1178,19 @@ export async function getTopPagesDetailed(days: number = 7): Promise<Array<{ pat
       uniqueViews: parseInt(row.metricValues?.[1]?.value || "0"),
       avgTime: `${minutes}:${seconds.toString().padStart(2, "0")}`,
       bounceRate: parseFloat(row.metricValues?.[3]?.value || "0") * 100,
-    }
-  })
+    };
+  });
 }
 
 // 일별 방문자 추이 (sessions 포함)
-export async function getDailyMetricsWithSessions(days: number = 7): Promise<Array<{ date: string; visitors: number; pageviews: number; sessions: number }>> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
+export async function getDailyMetricsWithSessions(
+  days: number = 7,
+): Promise<
+  Array<{ date: string; visitors: number; pageviews: number; sessions: number }>
+> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
 
   const [response] = await client.runReport({
     property: `properties/${GA4_PROPERTY_ID}`,
@@ -1116,28 +1202,30 @@ export async function getDailyMetricsWithSessions(days: number = 7): Promise<Arr
       { name: "sessions" },
     ],
     orderBys: [{ dimension: { dimensionName: "date" } }],
-  })
+  });
 
   return (response.rows || []).map((row) => {
-    const dateStr = row.dimensionValues?.[0]?.value || ""
+    const dateStr = row.dimensionValues?.[0]?.value || "";
     // YYYYMMDD -> MM/DD 형식으로 변환
-    const formatted = `${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`
+    const formatted = `${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`;
     return {
       date: formatted,
       visitors: parseInt(row.metricValues?.[0]?.value || "0"),
       pageviews: parseInt(row.metricValues?.[1]?.value || "0"),
       sessions: parseInt(row.metricValues?.[2]?.value || "0"),
-    }
-  })
+    };
+  });
 }
 
 // 종합 방문 통계 데이터
-export async function getVisitorStatsData(days: number = 7): Promise<VisitorStatsData> {
-  const client = getAnalyticsClient()
-  const startDate = getDaysAgo(days - 1)
-  const endDate = formatDate(new Date())
-  const previousStartDate = getDaysAgo(days * 2 - 1)
-  const previousEndDate = getDaysAgo(days)
+export async function getVisitorStatsData(
+  days: number = 7,
+): Promise<VisitorStatsData> {
+  const client = getAnalyticsClient();
+  const startDate = getDaysAgo(days - 1);
+  const endDate = formatDate(new Date());
+  const previousStartDate = getDaysAgo(days * 2 - 1);
+  const previousEndDate = getDaysAgo(days);
 
   // 현재 기간 데이터
   const [currentResponse] = await client.runReport({
@@ -1151,7 +1239,7 @@ export async function getVisitorStatsData(days: number = 7): Promise<VisitorStat
       { name: "bounceRate" },
       { name: "averageSessionDuration" },
     ],
-  })
+  });
 
   // 이전 기간 데이터 (비교용)
   const [previousResponse] = await client.runReport({
@@ -1163,38 +1251,44 @@ export async function getVisitorStatsData(days: number = 7): Promise<VisitorStat
       { name: "bounceRate" },
       { name: "averageSessionDuration" },
     ],
-  })
+  });
 
-  const currentRow = currentResponse.rows?.[0]
-  const previousRow = previousResponse.rows?.[0]
+  const currentRow = currentResponse.rows?.[0];
+  const previousRow = previousResponse.rows?.[0];
 
-  const totalVisitors = parseInt(currentRow?.metricValues?.[0]?.value || "0")
-  const newVisitors = parseInt(currentRow?.metricValues?.[1]?.value || "0")
-  const pageViews = parseInt(currentRow?.metricValues?.[3]?.value || "0")
-  const bounceRate = parseFloat(currentRow?.metricValues?.[4]?.value || "0") * 100
-  const avgDuration = parseFloat(currentRow?.metricValues?.[5]?.value || "0")
+  const totalVisitors = parseInt(currentRow?.metricValues?.[0]?.value || "0");
+  const newVisitors = parseInt(currentRow?.metricValues?.[1]?.value || "0");
+  const pageViews = parseInt(currentRow?.metricValues?.[3]?.value || "0");
+  const bounceRate =
+    parseFloat(currentRow?.metricValues?.[4]?.value || "0") * 100;
+  const avgDuration = parseFloat(currentRow?.metricValues?.[5]?.value || "0");
 
-  const prevVisitors = parseInt(previousRow?.metricValues?.[0]?.value || "0")
-  const prevPageViews = parseInt(previousRow?.metricValues?.[1]?.value || "0")
-  const prevBounceRate = parseFloat(previousRow?.metricValues?.[2]?.value || "0") * 100
-  const prevAvgDuration = parseFloat(previousRow?.metricValues?.[3]?.value || "0")
+  const prevVisitors = parseInt(previousRow?.metricValues?.[0]?.value || "0");
+  const prevPageViews = parseInt(previousRow?.metricValues?.[1]?.value || "0");
+  const prevBounceRate =
+    parseFloat(previousRow?.metricValues?.[2]?.value || "0") * 100;
+  const prevAvgDuration = parseFloat(
+    previousRow?.metricValues?.[3]?.value || "0",
+  );
 
-  const calcChange = (curr: number, prev: number) => prev === 0 ? 0 : ((curr - prev) / prev) * 100
+  const calcChange = (curr: number, prev: number) =>
+    prev === 0 ? 0 : ((curr - prev) / prev) * 100;
 
   // 시간 포맷
-  const mins = Math.floor(avgDuration / 60)
-  const secs = Math.floor(avgDuration % 60)
-  const avgSessionDuration = `${mins}분 ${secs}초`
+  const mins = Math.floor(avgDuration / 60);
+  const secs = Math.floor(avgDuration % 60);
+  const avgSessionDuration = `${mins}분 ${secs}초`;
 
   // 병렬로 상세 데이터 조회
-  const [daily, countries, pages, devices, browsers, hourlyTraffic] = await Promise.all([
-    getDailyMetricsWithSessions(days),
-    getCountryData(days),
-    getTopPagesDetailed(days),
-    getDeviceCategoriesWithPercent(days),
-    getBrowserData(days),
-    getHourlyTrafficData(days),
-  ])
+  const [daily, regions, pages, devices, browsers, hourlyTraffic] =
+    await Promise.all([
+      getDailyMetricsWithSessions(days),
+      getRegionData(days),
+      getTopPagesDetailed(days),
+      getDeviceCategoriesWithPercent(days),
+      getBrowserData(days),
+      getHourlyTrafficData(days),
+    ]);
 
   return {
     overview: {
@@ -1213,12 +1307,12 @@ export async function getVisitorStatsData(days: number = 7): Promise<VisitorStat
       },
     },
     daily,
-    countries,
+    regions,
     pages,
     devices,
     browsers,
     hourlyTraffic,
-  }
+  };
 }
 
 // =====================
@@ -1228,45 +1322,46 @@ export async function getVisitorStatsData(days: number = 7): Promise<VisitorStat
 interface DashboardResult {
   overview: AnalyticsOverview & {
     changes: {
-      users: number
-      pageViews: number
-      bounceRate: number
-      avgSessionDuration: number
-    }
-  }
-  daily: DailyMetrics[]
-  sources: TrafficSource[]
-  pages: TopPage[]
-  devices: DeviceCategory[]
+      users: number;
+      pageViews: number;
+      bounceRate: number;
+      avgSessionDuration: number;
+    };
+  };
+  daily: DailyMetrics[];
+  sources: TrafficSource[];
+  pages: TopPage[];
+  devices: DeviceCategory[];
 }
 
-let cachedData: DashboardResult | null = null
-let cacheTime: number = 0
-const CACHE_DURATION = 5 * 60 * 1000 // 5분
+let cachedData: DashboardResult | null = null;
+let cacheTime: number = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5분
 
 // 전체 대시보드 데이터
 export async function getDashboardData() {
   // 캐시가 유효한 경우 캐시된 데이터 반환
-  const now = Date.now()
-  if (cachedData && (now - cacheTime) < CACHE_DURATION) {
-    return cachedData
+  const now = Date.now();
+  if (cachedData && now - cacheTime < CACHE_DURATION) {
+    return cachedData;
   }
 
   try {
-    const [today, yesterday, daily, sources, pages, devices] = await Promise.all([
-      getTodayOverview(),
-      getYesterdayOverview(),
-      getDailyMetrics(7),
-      getTrafficSources(),
-      getTopPages(),
-      getDeviceCategories(),
-    ])
+    const [today, yesterday, daily, sources, pages, devices] =
+      await Promise.all([
+        getTodayOverview(),
+        getYesterdayOverview(),
+        getDailyMetrics(7),
+        getTrafficSources(),
+        getTopPages(),
+        getDeviceCategories(),
+      ]);
 
     // 변화율 계산
     const calculateChange = (current: number, previous: number) => {
-      if (previous === 0) return 0
-      return ((current - previous) / previous) * 100
-    }
+      if (previous === 0) return 0;
+      return ((current - previous) / previous) * 100;
+    };
 
     const result = {
       overview: {
@@ -1275,22 +1370,25 @@ export async function getDashboardData() {
           users: calculateChange(today.totalUsers, yesterday.totalUsers),
           pageViews: calculateChange(today.pageViews, yesterday.pageViews),
           bounceRate: calculateChange(today.bounceRate, yesterday.bounceRate),
-          avgSessionDuration: calculateChange(today.avgSessionDuration, yesterday.avgSessionDuration),
+          avgSessionDuration: calculateChange(
+            today.avgSessionDuration,
+            yesterday.avgSessionDuration,
+          ),
         },
       },
       daily,
       sources,
       pages,
       devices,
-    }
+    };
 
     // 캐시 저장
-    cachedData = result
-    cacheTime = now
+    cachedData = result;
+    cacheTime = now;
 
-    return result
+    return result;
   } catch (error) {
-    console.error("Failed to fetch GA4 data:", error)
-    throw error
+    console.error("Failed to fetch GA4 data:", error);
+    throw error;
   }
 }
