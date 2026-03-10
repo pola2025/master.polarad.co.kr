@@ -536,7 +536,7 @@ export async function saveRegionStats(data: RegionCache[]): Promise<number> {
       }
     }
 
-    // 새 데이터 저장
+    // 새 데이터 저장 (Airtable 10개씩 배치)
     const records = data.map((item) => ({
       fields: {
         date: item.date,
@@ -546,7 +546,10 @@ export async function saveRegionStats(data: RegionCache[]): Promise<number> {
       },
     }));
 
-    await base("countries").create(records);
+    for (let i = 0; i < records.length; i += 10) {
+      const batch = records.slice(i, i + 10);
+      await base("countries").create(batch);
+    }
     savedCount = data.length;
   } catch (error) {
     console.error("Failed to save region stats:", error);
