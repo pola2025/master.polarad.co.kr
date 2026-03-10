@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   MessageSquare,
   Search,
@@ -10,10 +10,21 @@ import {
   ChevronRight,
   Loader2,
   RefreshCw,
-} from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+  Trash2,
+  Save,
+  StickyNote,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -21,84 +32,199 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Inquiry {
-  id: string
-  no: number
-  name: string
-  company: string
-  email: string
-  phone: string
-  message: string
-  createdAt: string
+  id: string;
+  no: number;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  message: string;
+  memo: string;
+  status: string;
+  createdAt: string;
 }
 
 interface InquiryStats {
-  total: number
-  thisMonth: number
+  total: number;
+  thisMonth: number;
 }
 
+const STATUS_OPTIONS = [
+  { value: "", label: "미분류" },
+  { value: "신규", label: "신규" },
+  { value: "상담중", label: "상담중" },
+  { value: "계약완료", label: "계약완료" },
+  { value: "보류", label: "보류" },
+];
+
+const STATUS_COLORS: Record<string, string> = {
+  "": "secondary",
+  신규: "default",
+  상담중: "outline",
+  계약완료: "default",
+  보류: "secondary",
+};
+
 function formatDate(iso: string) {
-  const d = new Date(iso)
+  const d = new Date(iso);
   return d.toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  })
+  });
 }
 
 export default function InquiriesPage() {
-  const [inquiries, setInquiries] = useState<Inquiry[]>([])
-  const [stats, setStats] = useState<InquiryStats>({ total: 0, thisMonth: 0 })
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [stats, setStats] = useState<InquiryStats>({ total: 0, thisMonth: 0 });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [memo, setMemo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function fetchInquiries() {
-    setLoading(true)
-    setError("")
+    setLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/inquiries")
-      if (!res.ok) throw new Error("조회 실패")
-      const data = await res.json()
-      setInquiries(data.inquiries || [])
-      setStats(data.stats || { total: 0, thisMonth: 0 })
+      const res = await fetch("/api/inquiries");
+      if (!res.ok) throw new Error("조회 실패");
+      const data = await res.json();
+      setInquiries(data.inquiries || []);
+      setStats(data.stats || { total: 0, thisMonth: 0 });
     } catch {
-      setError("문의 데이터를 불러오지 못했습니다.")
+      setError("문의 데이터를 불러오지 못했습니다.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchInquiries()
-  }, [])
+    fetchInquiries();
+  }, []);
+
+  // 문의 선택 시 메모 동기화
+  useEffect(() => {
+    if (selectedInquiry) {
+      setMemo(selectedInquiry.memo || "");
+    }
+  }, [selectedInquiry]);
+
+  async function handleSaveMemo() {
+    if (!selectedInquiry) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedInquiry.id, memo }),
+      });
+      if (!res.ok) throw new Error();
+      // 로컬 상태 업데이트
+      setInquiries((prev) =>
+        prev.map((i) => (i.id === selectedInquiry.id ? { ...i, memo } : i)),
+      );
+      setSelectedInquiry((prev) => (prev ? { ...prev, memo } : prev));
+    } catch {
+      setError("메모 저장에 실패했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleStatusChange(status: string) {
+    if (!selectedInquiry) return;
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedInquiry.id, status }),
+      });
+      if (!res.ok) throw new Error();
+      setInquiries((prev) =>
+        prev.map((i) => (i.id === selectedInquiry.id ? { ...i, status } : i)),
+      );
+      setSelectedInquiry((prev) => (prev ? { ...prev, status } : prev));
+    } catch {
+      setError("상태 변경에 실패했습니다.");
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedInquiry) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedInquiry.id }),
+      });
+      if (!res.ok) throw new Error();
+      setInquiries((prev) => prev.filter((i) => i.id !== selectedInquiry.id));
+      setStats((prev) => ({ ...prev, total: prev.total - 1 }));
+      setSelectedInquiry(null);
+    } catch {
+      setError("삭제에 실패했습니다.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const filteredInquiries = inquiries.filter((inquiry) => {
-    const q = searchQuery.toLowerCase()
+    const q = searchQuery.toLowerCase();
     return (
       inquiry.name.toLowerCase().includes(q) ||
       inquiry.company.toLowerCase().includes(q) ||
       inquiry.email.toLowerCase().includes(q) ||
       inquiry.phone.includes(q) ||
       inquiry.message.toLowerCase().includes(q)
-    )
-  })
+    );
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">문의 관리</h1>
-          <p className="text-muted-foreground">폴라애드 홈페이지 접수 문의를 확인합니다.</p>
+          <p className="text-muted-foreground">
+            폴라애드 홈페이지 접수 문의를 확인합니다.
+          </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchInquiries} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchInquiries}
+          disabled={loading}
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+          />
           새로고침
         </Button>
       </div>
@@ -121,7 +247,9 @@ export default function InquiriesPage() {
             <MessageSquare className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.thisMonth}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.thisMonth}
+            </div>
             <p className="text-xs text-muted-foreground">이번 달 접수</p>
           </CardContent>
         </Card>
@@ -170,6 +298,7 @@ export default function InquiriesPage() {
                       <TableHead>문의자</TableHead>
                       <TableHead>연락처</TableHead>
                       <TableHead>문의내용</TableHead>
+                      <TableHead>상태</TableHead>
                       <TableHead>날짜</TableHead>
                       <TableHead className="w-[30px]"></TableHead>
                     </TableRow>
@@ -181,7 +310,9 @@ export default function InquiriesPage() {
                         className={`cursor-pointer ${selectedInquiry?.id === inquiry.id ? "bg-muted" : ""}`}
                         onClick={() => setSelectedInquiry(inquiry)}
                       >
-                        <TableCell className="text-muted-foreground text-sm">{inquiry.no}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {inquiry.no}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
@@ -190,9 +321,13 @@ export default function InquiriesPage() {
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium text-sm">{inquiry.name}</p>
+                              <p className="font-medium text-sm">
+                                {inquiry.name}
+                              </p>
                               {inquiry.company && (
-                                <p className="text-xs text-muted-foreground">{inquiry.company}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {inquiry.company}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -201,7 +336,34 @@ export default function InquiriesPage() {
                           {inquiry.phone}
                         </TableCell>
                         <TableCell>
-                          <p className="text-sm line-clamp-1 max-w-[200px]">{inquiry.message}</p>
+                          <p className="text-sm line-clamp-1 max-w-[200px]">
+                            {inquiry.message}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          {inquiry.status ? (
+                            <Badge
+                              variant={
+                                (STATUS_COLORS[inquiry.status] as
+                                  | "default"
+                                  | "secondary"
+                                  | "outline") || "secondary"
+                              }
+                              className={
+                                inquiry.status === "계약완료"
+                                  ? "bg-green-100 text-green-700 hover:bg-green-100"
+                                  : inquiry.status === "상담중"
+                                    ? "border-blue-300 text-blue-700"
+                                    : ""
+                              }
+                            >
+                              {inquiry.status}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              -
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                           {formatDate(inquiry.createdAt)}
@@ -223,16 +385,56 @@ export default function InquiriesPage() {
           {selectedInquiry ? (
             <Card className="sticky top-4">
               <CardHeader>
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback>{selectedInquiry.name.slice(0, 2)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">{selectedInquiry.name}</CardTitle>
-                    {selectedInquiry.company && (
-                      <CardDescription>{selectedInquiry.company}</CardDescription>
-                    )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback>
+                        {selectedInquiry.name.slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-lg">
+                        {selectedInquiry.name}
+                      </CardTitle>
+                      {selectedInquiry.company && (
+                        <CardDescription>
+                          {selectedInquiry.company}
+                        </CardDescription>
+                      )}
+                    </div>
                   </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          문의를 삭제하시겠습니까?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {selectedInquiry.name}님의 문의가 영구적으로
+                          삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {deleting ? "삭제 중..." : "삭제"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -250,7 +452,10 @@ export default function InquiriesPage() {
                   )}
                   <div className="flex items-center gap-2 text-sm">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a href={`tel:${selectedInquiry.phone}`} className="hover:underline">
+                    <a
+                      href={`tel:${selectedInquiry.phone}`}
+                      className="hover:underline"
+                    >
                       {selectedInquiry.phone}
                     </a>
                   </div>
@@ -264,9 +469,72 @@ export default function InquiriesPage() {
 
                 <Separator />
 
+                {/* 상태 */}
                 <div>
-                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">문의 내용</h4>
-                  <p className="text-sm whitespace-pre-wrap">{selectedInquiry.message}</p>
+                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">
+                    상태
+                  </h4>
+                  <Select
+                    value={selectedInquiry.status || ""}
+                    onValueChange={handleStatusChange}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="상태 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((opt) => (
+                        <SelectItem
+                          key={opt.value || "__empty"}
+                          value={opt.value || "__empty"}
+                        >
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">
+                    문의 내용
+                  </h4>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {selectedInquiry.message}
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* 메모 */}
+                <div>
+                  <div className="flex items-center gap-1 mb-2">
+                    <StickyNote className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-semibold text-sm text-muted-foreground">
+                      메모
+                    </h4>
+                  </div>
+                  <Textarea
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    placeholder="내부 메모를 작성하세요..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveMemo}
+                    disabled={saving || memo === (selectedInquiry.memo || "")}
+                    className="mt-2 w-full"
+                  >
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1" />
+                    )}
+                    {saving ? "저장 중..." : "메모 저장"}
+                  </Button>
                 </div>
 
                 <Separator />
@@ -306,5 +574,5 @@ export default function InquiriesPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
