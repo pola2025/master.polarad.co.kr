@@ -89,6 +89,37 @@ const STATUS_COLORS: Record<string, string> = {
   보류: "secondary",
 };
 
+interface WizardData {
+  업종: string;
+  현황: string;
+  예산: string;
+  고민: string;
+  추천: string;
+}
+
+function parseWizardMessage(message: string): WizardData | null {
+  if (!message.startsWith("[위저드]")) return null;
+  try {
+    const body = message.replace("[위저드] ", "");
+    const [fieldsPart, recommendation] = body.split(" → ");
+    const fields = fieldsPart.split(" / ");
+    const data: Record<string, string> = {};
+    for (const field of fields) {
+      const [key, value] = field.split(": ");
+      if (key && value) data[key.trim()] = value.trim();
+    }
+    return {
+      업종: data["업종"] || "-",
+      현황: data["현황"] || "-",
+      예산: data["예산"] || "-",
+      고민: data["고민"] || "-",
+      추천: recommendation?.trim() || "-",
+    };
+  } catch {
+    return null;
+  }
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString("ko-KR", {
@@ -336,9 +367,23 @@ export default function InquiriesPage() {
                           {inquiry.phone}
                         </TableCell>
                         <TableCell>
-                          <p className="text-sm line-clamp-1 max-w-[200px]">
-                            {inquiry.message}
-                          </p>
+                          {inquiry.message.startsWith("[위저드]") ? (
+                            <div className="flex items-center gap-1.5">
+                              <Badge
+                                variant="outline"
+                                className="text-xs shrink-0"
+                              >
+                                진단
+                              </Badge>
+                              <span className="text-sm text-muted-foreground line-clamp-1">
+                                {parseWizardMessage(inquiry.message)?.업종}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-sm line-clamp-1 max-w-[200px]">
+                              {inquiry.message}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           {inquiry.status ? (
@@ -500,9 +545,38 @@ export default function InquiriesPage() {
                   <h4 className="font-semibold text-sm mb-2 text-muted-foreground">
                     문의 내용
                   </h4>
-                  <p className="text-sm whitespace-pre-wrap">
-                    {selectedInquiry.message}
-                  </p>
+                  {(() => {
+                    const wizard = parseWizardMessage(selectedInquiry.message);
+                    if (!wizard) {
+                      return (
+                        <p className="text-sm whitespace-pre-wrap">
+                          {selectedInquiry.message}
+                        </p>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+                          <span className="text-muted-foreground">업종</span>
+                          <span className="font-medium">{wizard.업종}</span>
+                          <span className="text-muted-foreground">현황</span>
+                          <span className="font-medium">{wizard.현황}</span>
+                          <span className="text-muted-foreground">예산</span>
+                          <span className="font-medium">{wizard.예산}</span>
+                          <span className="text-muted-foreground">고민</span>
+                          <span className="font-medium">{wizard.고민}</span>
+                        </div>
+                        <div className="mt-2 px-3 py-2 rounded-md bg-primary/5 border">
+                          <span className="text-xs text-muted-foreground">
+                            AI 추천
+                          </span>
+                          <p className="text-sm font-semibold text-primary">
+                            {wizard.추천}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <Separator />
