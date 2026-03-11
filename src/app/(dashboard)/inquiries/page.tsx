@@ -13,6 +13,8 @@ import {
   Trash2,
   Save,
   StickyNote,
+  Globe,
+  Megaphone,
 } from "lucide-react";
 import {
   Card,
@@ -57,6 +59,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Inquiry {
   id: string;
+  source: "website" | "meta";
   no: number;
   name: string;
   company: string;
@@ -65,12 +68,16 @@ interface Inquiry {
   message: string;
   memo: string;
   status: string;
+  adName: string;
+  industry: string;
   createdAt: string;
 }
 
 interface InquiryStats {
   total: number;
   thisMonth: number;
+  website: number;
+  meta: number;
 }
 
 const STATUS_OPTIONS = [
@@ -131,8 +138,16 @@ function formatDate(iso: string) {
 
 export default function InquiriesPage() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [stats, setStats] = useState<InquiryStats>({ total: 0, thisMonth: 0 });
+  const [stats, setStats] = useState<InquiryStats>({
+    total: 0,
+    thisMonth: 0,
+    website: 0,
+    meta: 0,
+  });
   const [searchQuery, setSearchQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "website" | "meta">(
+    "all",
+  );
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -228,6 +243,7 @@ export default function InquiriesPage() {
   }
 
   const filteredInquiries = inquiries.filter((inquiry) => {
+    if (sourceFilter !== "all" && inquiry.source !== sourceFilter) return false;
     const q = searchQuery.toLowerCase();
     return (
       inquiry.name.toLowerCase().includes(q) ||
@@ -242,9 +258,9 @@ export default function InquiriesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">문의 관리</h1>
+          <h1 className="text-2xl font-bold tracking-tight">리드 관리</h1>
           <p className="text-muted-foreground">
-            폴라애드 홈페이지 접수 문의를 확인합니다.
+            홈페이지 접수 및 Meta 광고 리드를 통합 관리합니다.
           </p>
         </div>
         <Button
@@ -261,7 +277,7 @@ export default function InquiriesPage() {
       </div>
 
       {/* 통계 카드 */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">전체 문의</CardTitle>
@@ -274,7 +290,7 @@ export default function InquiriesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">이번 달 문의</CardTitle>
+            <CardTitle className="text-sm font-medium">이번 달</CardTitle>
             <MessageSquare className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
@@ -282,6 +298,28 @@ export default function InquiriesPage() {
               {stats.thisMonth}
             </div>
             <p className="text-xs text-muted-foreground">이번 달 접수</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">홈페이지</CardTitle>
+            <Globe className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.website}
+            </div>
+            <p className="text-xs text-muted-foreground">polarad.co.kr</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Meta 광고</CardTitle>
+            <Megaphone className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-500">{stats.meta}</div>
+            <p className="text-xs text-muted-foreground">리드 광고</p>
           </CardContent>
         </Card>
       </div>
@@ -295,14 +333,33 @@ export default function InquiriesPage() {
       {/* 목록 + 상세 */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="이름, 회사, 연락처, 문의내용 검색..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex gap-2 items-center">
+            <div className="flex gap-1">
+              {[
+                { value: "all" as const, label: "전체" },
+                { value: "website" as const, label: "홈페이지", icon: Globe },
+                { value: "meta" as const, label: "Meta 광고", icon: Megaphone },
+              ].map((tab) => (
+                <Button
+                  key={tab.value}
+                  variant={sourceFilter === tab.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSourceFilter(tab.value)}
+                >
+                  {tab.icon && <tab.icon className="h-3.5 w-3.5 mr-1" />}
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="이름, 회사, 연락처, 문의내용 검색..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
           <Card>
@@ -346,11 +403,21 @@ export default function InquiriesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="text-xs">
-                                {inquiry.name.slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
+                            <div className="relative">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="text-xs">
+                                  {inquiry.name.slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {inquiry.source === "meta" && (
+                                <span
+                                  className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 flex items-center justify-center"
+                                  title="Meta 광고"
+                                >
+                                  <Megaphone className="h-2 w-2 text-white" />
+                                </span>
+                              )}
+                            </div>
                             <div>
                               <p className="font-medium text-sm">
                                 {inquiry.name}
@@ -484,6 +551,30 @@ export default function InquiriesPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    {selectedInquiry.source === "meta" ? (
+                      <Badge
+                        variant="outline"
+                        className="text-xs border-blue-300 text-blue-600"
+                      >
+                        <Megaphone className="h-3 w-3 mr-1" />
+                        Meta 광고
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-xs border-green-300 text-green-600"
+                      >
+                        <Globe className="h-3 w-3 mr-1" />
+                        홈페이지
+                      </Badge>
+                    )}
+                    {selectedInquiry.adName && (
+                      <span className="text-xs text-muted-foreground">
+                        {selectedInquiry.adName}
+                      </span>
+                    )}
+                  </div>
                   {selectedInquiry.email && (
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
@@ -495,19 +586,27 @@ export default function InquiriesPage() {
                       </a>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a
-                      href={`tel:${selectedInquiry.phone}`}
-                      className="hover:underline"
-                    >
-                      {selectedInquiry.phone}
-                    </a>
-                  </div>
+                  {selectedInquiry.phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <a
+                        href={`tel:${selectedInquiry.phone}`}
+                        className="hover:underline"
+                      >
+                        {selectedInquiry.phone}
+                      </a>
+                    </div>
+                  )}
                   {selectedInquiry.company && (
                     <div className="flex items-center gap-2 text-sm">
                       <Building className="h-4 w-4 text-muted-foreground" />
                       <span>{selectedInquiry.company}</span>
+                    </div>
+                  )}
+                  {selectedInquiry.industry && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Megaphone className="h-4 w-4 text-muted-foreground" />
+                      <span>업종: {selectedInquiry.industry}</span>
                     </div>
                   )}
                 </div>

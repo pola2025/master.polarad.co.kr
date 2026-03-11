@@ -4,6 +4,10 @@ const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
 const INQUIRIES_BASE_ID = "appSGHxitRzYPE43H";
 const TABLE_NAME = "Lead";
 
+// Meta 광고 리드 Airtable
+const META_BASE_ID = "appyUK6euzEJ5yrGX";
+const META_TABLE_ID = "tblxTgGtVkLpniFbb";
+
 interface AirtableRecord {
   id: string;
   createdTime: string;
@@ -20,6 +24,32 @@ interface AirtableRecord {
   };
 }
 
+interface MetaLeadRecord {
+  id: string;
+  createdTime: string;
+  fields: {
+    Name?: string;
+    phone?: string;
+    company?: string;
+    industry?: string;
+    Adname?: string;
+    memo?: string;
+    Status?: string;
+  };
+}
+
+function formatMetaPhone(phone: string): string {
+  // +821012345678 → 010-1234-5678
+  if (phone.startsWith("+82")) {
+    const local = "0" + phone.slice(3);
+    if (local.length === 11) {
+      return `${local.slice(0, 3)}-${local.slice(3, 7)}-${local.slice(7)}`;
+    }
+    return local;
+  }
+  return phone;
+}
+
 export async function GET() {
   if (!AIRTABLE_API_TOKEN) {
     return NextResponse.json(
@@ -29,44 +59,99 @@ export async function GET() {
   }
 
   try {
-    const url = new URL(
-      `https://api.airtable.com/v0/${INQUIRIES_BASE_ID}/${encodeURIComponent(TABLE_NAME)}`,
-    );
-    url.searchParams.set("sort[0][field]", "no");
-    url.searchParams.set("sort[0][direction]", "desc");
-    url.searchParams.set("maxRecords", "100");
+    const headers = { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` };
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-      },
-      next: { revalidate: 60 }, // 1분 캐시
-    });
+    // 두 Airtable을 병렬로 조회
+    const [websiteRes, metaRes] = await Promise.all([
+      // 홈페이지 접수 리드
+      fetch(
+        (() => {
+          const url = new URL(
+            `https://api.airtable.com/v0/${INQUIRIES_BASE_ID}/${encodeURIComponent(TABLE_NAME)}`,
+          );
+          url.searchParams.set("sort[0][field]", "no");
+          url.searchParams.set("sort[0][direction]", "desc");
+          url.searchParams.set("maxRecords", "100");
+          return url.toString();
+        })(),
+        { headers, next: { revalidate: 60 } },
+      ),
+      // Meta 광고 리드
+      fetch(
+        (() => {
+          const url = new URL(
+            `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}`,
+          );
+          url.searchParams.set("sort[0][field]", "Created");
+          url.searchParams.set("sort[0][direction]", "desc");
+          url.searchParams.set("maxRecords", "100");
+          return url.toString();
+        })(),
+        { headers, next: { revalidate: 60 } },
+      ),
+    ]);
 
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Airtable 조회 실패:", err);
-      return NextResponse.json(
-        { error: "문의 데이터를 불러오지 못했습니다." },
-        { status: 500 },
-      );
+    // 홈페이지 리드 처리
+    const websiteInquiries = [];
+    if (websiteRes.ok) {
+      const data = await websiteRes.json();
+      const records: AirtableRecord[] = data.records || [];
+      for (const record of records) {
+        websiteInquiries.push({
+          id: record.id,
+          source: "website" as const,
+          no: record.fields.no ?? 0,
+          name: record.fields["이름"] ?? "-",
+          company: record.fields["회사명"] ?? "",
+          email: record.fields["이메일"] ?? "",
+          phone: record.fields["연락처"] ?? "",
+          message: record.fields["문의내용"] ?? "",
+          memo: record.fields["메모"] ?? "",
+          status: record.fields["상태"] ?? "",
+          adName: "",
+          industry: "",
+          createdAt: record.createdTime,
+        });
+      }
+    } else {
+      console.error("홈페이지 리드 조회 실패:", await websiteRes.text());
     }
 
-    const data = await res.json();
-    const records: AirtableRecord[] = data.records || [];
+    // Meta 광고 리드 처리
+    const metaInquiries = [];
+    if (metaRes.ok) {
+      const data = await metaRes.json();
+      const records: MetaLeadRecord[] = data.records || [];
+      for (const record of records) {
+        metaInquiries.push({
+          id: `meta_${record.id}`,
+          source: "meta" as const,
+          no: 0,
+          name: record.fields.Name ?? "-",
+          company: record.fields.company ?? "",
+          email: "",
+          phone: record.fields.phone
+            ? formatMetaPhone(record.fields.phone)
+            : "",
+          message: record.fields.industry
+            ? `[Meta 광고] 업종: ${record.fields.industry}`
+            : "[Meta 광고]",
+          memo: record.fields.memo ?? "",
+          status: record.fields.Status ?? "",
+          adName: record.fields.Adname ?? "",
+          industry: record.fields.industry ?? "",
+          createdAt: record.createdTime,
+        });
+      }
+    } else {
+      console.error("Meta 리드 조회 실패:", await metaRes.text());
+    }
 
-    const inquiries = records.map((record) => ({
-      id: record.id,
-      no: record.fields.no ?? 0,
-      name: record.fields["이름"] ?? "-",
-      company: record.fields["회사명"] ?? "",
-      email: record.fields["이메일"] ?? "",
-      phone: record.fields["연락처"] ?? "",
-      message: record.fields["문의내용"] ?? "",
-      memo: record.fields["메모"] ?? "",
-      status: record.fields["상태"] ?? "",
-      createdAt: record.createdTime,
-    }));
+    // 날짜 기준 통합 정렬 (최신순)
+    const inquiries = [...websiteInquiries, ...metaInquiries].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 
     const thisMonth = new Date();
     thisMonth.setDate(1);
@@ -76,6 +161,8 @@ export async function GET() {
       total: inquiries.length,
       thisMonth: inquiries.filter((i) => new Date(i.createdAt) >= thisMonth)
         .length,
+      website: websiteInquiries.length,
+      meta: metaInquiries.length,
     };
 
     return NextResponse.json({ inquiries, stats });
@@ -100,12 +187,23 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "ID가 필요합니다." }, { status: 400 });
     }
 
+    // Meta 리드인지 확인
+    const isMeta = id.startsWith("meta_");
+    const realId = isMeta ? id.replace("meta_", "") : id;
+    const baseId = isMeta ? META_BASE_ID : INQUIRIES_BASE_ID;
+    const tableId = isMeta ? META_TABLE_ID : encodeURIComponent(TABLE_NAME);
+
     const fields: Record<string, string> = {};
-    if (memo !== undefined) fields["메모"] = memo;
-    if (status !== undefined) fields["상태"] = status;
+    if (isMeta) {
+      if (memo !== undefined) fields["memo"] = memo;
+      if (status !== undefined) fields["Status"] = status;
+    } else {
+      if (memo !== undefined) fields["메모"] = memo;
+      if (status !== undefined) fields["상태"] = status;
+    }
 
     const res = await fetch(
-      `https://api.airtable.com/v0/${INQUIRIES_BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${id}`,
+      `https://api.airtable.com/v0/${baseId}/${tableId}/${realId}`,
       {
         method: "PATCH",
         headers: {
@@ -147,8 +245,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "ID가 필요합니다." }, { status: 400 });
     }
 
+    const isMeta = id.startsWith("meta_");
+    const realId = isMeta ? id.replace("meta_", "") : id;
+    const baseId = isMeta ? META_BASE_ID : INQUIRIES_BASE_ID;
+    const tableId = isMeta ? META_TABLE_ID : encodeURIComponent(TABLE_NAME);
+
     const res = await fetch(
-      `https://api.airtable.com/v0/${INQUIRIES_BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${id}`,
+      `https://api.airtable.com/v0/${baseId}/${tableId}/${realId}`,
       {
         method: "DELETE",
         headers: {
