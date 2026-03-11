@@ -15,6 +15,9 @@ import {
   StickyNote,
   Globe,
   Megaphone,
+  MessageCircle,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import {
   Card,
@@ -70,6 +73,8 @@ interface Inquiry {
   status: string;
   adName: string;
   industry: string;
+  smsStatus: string;
+  smsSentAt: string;
   createdAt: string;
 }
 
@@ -387,6 +392,7 @@ export default function InquiriesPage() {
                       <TableHead>연락처</TableHead>
                       <TableHead>문의내용</TableHead>
                       <TableHead>상태</TableHead>
+                      <TableHead>SMS</TableHead>
                       <TableHead>날짜</TableHead>
                       <TableHead className="w-[30px]"></TableHead>
                     </TableRow>
@@ -471,6 +477,25 @@ export default function InquiriesPage() {
                             >
                               {inquiry.status}
                             </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              -
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {inquiry.smsStatus === "발송완료" ? (
+                            <span title="SMS 발송완료">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            </span>
+                          ) : inquiry.smsStatus === "발송실패" ? (
+                            <span title="SMS 발송실패">
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            </span>
+                          ) : inquiry.source === "meta" ? (
+                            <span title="SMS 대기">
+                              <MessageCircle className="h-4 w-4 text-muted-foreground/40" />
+                            </span>
                           ) : (
                             <span className="text-xs text-muted-foreground">
                               -
@@ -573,6 +598,23 @@ export default function InquiriesPage() {
                       <span className="text-xs text-muted-foreground">
                         {selectedInquiry.adName}
                       </span>
+                    )}
+                    {selectedInquiry.smsStatus && (
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${
+                          selectedInquiry.smsStatus === "발송완료"
+                            ? "border-emerald-300 text-emerald-600"
+                            : "border-red-300 text-red-600"
+                        }`}
+                      >
+                        {selectedInquiry.smsStatus === "발송완료" ? (
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                        ) : (
+                          <XCircle className="h-3 w-3 mr-1" />
+                        )}
+                        SMS {selectedInquiry.smsStatus}
+                      </Badge>
                     )}
                   </div>
                   {selectedInquiry.email && (

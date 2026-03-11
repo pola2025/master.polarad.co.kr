@@ -35,6 +35,9 @@ interface MetaLeadRecord {
     Adname?: string;
     memo?: string;
     Status?: string;
+    smsStatus?: string;
+    smsSentAt?: string;
+    smsError?: string;
   };
 }
 
@@ -110,6 +113,8 @@ export async function GET() {
           status: record.fields["상태"] ?? "",
           adName: "",
           industry: "",
+          smsStatus: "",
+          smsSentAt: "",
           createdAt: record.createdTime,
         });
       }
@@ -140,6 +145,8 @@ export async function GET() {
           status: record.fields.Status ?? "",
           adName: record.fields.Adname ?? "",
           industry: record.fields.industry ?? "",
+          smsStatus: record.fields.smsStatus ?? "",
+          smsSentAt: record.fields.smsSentAt ?? "",
           createdAt: record.createdTime,
         });
       }
