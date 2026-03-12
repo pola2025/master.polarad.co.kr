@@ -18,6 +18,7 @@ import {
   MessageCircle,
   CheckCircle2,
   XCircle,
+  Reply,
 } from "lucide-react";
 import {
   Card,
@@ -59,6 +60,12 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Inquiry {
   id: string;
@@ -75,6 +82,7 @@ interface Inquiry {
   industry: string;
   smsStatus: string;
   smsSentAt: string;
+  smsReply: boolean;
   createdAt: string;
 }
 
@@ -83,6 +91,7 @@ interface InquiryStats {
   thisMonth: number;
   website: number;
   meta: number;
+  smsReplyCount: number;
 }
 
 const STATUS_OPTIONS = [
@@ -148,6 +157,7 @@ export default function InquiriesPage() {
     thisMonth: 0,
     website: 0,
     meta: 0,
+    smsReplyCount: 0,
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "website" | "meta">(
@@ -224,6 +234,32 @@ export default function InquiriesPage() {
       setSelectedInquiry((prev) => (prev ? { ...prev, status } : prev));
     } catch {
       setError("상태 변경에 실패했습니다.");
+    }
+  }
+
+  async function handleToggleReply(targetId?: string) {
+    const id = targetId || selectedInquiry?.id;
+    if (!id) return;
+    const target = inquiries.find((i) => i.id === id);
+    if (!target || target.source !== "meta") return;
+    const newReply = !target.smsReply;
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, smsReply: newReply }),
+      });
+      if (!res.ok) throw new Error();
+      setInquiries((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, smsReply: newReply } : i)),
+      );
+      if (selectedInquiry?.id === id) {
+        setSelectedInquiry((prev) =>
+          prev ? { ...prev, smsReply: newReply } : prev,
+        );
+      }
+    } catch {
+      setError("회신 상태 변경에 실패했습니다.");
     }
   }
 
@@ -307,14 +343,21 @@ export default function InquiriesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">홈페이지</CardTitle>
-            <Globe className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">문자 회신</CardTitle>
+            <Reply className="h-4 w-4 text-violet-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.website}
+            <div className="text-2xl font-bold text-violet-600">
+              {stats.smsReplyCount}
+              <span className="text-sm font-normal text-muted-foreground ml-1">
+                / {stats.meta}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">polarad.co.kr</p>
+            <p className="text-xs text-muted-foreground">
+              {stats.meta > 0
+                ? `회신률 ${Math.round((stats.smsReplyCount / stats.meta) * 100)}%`
+                : "회신 없음"}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -335,193 +378,232 @@ export default function InquiriesPage() {
         </Alert>
       )}
 
-      {/* 목록 + 상세 */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex gap-2 items-center">
-            <div className="flex gap-1">
-              {[
-                { value: "all" as const, label: "전체" },
-                { value: "website" as const, label: "홈페이지", icon: Globe },
-                { value: "meta" as const, label: "Meta 광고", icon: Megaphone },
-              ].map((tab) => (
-                <Button
-                  key={tab.value}
-                  variant={sourceFilter === tab.value ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSourceFilter(tab.value)}
-                >
-                  {tab.icon && <tab.icon className="h-3.5 w-3.5 mr-1" />}
-                  {tab.label}
-                </Button>
-              ))}
-            </div>
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="이름, 회사, 연락처, 문의내용 검색..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+      {/* 목록 */}
+      <div className="space-y-4">
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-1">
+            {[
+              { value: "all" as const, label: "전체" },
+              { value: "website" as const, label: "홈페이지", icon: Globe },
+              { value: "meta" as const, label: "Meta 광고", icon: Megaphone },
+            ].map((tab) => (
+              <Button
+                key={tab.value}
+                variant={sourceFilter === tab.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSourceFilter(tab.value)}
+              >
+                {tab.icon && <tab.icon className="h-3.5 w-3.5 mr-1" />}
+                {tab.label}
+              </Button>
+            ))}
           </div>
-
-          <Card>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredInquiries.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-1">
-                    {searchQuery ? "검색 결과가 없습니다" : "문의가 없습니다"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    새로운 문의가 들어오면 여기에 표시됩니다.
-                  </p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[40px]">No</TableHead>
-                      <TableHead>문의자</TableHead>
-                      <TableHead>연락처</TableHead>
-                      <TableHead>문의내용</TableHead>
-                      <TableHead>상태</TableHead>
-                      <TableHead>SMS</TableHead>
-                      <TableHead>날짜</TableHead>
-                      <TableHead className="w-[30px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInquiries.map((inquiry) => (
-                      <TableRow
-                        key={inquiry.id}
-                        className={`cursor-pointer ${selectedInquiry?.id === inquiry.id ? "bg-muted" : ""}`}
-                        onClick={() => setSelectedInquiry(inquiry)}
-                      >
-                        <TableCell className="text-muted-foreground text-sm">
-                          {inquiry.no}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="relative">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="text-xs">
-                                  {inquiry.name.slice(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                              {inquiry.source === "meta" && (
-                                <span
-                                  className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 flex items-center justify-center"
-                                  title="Meta 광고"
-                                >
-                                  <Megaphone className="h-2 w-2 text-white" />
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">
-                                {inquiry.name}
-                              </p>
-                              {inquiry.company && (
-                                <p className="text-xs text-muted-foreground">
-                                  {inquiry.company}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {inquiry.phone}
-                        </TableCell>
-                        <TableCell>
-                          {inquiry.message.startsWith("[위저드]") ? (
-                            <div className="flex items-center gap-1.5">
-                              <Badge
-                                variant="outline"
-                                className="text-xs shrink-0"
-                              >
-                                진단
-                              </Badge>
-                              <span className="text-sm text-muted-foreground line-clamp-1">
-                                {parseWizardMessage(inquiry.message)?.업종}
-                              </span>
-                            </div>
-                          ) : (
-                            <p className="text-sm line-clamp-1 max-w-[200px]">
-                              {inquiry.message}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {inquiry.status ? (
-                            <Badge
-                              variant={
-                                (STATUS_COLORS[inquiry.status] as
-                                  | "default"
-                                  | "secondary"
-                                  | "outline") || "secondary"
-                              }
-                              className={
-                                inquiry.status === "계약완료"
-                                  ? "bg-green-100 text-green-700 hover:bg-green-100"
-                                  : inquiry.status === "상담중"
-                                    ? "border-blue-300 text-blue-700"
-                                    : ""
-                              }
-                            >
-                              {inquiry.status}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              -
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {inquiry.smsStatus === "발송완료" ? (
-                            <span title="SMS 발송완료">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                            </span>
-                          ) : inquiry.smsStatus === "발송실패" ? (
-                            <span title="SMS 발송실패">
-                              <XCircle className="h-4 w-4 text-red-500" />
-                            </span>
-                          ) : inquiry.source === "meta" ? (
-                            <span title="SMS 대기">
-                              <MessageCircle className="h-4 w-4 text-muted-foreground/40" />
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              -
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                          {formatDate(inquiry.createdAt)}
-                        </TableCell>
-                        <TableCell>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="이름, 회사, 연락처, 문의내용 검색..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
 
-        {/* 상세 패널 */}
-        <div>
-          {selectedInquiry ? (
-            <Card className="sticky top-4">
-              <CardHeader>
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredInquiries.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-1">
+                  {searchQuery ? "검색 결과가 없습니다" : "문의가 없습니다"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  새로운 문의가 들어오면 여기에 표시됩니다.
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40px]">No</TableHead>
+                    <TableHead>날짜</TableHead>
+                    <TableHead>문의자</TableHead>
+                    <TableHead>연락처</TableHead>
+                    <TableHead>문의내용</TableHead>
+                    <TableHead>회신</TableHead>
+                    <TableHead>상태</TableHead>
+                    <TableHead>SMS</TableHead>
+                    <TableHead className="w-[30px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInquiries.map((inquiry) => (
+                    <TableRow
+                      key={inquiry.id}
+                      className={`cursor-pointer ${selectedInquiry?.id === inquiry.id ? "bg-muted" : ""}`}
+                      onClick={() => setSelectedInquiry(inquiry)}
+                    >
+                      {/* No */}
+                      <TableCell className="text-muted-foreground text-sm">
+                        {filteredInquiries.length -
+                          filteredInquiries.indexOf(inquiry)}
+                      </TableCell>
+                      {/* 날짜 */}
+                      <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                        {formatDate(inquiry.createdAt)}
+                      </TableCell>
+                      {/* 문의자 */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="relative shrink-0">
+                            <Avatar className="h-7 w-7">
+                              <AvatarFallback className="text-xs">
+                                {inquiry.name.slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {inquiry.source === "meta" && (
+                              <span
+                                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 flex items-center justify-center"
+                                title="Meta 광고"
+                              >
+                                <Megaphone className="h-2 w-2 text-white" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {inquiry.name}
+                            </p>
+                            {inquiry.company && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[100px]">
+                                {inquiry.company}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      {/* 연락처 */}
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {inquiry.phone}
+                      </TableCell>
+                      {/* 문의내용 */}
+                      <TableCell>
+                        {inquiry.message.startsWith("[위저드]") ? (
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="text-xs shrink-0"
+                            >
+                              진단
+                            </Badge>
+                            <span className="text-sm text-muted-foreground line-clamp-1">
+                              {parseWizardMessage(inquiry.message)?.업종}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-sm line-clamp-1 max-w-[160px]">
+                            {inquiry.message}
+                          </p>
+                        )}
+                      </TableCell>
+                      {/* 회신 */}
+                      <TableCell>
+                        {inquiry.source === "meta" ? (
+                          <button
+                            type="button"
+                            title={
+                              inquiry.smsReply ? "고객 회신 받음" : "회신 체크"
+                            }
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                              inquiry.smsReply
+                                ? "bg-violet-100 text-violet-700 hover:bg-violet-200"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleReply(inquiry.id);
+                            }}
+                          >
+                            <Reply className="h-3 w-3" />
+                            {inquiry.smsReply ? "회신" : "-"}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      {/* 상태 */}
+                      <TableCell>
+                        {inquiry.status ? (
+                          <Badge
+                            variant={
+                              (STATUS_COLORS[inquiry.status] as
+                                | "default"
+                                | "secondary"
+                                | "outline") || "secondary"
+                            }
+                            className={
+                              inquiry.status === "계약완료"
+                                ? "bg-green-100 text-green-700 hover:bg-green-100"
+                                : inquiry.status === "상담중"
+                                  ? "border-blue-300 text-blue-700"
+                                  : ""
+                            }
+                          >
+                            {inquiry.status}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      {/* SMS */}
+                      <TableCell>
+                        {inquiry.smsStatus === "발송완료" ? (
+                          <span title="SMS 발송완료">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          </span>
+                        ) : inquiry.smsStatus === "발송실패" ? (
+                          <span title="SMS 발송실패">
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          </span>
+                        ) : inquiry.source === "meta" ? (
+                          <span title="SMS 대기">
+                            <MessageCircle className="h-4 w-4 text-muted-foreground/40" />
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 상세 모달 */}
+      <Dialog
+        open={!!selectedInquiry}
+        onOpenChange={(open) => !open && setSelectedInquiry(null)}
+      >
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          {selectedInquiry && (
+            <>
+              <DialogHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
@@ -530,13 +612,13 @@ export default function InquiriesPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <CardTitle className="text-lg">
+                      <DialogTitle className="text-lg">
                         {selectedInquiry.name}
-                      </CardTitle>
+                      </DialogTitle>
                       {selectedInquiry.company && (
-                        <CardDescription>
+                        <p className="text-sm text-muted-foreground">
                           {selectedInquiry.company}
-                        </CardDescription>
+                        </p>
                       )}
                     </div>
                   </div>
@@ -573,50 +655,61 @@ export default function InquiriesPage() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    {selectedInquiry.source === "meta" ? (
-                      <Badge
-                        variant="outline"
-                        className="text-xs border-blue-300 text-blue-600"
-                      >
-                        <Megaphone className="h-3 w-3 mr-1" />
-                        Meta 광고
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-xs border-green-300 text-green-600"
-                      >
-                        <Globe className="h-3 w-3 mr-1" />
-                        홈페이지
-                      </Badge>
-                    )}
-                    {selectedInquiry.adName && (
-                      <span className="text-xs text-muted-foreground">
-                        {selectedInquiry.adName}
-                      </span>
-                    )}
-                    {selectedInquiry.smsStatus && (
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${
-                          selectedInquiry.smsStatus === "발송완료"
-                            ? "border-emerald-300 text-emerald-600"
-                            : "border-red-300 text-red-600"
-                        }`}
-                      >
-                        {selectedInquiry.smsStatus === "발송완료" ? (
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                        ) : (
-                          <XCircle className="h-3 w-3 mr-1" />
-                        )}
-                        SMS {selectedInquiry.smsStatus}
-                      </Badge>
-                    )}
-                  </div>
+              </DialogHeader>
+
+              <div className="space-y-4 pt-2">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  {selectedInquiry.source === "meta" ? (
+                    <Badge
+                      variant="outline"
+                      className="text-xs border-blue-300 text-blue-600"
+                    >
+                      <Megaphone className="h-3 w-3 mr-1" />
+                      Meta 광고
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-xs border-green-300 text-green-600"
+                    >
+                      <Globe className="h-3 w-3 mr-1" />
+                      홈페이지
+                    </Badge>
+                  )}
+                  {selectedInquiry.adName && (
+                    <span className="text-xs text-muted-foreground">
+                      {selectedInquiry.adName}
+                    </span>
+                  )}
+                  {selectedInquiry.smsStatus && (
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        selectedInquiry.smsStatus === "발송완료"
+                          ? "border-emerald-300 text-emerald-600"
+                          : "border-red-300 text-red-600"
+                      }`}
+                    >
+                      {selectedInquiry.smsStatus === "발송완료" ? (
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                      ) : (
+                        <XCircle className="h-3 w-3 mr-1" />
+                      )}
+                      SMS {selectedInquiry.smsStatus}
+                    </Badge>
+                  )}
+                  {selectedInquiry.smsReply && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs border-violet-300 text-violet-600"
+                    >
+                      <Reply className="h-3 w-3 mr-1" />
+                      회신
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
                   {selectedInquiry.email && (
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
@@ -758,7 +851,24 @@ export default function InquiriesPage() {
                   접수: {formatDate(selectedInquiry.createdAt)}
                 </p>
 
-                <div className="flex gap-2 pt-2">
+                {selectedInquiry.source === "meta" && (
+                  <button
+                    type="button"
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      selectedInquiry.smsReply
+                        ? "bg-violet-100 text-violet-700 hover:bg-violet-200"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 border border-dashed"
+                    }`}
+                    onClick={() => handleToggleReply()}
+                  >
+                    <Reply className="h-4 w-4" />
+                    {selectedInquiry.smsReply
+                      ? "고객 회신 받음"
+                      : "고객 회신 체크"}
+                  </button>
+                )}
+
+                <div className="flex gap-2">
                   {selectedInquiry.email && (
                     <Button className="flex-1" asChild>
                       <a href={`mailto:${selectedInquiry.email}`}>
@@ -773,21 +883,11 @@ export default function InquiriesPage() {
                     </a>
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-1">문의를 선택하세요</h3>
-                <p className="text-sm text-muted-foreground">
-                  목록에서 문의를 클릭하면 상세 내용을 볼 수 있습니다.
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+            </>
           )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

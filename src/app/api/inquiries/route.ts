@@ -38,8 +38,24 @@ interface MetaLeadRecord {
     smsStatus?: string;
     smsSentAt?: string;
     smsError?: string;
+    smsReply?: boolean;
   };
 }
+
+// Meta Airtable Status ↔ 한글 상태 매핑
+const META_STATUS_TO_KR: Record<string, string> = {
+  Todo: "신규",
+  "In progress": "상담중",
+  Done: "계약완료",
+  Hold: "보류",
+};
+
+const KR_STATUS_TO_META: Record<string, string> = {
+  신규: "Todo",
+  상담중: "In progress",
+  계약완료: "Done",
+  보류: "Hold",
+};
 
 function formatMetaPhone(phone: string): string {
   // +821012345678 → 010-1234-5678
@@ -77,20 +93,18 @@ export async function GET() {
           url.searchParams.set("maxRecords", "100");
           return url.toString();
         })(),
-        { headers, next: { revalidate: 60 } },
+        { headers, cache: "no-store" },
       ),
-      // Meta 광고 리드
+      // Meta 광고 리드 (createdTime 기본 정렬, sort 필드 없음)
       fetch(
         (() => {
           const url = new URL(
             `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}`,
           );
-          url.searchParams.set("sort[0][field]", "Created");
-          url.searchParams.set("sort[0][direction]", "desc");
           url.searchParams.set("maxRecords", "100");
           return url.toString();
         })(),
-        { headers, next: { revalidate: 60 } },
+        { headers, cache: "no-store" },
       ),
     ]);
 
@@ -115,6 +129,7 @@ export async function GET() {
           industry: "",
           smsStatus: "",
           smsSentAt: "",
+          smsReply: false,
           createdAt: record.createdTime,
         });
       }
@@ -142,11 +157,15 @@ export async function GET() {
             ? `[Meta 광고] 업종: ${record.fields.industry}`
             : "[Meta 광고]",
           memo: record.fields.memo ?? "",
-          status: record.fields.Status ?? "",
+          status:
+            META_STATUS_TO_KR[record.fields.Status ?? ""] ??
+            record.fields.Status ??
+            "",
           adName: record.fields.Adname ?? "",
           industry: record.fields.industry ?? "",
           smsStatus: record.fields.smsStatus ?? "",
           smsSentAt: record.fields.smsSentAt ?? "",
+          smsReply: record.fields.smsReply ?? false,
           createdAt: record.createdTime,
         });
       }
@@ -170,6 +189,7 @@ export async function GET() {
         .length,
       website: websiteInquiries.length,
       meta: metaInquiries.length,
+      smsReplyCount: metaInquiries.filter((i) => i.smsReply).length,
     };
 
     return NextResponse.json({ inquiries, stats });
@@ -189,7 +209,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id, memo, status } = await request.json();
+    const { id, memo, status, smsReply } = await request.json();
     if (!id) {
       return NextResponse.json({ error: "ID가 필요합니다." }, { status: 400 });
     }
@@ -200,10 +220,12 @@ export async function PATCH(request: NextRequest) {
     const baseId = isMeta ? META_BASE_ID : INQUIRIES_BASE_ID;
     const tableId = isMeta ? META_TABLE_ID : encodeURIComponent(TABLE_NAME);
 
-    const fields: Record<string, string> = {};
+    const fields: Record<string, string | boolean> = {};
     if (isMeta) {
       if (memo !== undefined) fields["memo"] = memo;
-      if (status !== undefined) fields["Status"] = status;
+      if (status !== undefined)
+        fields["Status"] = KR_STATUS_TO_META[status] ?? status;
+      if (smsReply !== undefined) fields["smsReply"] = smsReply;
     } else {
       if (memo !== undefined) fields["메모"] = memo;
       if (status !== undefined) fields["상태"] = status;
