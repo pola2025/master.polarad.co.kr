@@ -10,6 +10,8 @@ const TABLES = {
   DAILY_ANALYTICS: "daily_analytics",
   TRAFFIC_SOURCES: "traffic_sources",
   CACHE_METADATA: "cache_metadata",
+  BOT_VISITS: "bot_visits",
+  BOT_DAILY_STATS: "bot_daily_stats",
 };
 
 // Airtable Base 인스턴스
@@ -666,6 +668,180 @@ export async function getHourlyTrafficFromCache(): Promise<
     }));
   } catch (error) {
     console.error("Failed to get hourly traffic from cache:", error);
+    return [];
+  }
+}
+
+// =====================
+// 봇 방문 기록 (개별 로그)
+// =====================
+
+export interface BotVisitRecord {
+  timestamp: string;
+  date: string; // "2026-03-12"
+  botName: string;
+  category: string;
+  path: string;
+  ip: string;
+}
+
+// 봇 방문 1건 저장
+export async function saveBotVisit(visit: BotVisitRecord): Promise<void> {
+  try {
+    const base = getBase();
+    await base(TABLES.BOT_VISITS).create([
+      {
+        fields: {
+          timestamp: visit.timestamp,
+          date: visit.date,
+          botName: visit.botName,
+          category: visit.category,
+          path: visit.path,
+          ip: visit.ip,
+        },
+      },
+    ]);
+  } catch (error) {
+    console.error("Failed to save bot visit:", error);
+  }
+}
+
+// 봇 방문 배치 저장 (10개씩)
+export async function saveBotVisitsBatch(
+  visits: BotVisitRecord[],
+): Promise<number> {
+  const base = getBase();
+  let savedCount = 0;
+
+  const batchSize = 10;
+  for (let i = 0; i < visits.length; i += batchSize) {
+    const batch = visits.slice(i, i + batchSize);
+    try {
+      await base(TABLES.BOT_VISITS).create(
+        batch.map((v) => ({
+          fields: {
+            timestamp: v.timestamp,
+            date: v.date,
+            botName: v.botName,
+            category: v.category,
+            path: v.path,
+            ip: v.ip,
+          },
+        })),
+      );
+      savedCount += batch.length;
+    } catch (error) {
+      console.error("Failed to save bot visits batch:", error);
+    }
+  }
+
+  return savedCount;
+}
+
+// 봇 방문 조회 (기간별)
+export async function getBotVisitsFromCache(
+  days: number = 7,
+): Promise<BotVisitRecord[]> {
+  try {
+    const base = getBase();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = formatDate(startDate);
+
+    const records = await base(TABLES.BOT_VISITS)
+      .select({
+        filterByFormula: `IS_AFTER({date}, '${startDateStr}')`,
+        sort: [{ field: "timestamp", direction: "desc" }],
+      })
+      .all();
+
+    return records.map((record) => ({
+      timestamp: record.get("timestamp") as string,
+      date: record.get("date") as string,
+      botName: record.get("botName") as string,
+      category: record.get("category") as string,
+      path: record.get("path") as string,
+      ip: (record.get("ip") as string) || "",
+    }));
+  } catch (error) {
+    console.error("Failed to get bot visits from cache:", error);
+    return [];
+  }
+}
+
+// =====================
+// 봇 일별 집계 통계
+// =====================
+
+export interface BotDailyStats {
+  date: string;
+  total_visits: number;
+  bot_visits: number;
+  human_visits: number;
+  bot_percentage: number;
+  categories: string; // JSON string
+  top_bots: string; // JSON string
+}
+
+// 일별 봇 통계 저장 (upsert)
+export async function saveBotDailyStats(stats: BotDailyStats): Promise<void> {
+  try {
+    const base = getBase();
+    const records = await base(TABLES.BOT_DAILY_STATS)
+      .select({
+        filterByFormula: `{date} = '${stats.date}'`,
+        maxRecords: 1,
+      })
+      .firstPage();
+
+    const fields = {
+      date: stats.date,
+      total_visits: stats.total_visits,
+      bot_visits: stats.bot_visits,
+      human_visits: stats.human_visits,
+      bot_percentage: stats.bot_percentage,
+      categories: stats.categories,
+      top_bots: stats.top_bots,
+    };
+
+    if (records.length > 0) {
+      await base(TABLES.BOT_DAILY_STATS).update(records[0].id, fields);
+    } else {
+      await base(TABLES.BOT_DAILY_STATS).create([{ fields }]);
+    }
+  } catch (error) {
+    console.error("Failed to save bot daily stats:", error);
+  }
+}
+
+// 일별 봇 통계 조회 (기간별)
+export async function getBotDailyStatsFromCache(
+  days: number = 30,
+): Promise<BotDailyStats[]> {
+  try {
+    const base = getBase();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = formatDate(startDate);
+
+    const records = await base(TABLES.BOT_DAILY_STATS)
+      .select({
+        filterByFormula: `IS_AFTER({date}, '${startDateStr}')`,
+        sort: [{ field: "date", direction: "desc" }],
+      })
+      .all();
+
+    return records.map((record) => ({
+      date: record.get("date") as string,
+      total_visits: (record.get("total_visits") as number) || 0,
+      bot_visits: (record.get("bot_visits") as number) || 0,
+      human_visits: (record.get("human_visits") as number) || 0,
+      bot_percentage: (record.get("bot_percentage") as number) || 0,
+      categories: (record.get("categories") as string) || "{}",
+      top_bots: (record.get("top_bots") as string) || "{}",
+    }));
+  } catch (error) {
+    console.error("Failed to get bot daily stats from cache:", error);
     return [];
   }
 }

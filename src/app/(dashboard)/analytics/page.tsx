@@ -14,6 +14,8 @@ import {
   Calendar,
   Download,
   Loader2,
+  Bot,
+  ShieldAlert,
 } from "lucide-react";
 import {
   Card,
@@ -35,7 +37,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { VisitorPeriodTable } from "@/components/dashboard/visitor-period-table";
+import { VisitorHeatmap } from "@/components/dashboard/visitor-heatmap";
 import type { AggregatedVisitorData } from "@/types/analytics";
 
 // 데이터 타입 정의
@@ -118,19 +130,28 @@ export default function AnalyticsPage() {
     useState<AggregatedVisitorData | null>(null);
   const [aggregatedLoading, setAggregatedLoading] = useState(true);
 
+  // 사용자 지정 날짜 필터 상태
+  const [customDialogOpen, setCustomDialogOpen] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [customDays, setCustomDays] = useState<number | null>(null);
+  const [customLabel, setCustomLabel] = useState("");
+
+  // days 계산 함수
+  const getDays = () => {
+    if (dateRange === "custom" && customDays) return customDays;
+    if (dateRange === "24h") return 1;
+    if (dateRange === "7d") return 7;
+    if (dateRange === "30d") return 30;
+    return 90;
+  };
+
   // 방문 통계 데이터 조회
   useEffect(() => {
     const fetchVisitorData = async () => {
       try {
         setLoading(true);
-        const days =
-          dateRange === "24h"
-            ? 1
-            : dateRange === "7d"
-              ? 7
-              : dateRange === "30d"
-                ? 30
-                : 90;
+        const days = getDays();
         const response = await fetch(`/api/analytics/visitors?days=${days}`);
         if (response.ok) {
           const data = await response.json();
@@ -144,21 +165,14 @@ export default function AnalyticsPage() {
     };
 
     fetchVisitorData();
-  }, [dateRange]);
+  }, [dateRange, customDays]);
 
   // 누적 데이터 조회
   useEffect(() => {
     const fetchAggregatedData = async () => {
       try {
         setAggregatedLoading(true);
-        const days =
-          dateRange === "24h"
-            ? 1
-            : dateRange === "7d"
-              ? 7
-              : dateRange === "30d"
-                ? 30
-                : 90;
+        const days = getDays();
         const response = await fetch(`/api/analytics/aggregated?days=${days}`);
         if (response.ok) {
           const data = await response.json();
@@ -172,7 +186,51 @@ export default function AnalyticsPage() {
     };
 
     fetchAggregatedData();
-  }, [dateRange]);
+  }, [dateRange, customDays]);
+
+  // 봇 통계
+  interface BotStats {
+    total_visits: number;
+    bot_visits: number;
+    human_visits: number;
+    bot_percentage: number;
+    categories: Array<{ category: string; count: number; percentage: string }>;
+    top_bots: Array<{ name: string; count: number }>;
+    tracking_since: string | null;
+  }
+  const [botStats, setBotStats] = useState<BotStats | null>(null);
+
+  useEffect(() => {
+    const fetchBotStats = async () => {
+      try {
+        const days = getDays();
+        const response = await fetch(`/api/analytics/bot-stats?days=${days}`);
+        if (response.ok) {
+          const data = await response.json();
+          setBotStats(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch bot stats:", error);
+      }
+    };
+    fetchBotStats();
+  }, [dateRange, customDays]);
+
+  // 사용자 지정 날짜 적용
+  const applyCustomDateRange = () => {
+    if (!customStartDate || !customEndDate) return;
+    const start = new Date(customStartDate);
+    const end = new Date(customEndDate);
+    if (start > end) return;
+    const diffDays =
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const startLabel = customStartDate.slice(5).replace("-", "/");
+    const endLabel = customEndDate.slice(5).replace("-", "/");
+    setCustomLabel(`${startLabel} ~ ${endLabel}`);
+    setCustomDays(diffDays);
+    setDateRange("custom");
+    setCustomDialogOpen(false);
+  };
 
   // 신규/재방문자 비율 계산
   const totalVisitors =
@@ -213,14 +271,18 @@ export default function AnalyticsPage() {
             사이트 트래픽과 방문자 행동을 분석합니다.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex rounded-lg border bg-background p-1">
             {["24h", "7d", "30d", "90d"].map((range) => (
               <Button
                 key={range}
                 variant={dateRange === range ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => setDateRange(range)}
+                onClick={() => {
+                  setDateRange(range);
+                  setCustomDays(null);
+                  setCustomLabel("");
+                }}
                 className="px-3"
               >
                 {range === "24h"
@@ -233,15 +295,100 @@ export default function AnalyticsPage() {
               </Button>
             ))}
           </div>
-          <Button variant="outline" size="sm">
+          <Button
+            variant={dateRange === "custom" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setCustomDialogOpen(true)}
+          >
             <Calendar className="mr-2 h-4 w-4" />
-            사용자 지정
+            {dateRange === "custom" && customLabel
+              ? customLabel
+              : "사용자 지정"}
           </Button>
           <Button variant="outline" size="sm">
             <Download className="mr-2 h-4 w-4" />
             내보내기
           </Button>
         </div>
+
+        {/* 사용자 지정 날짜 다이얼로그 */}
+        <Dialog open={customDialogOpen} onOpenChange={setCustomDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>날짜 범위 선택</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="start-date">시작일</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  max={customEndDate || undefined}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="end-date">종료일</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  min={customStartDate || undefined}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+              {customStartDate && customEndDate && (
+                <p className="text-sm text-muted-foreground">
+                  선택 기간:{" "}
+                  {Math.ceil(
+                    (new Date(customEndDate).getTime() -
+                      new Date(customStartDate).getTime()) /
+                      (1000 * 60 * 60 * 24),
+                  ) + 1}
+                  일
+                </p>
+              )}
+              <div className="flex gap-2">
+                {[
+                  { label: "최근 14일", days: 14 },
+                  { label: "최근 60일", days: 60 },
+                  { label: "최근 180일", days: 180 },
+                ].map((preset) => (
+                  <Button
+                    key={preset.days}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const end = new Date();
+                      const start = new Date();
+                      start.setDate(start.getDate() - preset.days + 1);
+                      setCustomStartDate(start.toISOString().split("T")[0]);
+                      setCustomEndDate(end.toISOString().split("T")[0]);
+                    }}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setCustomDialogOpen(false)}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={applyCustomDateRange}
+                disabled={!customStartDate || !customEndDate}
+              >
+                적용
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* 데이터 없음 알림 */}
@@ -494,6 +641,118 @@ export default function AnalyticsPage() {
           </>
         )}
       </div>
+
+      {/* 봇 트래픽 통계 */}
+      {botStats && botStats.total_visits > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Bot className="h-5 w-5" />봇 트래픽 분석
+              {botStats.tracking_since && (
+                <span className="text-xs font-normal text-muted-foreground ml-2">
+                  (추적 시작:{" "}
+                  {new Date(botStats.tracking_since).toLocaleDateString(
+                    "ko-KR",
+                  )}
+                  )
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4 mb-6">
+              <div className="text-center p-3 rounded-lg bg-gray-50">
+                <p className="text-sm text-muted-foreground">전체 방문</p>
+                <p className="text-2xl font-bold">
+                  {botStats.total_visits.toLocaleString()}
+                </p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-blue-50">
+                <p className="text-sm text-blue-600">일반 방문자</p>
+                <p className="text-2xl font-bold text-blue-700">
+                  {botStats.human_visits.toLocaleString()}
+                </p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-orange-50">
+                <p className="text-sm text-orange-600">봇 방문</p>
+                <p className="text-2xl font-bold text-orange-700">
+                  {botStats.bot_visits.toLocaleString()}
+                </p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-red-50">
+                <p className="text-sm text-red-600 flex items-center justify-center gap-1">
+                  <ShieldAlert className="h-3 w-3" />봇 비율
+                </p>
+                <p className="text-2xl font-bold text-red-700">
+                  {botStats.bot_percentage}%
+                </p>
+              </div>
+            </div>
+
+            {botStats.categories.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h4 className="text-sm font-medium mb-3">봇 카테고리별</h4>
+                  <div className="space-y-2">
+                    {botStats.categories.map((cat) => (
+                      <div
+                        key={cat.category}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-sm">{cat.category}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-2 rounded-full bg-gray-100">
+                            <div
+                              className="h-2 rounded-full bg-orange-400"
+                              style={{
+                                width: `${Math.min(parseFloat(cat.percentage), 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground w-16 text-right">
+                            {cat.count}회 ({cat.percentage}%)
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {botStats.top_bots.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">상위 봇</h4>
+                    <div className="space-y-1.5">
+                      {botStats.top_bots.map((bot, i) => (
+                        <div
+                          key={bot.name}
+                          className="flex items-center justify-between text-sm"
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-4">
+                              {i + 1}.
+                            </span>
+                            <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">
+                              {bot.name}
+                            </code>
+                          </span>
+                          <span className="text-muted-foreground">
+                            {bot.count}회
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 날짜별 히트맵 */}
+      <VisitorHeatmap
+        daily={aggregatedData?.daily || []}
+        loading={aggregatedLoading}
+      />
 
       {/* 탭 콘텐츠 */}
       <Tabs defaultValue="pages" className="space-y-4">

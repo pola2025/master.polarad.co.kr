@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useState, Fragment, useRef } from "react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useState, Fragment, useRef } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChevronDown,
   ChevronRight,
@@ -15,46 +15,46 @@ import {
   Users,
   Eye,
   Clock,
-} from "lucide-react"
+} from "lucide-react";
 import type {
   DailyVisitorData,
   WeeklyVisitorData,
   MonthlyVisitorData,
   VisitorSummary,
   ViewMode,
-} from "@/types/analytics"
+} from "@/types/analytics";
 
 interface VisitorPeriodTableProps {
-  daily: DailyVisitorData[]
-  weekly: WeeklyVisitorData[]
-  monthly: MonthlyVisitorData[]
-  summary?: VisitorSummary
-  loading?: boolean
+  daily: DailyVisitorData[];
+  weekly: WeeklyVisitorData[];
+  monthly: MonthlyVisitorData[];
+  summary?: VisitorSummary;
+  loading?: boolean;
 }
 
 // 숫자 포맷 함수
 function formatNumber(num: number): string {
-  return num.toLocaleString("ko-KR")
+  return num.toLocaleString("ko-KR");
 }
 
 // 시간 포맷 함수 (초 -> "m:ss")
 function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, "0")}`
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 // 모바일 카드 컴포넌트
 interface MobileCardProps {
-  period: string
-  subPeriod?: string
-  visitors: number
-  pageviews: number
-  sessions: number
-  bounceRate: number
-  avgDuration: number
-  change?: number
-  isHighlighted?: boolean
+  period: string;
+  subPeriod?: string;
+  visitors: number;
+  pageviews: number;
+  sessions: number;
+  bounceRate: number;
+  avgDuration: number;
+  change?: number;
+  isHighlighted?: boolean;
 }
 
 function MobileDataCard({
@@ -142,7 +142,7 @@ function MobileDataCard({
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 export function VisitorPeriodTable({
@@ -152,26 +152,26 @@ export function VisitorPeriodTable({
   summary,
   loading,
 }: VisitorPeriodTableProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("monthly")
-  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
-  const [mobileCardIndex, setMobileCardIndex] = useState(0)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>("daily");
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  const [mobileCardIndex, setMobileCardIndex] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const toggleMonth = (month: string) => {
-    const newExpanded = new Set(expandedMonths)
+    const newExpanded = new Set(expandedMonths);
     if (newExpanded.has(month)) {
-      newExpanded.delete(month)
+      newExpanded.delete(month);
     } else {
-      newExpanded.add(month)
+      newExpanded.add(month);
     }
-    setExpandedMonths(newExpanded)
-  }
+    setExpandedMonths(newExpanded);
+  };
 
   // 변화율 표시 컴포넌트
   const ChangeIndicator = ({ value }: { value?: number }) => {
     if (value === undefined || value === 0)
-      return <span className="text-gray-400">-</span>
-    const isPositive = value > 0
+      return <span className="text-gray-400">-</span>;
+    const isPositive = value > 0;
     return (
       <span
         className={`flex items-center justify-center text-xs ${
@@ -185,8 +185,8 @@ export function VisitorPeriodTable({
         )}
         {Math.abs(value).toFixed(1)}%
       </span>
-    )
-  }
+    );
+  };
 
   // 로딩 상태
   if (loading) {
@@ -206,12 +206,12 @@ export function VisitorPeriodTable({
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   // 모바일용 데이터 준비
   const getMobileCards = () => {
-    const cards: MobileCardProps[] = []
+    const cards: MobileCardProps[] = [];
 
     if (viewMode === "monthly") {
       monthly.forEach((m) => {
@@ -223,8 +223,8 @@ export function VisitorPeriodTable({
           bounceRate: m.bounceRate,
           avgDuration: m.avgDuration,
           change: m.visitors_change,
-        })
-      })
+        });
+      });
     } else if (viewMode === "weekly") {
       weekly.forEach((w) => {
         cards.push({
@@ -236,21 +236,24 @@ export function VisitorPeriodTable({
           bounceRate: w.bounceRate,
           avgDuration: w.avgDuration,
           change: w.visitors_change,
-        })
-      })
+        });
+      });
     } else {
       // 일별: 월별로 그룹화하여 표시
-      const dailyByMonth = daily.reduce((acc, d) => {
-        const month = d.date.substring(0, 7)
-        if (!acc[month]) acc[month] = []
-        acc[month].push(d)
-        return acc
-      }, {} as Record<string, DailyVisitorData[]>)
+      const dailyByMonth = daily.reduce(
+        (acc, d) => {
+          const month = d.date.substring(0, 7);
+          if (!acc[month]) acc[month] = [];
+          acc[month].push(d);
+          return acc;
+        },
+        {} as Record<string, DailyVisitorData[]>,
+      );
 
       Object.entries(dailyByMonth)
         .sort((a, b) => b[0].localeCompare(a[0]))
         .forEach(([month, days]) => {
-          const [year, m] = month.split("-")
+          const [year, m] = month.split("-");
           cards.push({
             period: `${year}년 ${parseInt(m)}월`,
             subPeriod: `${days.length}일`,
@@ -261,8 +264,8 @@ export function VisitorPeriodTable({
               days.reduce((sum, d) => sum + d.bounceRate, 0) / days.length,
             avgDuration:
               days.reduce((sum, d) => sum + d.avgDuration, 0) / days.length,
-          })
-        })
+          });
+        });
     }
 
     // 합계 카드 추가
@@ -276,33 +279,33 @@ export function VisitorPeriodTable({
         bounceRate: summary.avg_bounce_rate,
         avgDuration: summary.avg_session_duration,
         isHighlighted: true,
-      })
+      });
     }
 
-    return cards
-  }
+    return cards;
+  };
 
-  const mobileCards = getMobileCards()
+  const mobileCards = getMobileCards();
 
   // 스크롤 핸들러
   const handleScroll = () => {
     if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current
-      const cardWidth = container.scrollWidth / mobileCards.length
-      const newIndex = Math.round(container.scrollLeft / cardWidth)
-      setMobileCardIndex(newIndex)
+      const container = scrollContainerRef.current;
+      const cardWidth = container.scrollWidth / mobileCards.length;
+      const newIndex = Math.round(container.scrollLeft / cardWidth);
+      setMobileCardIndex(newIndex);
     }
-  }
+  };
 
   // 네비게이션 버튼 핸들러
   const scrollToCard = (index: number) => {
     if (scrollContainerRef.current && mobileCards.length > 0) {
-      const container = scrollContainerRef.current
-      const cardWidth = container.scrollWidth / mobileCards.length
-      container.scrollTo({ left: cardWidth * index, behavior: "smooth" })
-      setMobileCardIndex(index)
+      const container = scrollContainerRef.current;
+      const cardWidth = container.scrollWidth / mobileCards.length;
+      container.scrollTo({ left: cardWidth * index, behavior: "smooth" });
+      setMobileCardIndex(index);
     }
-  }
+  };
 
   return (
     <Card>
@@ -317,8 +320,8 @@ export function VisitorPeriodTable({
               variant={viewMode === "daily" ? "default" : "secondary"}
               size="sm"
               onClick={() => {
-                setViewMode("daily")
-                setMobileCardIndex(0)
+                setViewMode("daily");
+                setMobileCardIndex(0);
               }}
               className="text-xs md:text-sm px-2 md:px-3"
             >
@@ -328,8 +331,8 @@ export function VisitorPeriodTable({
               variant={viewMode === "weekly" ? "default" : "secondary"}
               size="sm"
               onClick={() => {
-                setViewMode("weekly")
-                setMobileCardIndex(0)
+                setViewMode("weekly");
+                setMobileCardIndex(0);
               }}
               className="text-xs md:text-sm px-2 md:px-3"
             >
@@ -339,8 +342,8 @@ export function VisitorPeriodTable({
               variant={viewMode === "monthly" ? "default" : "secondary"}
               size="sm"
               onClick={() => {
-                setViewMode("monthly")
-                setMobileCardIndex(0)
+                setViewMode("monthly");
+                setMobileCardIndex(0);
               }}
               className="text-xs md:text-sm px-2 md:px-3"
             >
@@ -376,17 +379,19 @@ export function VisitorPeriodTable({
                 </button>
 
                 <div className="flex gap-1.5">
-                  {mobileCards.slice(0, Math.min(mobileCards.length, 10)).map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => scrollToCard(index)}
-                      className={`w-2 h-2 rounded-full transition-colors ${
-                        index === mobileCardIndex
-                          ? "bg-blue-600"
-                          : "bg-gray-300"
-                      }`}
-                    />
-                  ))}
+                  {mobileCards
+                    .slice(0, Math.min(mobileCards.length, 10))
+                    .map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => scrollToCard(index)}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          index === mobileCardIndex
+                            ? "bg-blue-600"
+                            : "bg-gray-300"
+                        }`}
+                      />
+                    ))}
                   {mobileCards.length > 10 && (
                     <span className="text-xs text-gray-400 ml-1">
                       +{mobileCards.length - 10}
@@ -397,7 +402,7 @@ export function VisitorPeriodTable({
                 <button
                   onClick={() =>
                     scrollToCard(
-                      Math.min(mobileCards.length - 1, mobileCardIndex + 1)
+                      Math.min(mobileCards.length - 1, mobileCardIndex + 1),
                     )
                   }
                   disabled={mobileCardIndex === mobileCards.length - 1}
@@ -561,22 +566,45 @@ export function VisitorPeriodTable({
               {/* 일별 뷰 - 월별로 그룹화 */}
               {viewMode === "daily" &&
                 (() => {
-                  const dailyByMonth = daily.reduce((acc, d) => {
-                    const month = d.date.substring(0, 7)
-                    if (!acc[month]) acc[month] = []
-                    acc[month].push(d)
-                    return acc
-                  }, {} as Record<string, DailyVisitorData[]>)
+                  const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+                  const dailyByMonth = daily.reduce(
+                    (acc, d) => {
+                      const month = d.date.substring(0, 7);
+                      if (!acc[month]) acc[month] = [];
+                      acc[month].push(d);
+                      return acc;
+                    },
+                    {} as Record<string, DailyVisitorData[]>,
+                  );
+
+                  // 전일 대비 변화율 계산
+                  const sortedDaily = [...daily].sort((a, b) =>
+                    a.date.localeCompare(b.date),
+                  );
+                  const dailyChangeMap = new Map<string, number>();
+                  for (let i = 1; i < sortedDaily.length; i++) {
+                    const prev = sortedDaily[i - 1].visitors;
+                    const curr = sortedDaily[i].visitors;
+                    if (prev > 0) {
+                      dailyChangeMap.set(
+                        sortedDaily[i].date,
+                        ((curr - prev) / prev) * 100,
+                      );
+                    }
+                  }
 
                   const monthSummaries = Object.entries(dailyByMonth)
                     .map(([month, days]) => {
-                      const [year, m] = month.split("-")
+                      const [year, m] = month.split("-");
                       return {
                         month,
                         month_label: `${year}년 ${parseInt(m)}월`,
                         days,
                         visitors: days.reduce((sum, d) => sum + d.visitors, 0),
-                        pageviews: days.reduce((sum, d) => sum + d.pageviews, 0),
+                        pageviews: days.reduce(
+                          (sum, d) => sum + d.pageviews,
+                          0,
+                        ),
                         sessions: days.reduce((sum, d) => sum + d.sessions, 0),
                         bounceRate:
                           days.reduce((sum, d) => sum + d.bounceRate, 0) /
@@ -584,9 +612,16 @@ export function VisitorPeriodTable({
                         avgDuration:
                           days.reduce((sum, d) => sum + d.avgDuration, 0) /
                           days.length,
-                      }
+                      };
                     })
-                    .sort((a, b) => b.month.localeCompare(a.month))
+                    .sort((a, b) => b.month.localeCompare(a.month));
+
+                  // 최신 월은 기본 펼침
+                  const isExpanded = (month: string) =>
+                    expandedMonths.has(month) ||
+                    (expandedMonths.size === 0 &&
+                      monthSummaries.length > 0 &&
+                      month === monthSummaries[0].month);
 
                   return monthSummaries.map((ms) => (
                     <Fragment key={ms.month}>
@@ -596,7 +631,7 @@ export function VisitorPeriodTable({
                       >
                         <td className="px-3 py-2 font-medium">
                           <div className="flex items-center gap-2">
-                            {expandedMonths.has(ms.month) ? (
+                            {isExpanded(ms.month) ? (
                               <ChevronDown className="h-4 w-4 text-gray-500" />
                             ) : (
                               <ChevronRight className="h-4 w-4 text-gray-500" />
@@ -625,34 +660,53 @@ export function VisitorPeriodTable({
                         </td>
                         <td className="px-3 py-2"></td>
                       </tr>
-                      {expandedMonths.has(ms.month) &&
+                      {isExpanded(ms.month) &&
                         [...ms.days]
                           .sort((a, b) => b.date.localeCompare(a.date))
-                          .map((d) => (
-                            <tr key={d.date} className="hover:bg-gray-50">
-                              <td className="px-3 py-1 pl-10 text-gray-500 text-sm">
-                                {d.date}
-                              </td>
-                              <td className="px-3 py-1 text-right text-sm">
-                                {formatNumber(d.visitors)}
-                              </td>
-                              <td className="px-3 py-1 text-right text-sm">
-                                {formatNumber(d.pageviews)}
-                              </td>
-                              <td className="px-3 py-1 text-right text-sm">
-                                {formatNumber(d.sessions)}
-                              </td>
-                              <td className="px-3 py-1 text-right text-sm">
-                                {formatDuration(d.avgDuration)}
-                              </td>
-                              <td className="px-3 py-1 text-right text-sm">
-                                {d.bounceRate.toFixed(1)}%
-                              </td>
-                              <td className="px-3 py-1"></td>
-                            </tr>
-                          ))}
+                          .map((d) => {
+                            const dayOfWeek = new Date(d.date).getDay();
+                            const dayName = DAY_NAMES[dayOfWeek];
+                            const isWeekend =
+                              dayOfWeek === 0 || dayOfWeek === 6;
+                            const change = dailyChangeMap.get(d.date);
+                            return (
+                              <tr
+                                key={d.date}
+                                className={`hover:bg-gray-50 ${isWeekend ? "bg-gray-50/50" : ""}`}
+                              >
+                                <td className="px-3 py-1.5 pl-10 text-sm">
+                                  <span className="text-gray-700">
+                                    {d.date.slice(5)}
+                                  </span>
+                                  <span
+                                    className={`ml-1.5 text-xs ${isWeekend ? "text-red-400" : "text-gray-400"}`}
+                                  >
+                                    ({dayName})
+                                  </span>
+                                </td>
+                                <td className="px-3 py-1.5 text-right text-sm font-medium">
+                                  {formatNumber(d.visitors)}
+                                </td>
+                                <td className="px-3 py-1.5 text-right text-sm">
+                                  {formatNumber(d.pageviews)}
+                                </td>
+                                <td className="px-3 py-1.5 text-right text-sm">
+                                  {formatNumber(d.sessions)}
+                                </td>
+                                <td className="px-3 py-1.5 text-right text-sm">
+                                  {formatDuration(d.avgDuration)}
+                                </td>
+                                <td className="px-3 py-1.5 text-right text-sm">
+                                  {d.bounceRate.toFixed(1)}%
+                                </td>
+                                <td className="px-3 py-1.5 text-center">
+                                  <ChangeIndicator value={change} />
+                                </td>
+                              </tr>
+                            );
+                          })}
                     </Fragment>
-                  ))
+                  ));
                 })()}
 
               {/* 전체 합계 행 */}
@@ -688,7 +742,10 @@ export function VisitorPeriodTable({
                 (viewMode === "weekly" && weekly.length === 0) ||
                 (viewMode === "daily" && daily.length === 0)) && (
                 <tr>
-                  <td colSpan={7} className="px-3 py-8 text-center text-gray-500">
+                  <td
+                    colSpan={7}
+                    className="px-3 py-8 text-center text-gray-500"
+                  >
                     데이터가 없습니다.
                   </td>
                 </tr>
@@ -698,5 +755,5 @@ export function VisitorPeriodTable({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
