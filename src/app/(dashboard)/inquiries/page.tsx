@@ -11,7 +11,6 @@ import {
   Loader2,
   RefreshCw,
   Trash2,
-  Save,
   StickyNote,
   Globe,
   Megaphone,
@@ -19,6 +18,10 @@ import {
   CheckCircle2,
   XCircle,
   Reply,
+  Send,
+  Pencil,
+  X,
+  Check,
 } from "lucide-react";
 import {
   Card,
@@ -141,6 +144,44 @@ function parseWizardMessage(message: string): WizardData | null {
   }
 }
 
+interface MemoEntry {
+  id: string;
+  text: string;
+  at: string; // ISO datetime
+}
+
+function parseMemos(raw: string): MemoEntry[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // 기존 plain text 메모 → 단일 엔트리로 변환
+    if (raw.trim()) {
+      return [{ id: "legacy", text: raw.trim(), at: new Date().toISOString() }];
+    }
+  }
+  return [];
+}
+
+function serializeMemos(entries: MemoEntry[]): string {
+  return JSON.stringify(entries);
+}
+
+function generateMemoId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function formatMemoTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString("ko-KR", {
@@ -166,7 +207,7 @@ export default function InquiriesPage() {
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [memo, setMemo] = useState("");
+  const [memoInput, setMemoInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -190,33 +231,70 @@ export default function InquiriesPage() {
     fetchInquiries();
   }, []);
 
-  // 문의 선택 시 메모 동기화
+  // 문의 선택 시 메모 입력 초기화
   useEffect(() => {
     if (selectedInquiry) {
-      setMemo(selectedInquiry.memo || "");
+      setMemoInput("");
+      setEditingMemoId(null);
+      setEditingMemoText("");
     }
   }, [selectedInquiry]);
 
-  async function handleSaveMemo() {
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
+  const [editingMemoText, setEditingMemoText] = useState("");
+
+  async function saveMemoToServer(newMemo: string) {
     if (!selectedInquiry) return;
     setSaving(true);
     try {
       const res = await fetch("/api/inquiries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selectedInquiry.id, memo }),
+        body: JSON.stringify({ id: selectedInquiry.id, memo: newMemo }),
       });
       if (!res.ok) throw new Error();
-      // 로컬 상태 업데이트
       setInquiries((prev) =>
-        prev.map((i) => (i.id === selectedInquiry.id ? { ...i, memo } : i)),
+        prev.map((i) =>
+          i.id === selectedInquiry.id ? { ...i, memo: newMemo } : i,
+        ),
       );
-      setSelectedInquiry((prev) => (prev ? { ...prev, memo } : prev));
+      setSelectedInquiry((prev) => (prev ? { ...prev, memo: newMemo } : prev));
     } catch {
       setError("메모 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleAddMemo() {
+    if (!selectedInquiry || !memoInput.trim()) return;
+    const entries = parseMemos(selectedInquiry.memo);
+    entries.push({
+      id: generateMemoId(),
+      text: memoInput.trim(),
+      at: new Date().toISOString(),
+    });
+    const newMemo = serializeMemos(entries);
+    await saveMemoToServer(newMemo);
+    setMemoInput("");
+  }
+
+  async function handleDeleteMemo(memoId: string) {
+    if (!selectedInquiry) return;
+    const entries = parseMemos(selectedInquiry.memo).filter(
+      (e) => e.id !== memoId,
+    );
+    await saveMemoToServer(serializeMemos(entries));
+  }
+
+  async function handleEditMemo(memoId: string) {
+    if (!selectedInquiry || !editingMemoText.trim()) return;
+    const entries = parseMemos(selectedInquiry.memo).map((e) =>
+      e.id === memoId ? { ...e, text: editingMemoText.trim() } : e,
+    );
+    await saveMemoToServer(serializeMemos(entries));
+    setEditingMemoId(null);
+    setEditingMemoText("");
   }
 
   async function handleStatusChange(status: string) {
@@ -815,34 +893,128 @@ export default function InquiriesPage() {
 
                 <Separator />
 
-                {/* 메모 */}
+                {/* 메모 쓰레드 */}
                 <div>
                   <div className="flex items-center gap-1 mb-2">
                     <StickyNote className="h-4 w-4 text-muted-foreground" />
                     <h4 className="font-semibold text-sm text-muted-foreground">
                       메모
                     </h4>
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {parseMemos(selectedInquiry.memo).length > 0 &&
+                        `(${parseMemos(selectedInquiry.memo).length})`}
+                    </span>
                   </div>
-                  <Textarea
-                    value={memo}
-                    onChange={(e) => setMemo(e.target.value)}
-                    placeholder="내부 메모를 작성하세요..."
-                    rows={3}
-                    className="resize-none"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveMemo}
-                    disabled={saving || memo === (selectedInquiry.memo || "")}
-                    className="mt-2 w-full"
-                  >
-                    {saving ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+
+                  {/* 메모 목록 */}
+                  <div className="space-y-1.5 mb-2 max-h-[200px] overflow-y-auto">
+                    {parseMemos(selectedInquiry.memo).length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2 text-center">
+                        아직 메모가 없습니다.
+                      </p>
                     ) : (
-                      <Save className="h-4 w-4 mr-1" />
+                      parseMemos(selectedInquiry.memo).map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="group flex items-start gap-2 px-2.5 py-1.5 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          {editingMemoId === entry.id ? (
+                            <div className="flex-1 flex items-center gap-1">
+                              <Input
+                                value={editingMemoText}
+                                onChange={(e) =>
+                                  setEditingMemoText(e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter")
+                                    handleEditMemo(entry.id);
+                                  if (e.key === "Escape")
+                                    setEditingMemoId(null);
+                                }}
+                                className="h-7 text-sm"
+                                autoFocus
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                                onClick={() => handleEditMemo(entry.id)}
+                                disabled={saving}
+                              >
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                                onClick={() => setEditingMemoId(null)}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm leading-snug">
+                                  {entry.text}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  {formatMemoTime(entry.at)}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <button
+                                  type="button"
+                                  className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-background transition-colors"
+                                  onClick={() => {
+                                    setEditingMemoId(entry.id);
+                                    setEditingMemoText(entry.text);
+                                  }}
+                                  title="수정"
+                                >
+                                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-destructive/10 transition-colors"
+                                  onClick={() => handleDeleteMemo(entry.id)}
+                                  title="삭제"
+                                >
+                                  <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))
                     )}
-                    {saving ? "저장 중..." : "메모 저장"}
-                  </Button>
+                  </div>
+
+                  {/* 메모 입력 */}
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={memoInput}
+                      onChange={(e) => setMemoInput(e.target.value)}
+                      placeholder="메모 입력..."
+                      className="h-8 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.nativeEvent.isComposing)
+                          handleAddMemo();
+                      }}
+                    />
+                    <Button
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={handleAddMemo}
+                      disabled={saving || !memoInput.trim()}
+                    >
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
                 <Separator />
