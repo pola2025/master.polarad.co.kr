@@ -100,19 +100,26 @@ export async function searchGoogle(
     tools: [{ googleSearch: {} } as any],
   });
 
-  const prompt = `Search Google for the Korean business "${businessName}" in the "${industry}" industry and analyze its online presence.
+  const prompt = `Search Google for "${businessName}" (Korean business, industry: "${industry}") and analyze its online presence.
+
+IMPORTANT instructions for topRankPosition:
+- Search Google for exactly "${businessName}" and check the organic search results
+- If ANY result on the first page mentions "${businessName}" (official site, blog, social media, Naver Place, YouTube, etc.), count its position (1-10)
+- The position is the rank of the FIRST result that is directly about this business
+- Only return null if the business does not appear anywhere in the top 10 results
+- Include results from all sources: official website, Naver blog, Naver Place, YouTube, social media, review sites
 
 Return ONLY a JSON object with these exact fields (no markdown, no explanation):
 {
   "isIndexed": true or false (is the business findable on Google?),
-  "topRankPosition": number or null (position of official website in search results, null if not found in top 10),
-  "hasGoogleBusiness": true or false (does the business have a Google Business Profile / Google Maps listing?),
+  "topRankPosition": number or null (position of the first search result about this business, 1-10. null ONLY if not found in top 10),
+  "hasGoogleBusiness": true or false (does it have a Google Business Profile / Google Maps listing?),
   "hasReviews": true or false (does the business have Google reviews?),
-  "hasImageResults": true or false (do image search results show branded images for this business?),
-  "reviewCount": number (approximate total number of Google reviews, 0 if none),
+  "hasImageResults": true or false (do image search results show branded images?),
+  "reviewCount": number (total Google reviews, 0 if none),
   "avgRating": number (average Google star rating 0-5, 0 if no reviews),
-  "businessCompleteness": number (Google Business Profile completeness from 0 to 1: 0=missing, 0.5=partial info, 1=fully complete with hours/photos/description),
-  "details": "A 2-3 sentence summary of the business's Google presence in Korean"
+  "businessCompleteness": number (Google Business Profile completeness 0 to 1),
+  "details": "2-3 sentence summary of Google presence in Korean"
 }`;
 
   try {
