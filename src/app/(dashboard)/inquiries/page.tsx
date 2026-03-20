@@ -544,13 +544,14 @@ export default function InquiriesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">No</TableHead>
-                    <TableHead>날짜</TableHead>
-                    <TableHead>문의자</TableHead>
-                    <TableHead>연락처</TableHead>
+                    <TableHead className="w-[70px]">날짜</TableHead>
+                    <TableHead className="w-[60px]">접수처</TableHead>
+                    <TableHead className="w-[90px]">문의자</TableHead>
+                    <TableHead className="w-[100px]">연락처</TableHead>
                     <TableHead>문의내용</TableHead>
-                    <TableHead>회신</TableHead>
-                    <TableHead>상태</TableHead>
-                    <TableHead>SMS</TableHead>
+                    <TableHead className="w-[50px]">회신</TableHead>
+                    <TableHead className="w-[60px]">상태</TableHead>
+                    <TableHead className="w-[36px]">SMS</TableHead>
                     <TableHead className="w-[30px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -570,34 +571,35 @@ export default function InquiriesPage() {
                       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                         {formatDate(inquiry.createdAt)}
                       </TableCell>
+                      {/* 접수처 */}
+                      <TableCell>
+                        {inquiry.source === "meta" ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600 whitespace-nowrap"
+                          >
+                            광고
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 border-green-300 text-green-600 whitespace-nowrap"
+                          >
+                            홈페이지
+                          </Badge>
+                        )}
+                      </TableCell>
                       {/* 문의자 */}
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="relative shrink-0">
-                            <Avatar className="h-7 w-7">
-                              <AvatarFallback className="text-xs">
-                                {inquiry.name.slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            {inquiry.source === "meta" && (
-                              <span
-                                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 flex items-center justify-center"
-                                title="Meta 광고"
-                              >
-                                <Megaphone className="h-2 w-2 text-white" />
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">
-                              {inquiry.name}
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate max-w-[80px]">
+                            {inquiry.name}
+                          </p>
+                          {inquiry.company && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[80px]">
+                              {inquiry.company}
                             </p>
-                            {inquiry.company && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[100px]">
-                                {inquiry.company}
-                              </p>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </TableCell>
                       {/* 연락처 */}

@@ -11,10 +11,6 @@
     {
       "path": "/api/cron/send-lead-sms",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/auto-brand-analyze",
-      "schedule": "*/10 * * * *"
     }
   ]
 }
