@@ -36,6 +36,7 @@ interface BrandReport {
   overallScore: number | null;
   status: string;
   summary: string;
+  inquiryDate: string | null;
   createdAt: string;
   sentAt: string | null;
 }
@@ -374,7 +375,7 @@ export default function BrandReportsPage() {
                       </TableCell>
                       <TableCell>{getStatusBadge(report.status)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {formatDate(report.createdAt)}
+                        {formatDate(report.inquiryDate || report.createdAt)}
                       </TableCell>
                       <TableCell>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />

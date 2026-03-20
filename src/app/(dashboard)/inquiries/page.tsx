@@ -382,6 +382,7 @@ export default function InquiriesPage() {
           contactEmail: selectedInquiry.email,
           inquiryId: selectedInquiry.id,
           inquirySource: selectedInquiry.source,
+          inquiryDate: selectedInquiry.createdAt,
         }),
       });
       const data = await res.json();

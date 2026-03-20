@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       contactEmail,
       inquiryId,
       inquirySource,
+      inquiryDate, // 원본 접수일 (ISO string)
       mode, // "pending" = 분석대기만, "analyze" = 즉시 분석 (기본)
     } = await request.json();
 
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
       [FIELDS.contactPhone]: contactPhone ?? "",
       [FIELDS.contactEmail]: contactEmail ?? "",
       [FIELDS.inquiryId]: inquiryId ?? "",
+      ...(inquiryDate && { [FIELDS.inquiryDate]: inquiryDate }),
       [FIELDS.inquirySource]: inquirySource ?? "",
     };
 
