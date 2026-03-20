@@ -574,19 +574,16 @@ export default function InquiriesPage() {
                       {/* 접수처 */}
                       <TableCell>
                         {inquiry.source === "meta" ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600 whitespace-nowrap"
+                          <span
+                            className="inline-flex items-center justify-center px-2.5 py-0.5 rounded text-[11px] font-semibold text-white whitespace-nowrap"
+                            style={{ background: "#0668E1" }}
                           >
-                            광고
-                          </Badge>
+                            Meta
+                          </span>
                         ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] px-1.5 py-0 border-green-300 text-green-600 whitespace-nowrap"
-                          >
+                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded text-[11px] font-semibold text-white whitespace-nowrap bg-orange-500">
                             홈페이지
-                          </Badge>
+                          </span>
                         )}
                       </TableCell>
                       {/* 문의자 */}
@@ -621,7 +618,7 @@ export default function InquiriesPage() {
                             </span>
                           </div>
                         ) : (
-                          <p className="text-sm line-clamp-1 max-w-[160px]">
+                          <p className="text-sm line-clamp-1">
                             {inquiry.message}
                           </p>
                         )}
