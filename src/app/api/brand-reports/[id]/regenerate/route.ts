@@ -87,10 +87,11 @@ export async function POST(
         { status: 404 },
       );
     }
-    console.error("브랜드 리포트 재생성 오류:", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 },
+    console.error(
+      "브랜드 리포트 재생성 오류:",
+      error instanceof Error ? `${error.message}\n${error.stack}` : error,
     );
+    const msg = error instanceof Error ? error.message : "알 수 없는 오류";
+    return NextResponse.json({ error: `서버 오류: ${msg}` }, { status: 500 });
   }
 }
