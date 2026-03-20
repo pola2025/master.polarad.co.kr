@@ -608,7 +608,7 @@ body{font-family:"Pretendard Variable","Pretendard",system-ui,sans-serif;backgro
 .hbar{margin-bottom:12px}
 .hbar-row{display:flex;align-items:center;gap:16px;padding:14px 0}
 .hbar-row+.hbar-row{border-top:1px solid var(--rule)}
-.hbar-name{width:120px;font-size:16px;font-weight:600;color:var(--ink2)}
+.hbar-name{width:160px;font-size:15px;font-weight:600;color:var(--ink2);white-space:nowrap;flex-shrink:0}
 .hbar-track{flex:1;height:32px;background:var(--bg);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
 .hbar-fill{height:100%;border-radius:8px;display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:700;color:var(--white);min-width:fit-content}
 .hbar-fill.hi{background:var(--c)}.hbar-fill.mid{background:var(--amber)}.hbar-fill.lo{background:var(--red);min-width:60px}
