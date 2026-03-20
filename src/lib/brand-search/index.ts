@@ -20,9 +20,10 @@ const INDUSTRY_PROFILES: Record<string, { naver: number; google: number }> = {
 
 const DEFAULT_WEIGHTS = { naver: 0.6, google: 0.4 };
 
-export function getIndustryWeights(
-  industry: string,
-): { naver: number; google: number } {
+export function getIndustryWeights(industry: string): {
+  naver: number;
+  google: number;
+} {
   for (const [key, weights] of Object.entries(INDUSTRY_PROFILES)) {
     if (industry.includes(key)) {
       return weights;
@@ -66,7 +67,7 @@ export async function analyzeBrand(params: {
 
   // Step 1: Run Naver and Google searches in parallel
   const [naverSettled, googleSettled] = await Promise.allSettled([
-    searchNaver(businessName),
+    searchNaver(businessName, industry),
     searchGoogle(businessName, industry),
   ]);
 

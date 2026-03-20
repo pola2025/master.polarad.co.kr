@@ -2,7 +2,10 @@ const NAVER_BASE_URL = "https://openapi.naver.com";
 
 function normalizeBusinessName(name: string): string {
   return name
-    .replace(/\(주\)|주식회사|㈜|Inc\.|LLC|Ltd\./gi, "")
+    .replace(
+      /\(주\)|주식회사|㈜|\(유\)|유한회사|\(사\)|사단법인|재단법인|영농조합법인|Inc\.|LLC|Ltd\./gi,
+      "",
+    )
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -167,11 +170,17 @@ function calculateScore(
           ? 5
           : 0;
 
-  // Blog presence (20pts): log scale — 1=0, 10=10, 100=20
-  const blogMentions = Math.min(
+  // Blog presence (20pts): log scale — 1=0, 10=10, 100=20, weighted by title relevance
+  const rawBlogScore = Math.min(
     20,
     Math.round(Math.log10(totalCounts.blog + 1) * 10),
   );
+  const relevantBlogs = blogResults.filter((item) =>
+    item.title.toLowerCase().includes(nameLower),
+  ).length;
+  const relevanceRatio =
+    blogResults.length > 0 ? relevantBlogs / blogResults.length : 0;
+  const blogMentions = Math.round(rawBlogScore * (0.5 + 0.5 * relevanceRatio));
 
   // Place/local registration (20pts): name match bonus
   const localExactMatch = localResults.some((item) =>
@@ -215,13 +224,15 @@ function calculateScore(
 
 export async function searchNaver(
   businessName: string,
+  industry?: string,
 ): Promise<NaverSearchResult> {
   const normalizedName = normalizeBusinessName(businessName);
+  const disambiguationQuery = `${normalizedName} ${industry || ""}`.trim();
   const results = await Promise.allSettled([
-    callNaverApi("/v1/search/webkr.json", normalizedName),
-    callNaverApi("/v1/search/blog.json", normalizedName),
-    callNaverApi("/v1/search/cafearticle.json", normalizedName),
-    callNaverApi("/v1/search/news.json", normalizedName),
+    callNaverApi("/v1/search/webkr.json", disambiguationQuery),
+    callNaverApi("/v1/search/blog.json", disambiguationQuery),
+    callNaverApi("/v1/search/cafearticle.json", disambiguationQuery),
+    callNaverApi("/v1/search/news.json", disambiguationQuery),
     callNaverApi("/v1/search/local.json", normalizedName),
   ]);
 

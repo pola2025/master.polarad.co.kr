@@ -9,7 +9,9 @@ const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 function getSecretKey(): Uint8Array {
-  const secret = process.env.ADMIN_PASSWORD || "polarad-admin-secret-key";
+  const secret = process.env.ADMIN_PASSWORD;
+  if (!secret)
+    throw new Error("ADMIN_PASSWORD environment variable is required");
   return new TextEncoder().encode(secret);
 }
 
@@ -35,10 +37,6 @@ export async function validateToken(token: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-export function validateTokenSync(token: string): boolean {
-  return !!(token && typeof token === "string");
 }
 
 export async function checkRateLimit(ip: string): Promise<{

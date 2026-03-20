@@ -174,8 +174,12 @@ function SimpleMarkdown({ content }: { content: string }) {
             </h2>
           );
         }
-        const rendered = section
-          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        const escaped = section
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        const rendered = escaped
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
           .replace(/\n/g, "<br />");
         return (
           <p

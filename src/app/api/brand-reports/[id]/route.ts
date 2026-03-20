@@ -18,6 +18,9 @@ export async function GET(
   }
   try {
     const { id } = await params;
+    if (!/^rec[a-zA-Z0-9]{14}$/.test(id)) {
+      return NextResponse.json({ error: "유효하지 않은 ID" }, { status: 400 });
+    }
     const record = await getRecord(id);
     return NextResponse.json({ report: normalizeRecord(record) });
   } catch (error) {
@@ -44,6 +47,9 @@ export async function PATCH(
   }
   try {
     const { id } = await params;
+    if (!/^rec[a-zA-Z0-9]{14}$/.test(id)) {
+      return NextResponse.json({ error: "유효하지 않은 ID" }, { status: 400 });
+    }
     const { reportContent, summary, status } = await request.json();
 
     const ALLOWED_STATUSES = ["draft", "reviewed", "sent", "discarded"];
@@ -90,6 +96,9 @@ export async function DELETE(
   }
   try {
     const { id } = await params;
+    if (!/^rec[a-zA-Z0-9]{14}$/.test(id)) {
+      return NextResponse.json({ error: "유효하지 않은 ID" }, { status: 400 });
+    }
     await deleteRecord(id);
     return NextResponse.json({ success: true });
   } catch (error) {

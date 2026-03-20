@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { analyzeBrand } from "@/lib/brand-search";
 import {
   createRecord,
@@ -7,13 +8,18 @@ import {
 } from "@/lib/brand-reports/airtable";
 import { requireAuth } from "@/lib/auth-check";
 
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   // Allow admin_token cookie (admin UI) or x-api-key header (external callers like polarad.co.kr)
   const cronSecret = process.env.CRON_SECRET;
   const apiKey = request.headers.get("x-api-key");
-  const isApiKeyAuth = cronSecret && apiKey === cronSecret;
+  const isApiKeyAuth = cronSecret && apiKey && safeCompare(apiKey, cronSecret);
   if (!isApiKeyAuth && !(await requireAuth())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -89,9 +95,13 @@ export async function POST(request: NextRequest) {
         [FIELDS.status]: "draft",
         [FIELDS.reportContent]: result.reportContent ?? "",
         [FIELDS.summary]: result.summary ?? "",
-        [FIELDS.naverScore]: result.naverScore ?? 0,
-        [FIELDS.googleScore]: result.googleScore ?? 0,
-        [FIELDS.overallScore]: result.overallScore ?? 0,
+        ...(result.naverScore !== null && {
+          [FIELDS.naverScore]: result.naverScore,
+        }),
+        ...(result.googleScore !== null && {
+          [FIELDS.googleScore]: result.googleScore,
+        }),
+        [FIELDS.overallScore]: result.overallScore,
         [FIELDS.naverSearchData]: JSON.stringify(result.naverResult ?? {}),
         [FIELDS.googleSearchData]: JSON.stringify(result.googleResult ?? {}),
       };
@@ -100,7 +110,6 @@ export async function POST(request: NextRequest) {
       updateFields = {
         [FIELDS.status]: "failed",
         [FIELDS.summary]: `분석 중 오류: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
-        [FIELDS.reportContent]: "",
       };
     }
 

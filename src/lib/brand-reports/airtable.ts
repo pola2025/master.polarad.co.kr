@@ -156,7 +156,7 @@ export async function getRecord(id: string): Promise<AirtableRecord> {
   return res.json();
 }
 
-/** List records with optional sort/filter. */
+/** List records with optional sort/filter. Auto-paginates through all pages. */
 export async function listRecords(
   options: ListOptions = {},
 ): Promise<AirtableRecord[]> {
@@ -169,27 +169,38 @@ export async function listRecords(
     filterByFormula,
   } = options;
 
-  const url = new URL(tableUrl());
-  url.searchParams.set("sort[0][field]", sortField);
-  url.searchParams.set("sort[0][direction]", sortDirection);
-  url.searchParams.set("maxRecords", String(maxRecords));
-  if (filterByFormula) {
-    url.searchParams.set("filterByFormula", filterByFormula);
-  }
+  const allRecords: AirtableRecord[] = [];
+  let offset: string | undefined;
 
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-    cache: "no-store",
-  });
+  do {
+    const url = new URL(tableUrl());
+    url.searchParams.set("sort[0][field]", sortField);
+    url.searchParams.set("sort[0][direction]", sortDirection);
+    url.searchParams.set("maxRecords", String(maxRecords));
+    if (filterByFormula) {
+      url.searchParams.set("filterByFormula", filterByFormula);
+    }
+    if (offset) {
+      url.searchParams.set("offset", offset);
+    }
 
-  if (!res.ok) {
-    const err = await res.json();
-    console.error("[airtable] listRecords 실패:", err);
-    throw new Error("Airtable 레코드 목록 조회에 실패했습니다.");
-  }
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
+      cache: "no-store",
+    });
 
-  const data = await res.json();
-  return (data.records ?? []) as AirtableRecord[];
+    if (!res.ok) {
+      const err = await res.json();
+      console.error("[airtable] listRecords 실패:", err);
+      throw new Error("Airtable 레코드 목록 조회에 실패했습니다.");
+    }
+
+    const data = await res.json();
+    allRecords.push(...((data.records ?? []) as AirtableRecord[]));
+    offset = data.offset as string | undefined;
+  } while (offset);
+
+  return allRecords;
 }
 
 /**

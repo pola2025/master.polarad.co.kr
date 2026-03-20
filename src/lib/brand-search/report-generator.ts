@@ -29,7 +29,10 @@ function formatSnippets(
 ): string {
   return items
     .slice(0, limit)
-    .map((item, i) => `${i + 1}. ${item.title} - ${item.description}`)
+    .map((item, i) => {
+      const desc = item.description?.substring(0, 100) || "";
+      return `${i + 1}. ${item.title} - ${desc}`;
+    })
     .join("\n");
 }
 

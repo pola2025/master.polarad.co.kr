@@ -19,10 +19,20 @@ export async function POST(
   }
   try {
     const { id } = await params;
+    if (!/^rec[a-zA-Z0-9]{14}$/.test(id)) {
+      return NextResponse.json({ error: "유효하지 않은 ID" }, { status: 400 });
+    }
 
     // 1. Fetch the report record
     const raw = await getRecord(id);
     const report = normalizeRecord(raw);
+
+    if (report.status === "sent") {
+      return NextResponse.json(
+        { error: "이미 발송된 리포트입니다." },
+        { status: 400 },
+      );
+    }
 
     if (!report.contactEmail) {
       return NextResponse.json(

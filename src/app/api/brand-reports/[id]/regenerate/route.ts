@@ -21,6 +21,9 @@ export async function POST(
   }
   try {
     const { id } = await params;
+    if (!/^rec[a-zA-Z0-9]{14}$/.test(id)) {
+      return NextResponse.json({ error: "유효하지 않은 ID" }, { status: 400 });
+    }
 
     // 1. Fetch existing record
     const record = await getRecord(id);
@@ -46,9 +49,13 @@ export async function POST(
         [FIELDS.status]: "draft",
         [FIELDS.reportContent]: result.reportContent ?? "",
         [FIELDS.summary]: result.summary ?? "",
-        [FIELDS.naverScore]: result.naverScore ?? 0,
-        [FIELDS.googleScore]: result.googleScore ?? 0,
-        [FIELDS.overallScore]: result.overallScore ?? 0,
+        ...(result.naverScore !== null && {
+          [FIELDS.naverScore]: result.naverScore,
+        }),
+        ...(result.googleScore !== null && {
+          [FIELDS.googleScore]: result.googleScore,
+        }),
+        [FIELDS.overallScore]: result.overallScore,
         [FIELDS.naverSearchData]: JSON.stringify(result.naverResult ?? {}),
         [FIELDS.googleSearchData]: JSON.stringify(result.googleResult ?? {}),
       };
@@ -57,12 +64,6 @@ export async function POST(
       updateFields = {
         [FIELDS.status]: "failed",
         [FIELDS.summary]: `분석 중 오류가 발생했습니다: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
-        [FIELDS.reportContent]: "",
-        [FIELDS.naverScore]: 0,
-        [FIELDS.googleScore]: 0,
-        [FIELDS.overallScore]: 0,
-        [FIELDS.naverSearchData]: "{}",
-        [FIELDS.googleSearchData]: "{}",
       };
     }
 

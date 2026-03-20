@@ -169,6 +169,8 @@ export async function sendBrandReportEmail(params: {
     pdfBuffer,
   } = params;
 
+  const sanitizedTo = to.replace(/[\r\n]/g, "");
+
   const senderEmail = process.env.GMAIL_SENDER_EMAIL || "mkt@polarad.co.kr";
   const subject = `[폴라애드] ${businessName} 브랜드 온라인 검색 평가 리포트`;
   const html = buildHtmlEmail({
@@ -185,7 +187,7 @@ export async function sendBrandReportEmail(params: {
   // RFC 2822 형식의 MIME 메시지 생성
   const messageParts = [
     `From: 폴라애드 <${senderEmail}>`,
-    `To: ${to}`,
+    `To: ${sanitizedTo}`,
     `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
@@ -223,7 +225,7 @@ export async function sendBrandReportEmail(params: {
       },
     });
 
-    console.log(`[brand-report-email] Email sent to ${to}`);
+    console.log(`[brand-report-email] Email sent to ${sanitizedTo}`);
     return true;
   } catch (err) {
     console.error("[brand-report-email] Gmail API error:", err);
