@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { analyzeBrand } from "@/lib/brand-search";
 import {
   getRecord,
@@ -8,14 +9,18 @@ import {
 } from "@/lib/brand-reports/airtable";
 import { requireAuth } from "@/lib/auth-check";
 
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // Allow admin_token cookie (admin UI) or x-api-key header (external callers)
   const cronSecret = process.env.CRON_SECRET;
   const apiKey = request.headers.get("x-api-key");
-  const isApiKeyAuth = cronSecret && apiKey === cronSecret;
+  const isApiKeyAuth = cronSecret && apiKey && safeCompare(apiKey, cronSecret);
   if (!isApiKeyAuth && !(await requireAuth())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

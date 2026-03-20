@@ -740,7 +740,17 @@ export default function BrandReportDetailPage({
             <CardContent className="pt-0">
               <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap break-all">
                 {report.naverRawData
-                  ? JSON.stringify(JSON.parse(report.naverRawData), null, 2)
+                  ? (() => {
+                      try {
+                        return JSON.stringify(
+                          JSON.parse(report.naverRawData),
+                          null,
+                          2,
+                        );
+                      } catch {
+                        return report.naverRawData;
+                      }
+                    })()
                   : "데이터 없음"}
               </pre>
             </CardContent>
@@ -765,7 +775,17 @@ export default function BrandReportDetailPage({
             <CardContent className="pt-0">
               <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap break-all">
                 {report.googleRawData
-                  ? JSON.stringify(JSON.parse(report.googleRawData), null, 2)
+                  ? (() => {
+                      try {
+                        return JSON.stringify(
+                          JSON.parse(report.googleRawData),
+                          null,
+                          2,
+                        );
+                      } catch {
+                        return report.googleRawData;
+                      }
+                    })()
                   : "데이터 없음"}
               </pre>
             </CardContent>
