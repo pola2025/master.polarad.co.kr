@@ -10,6 +10,8 @@ const airtableHeaders = () => ({
   "Content-Type": "application/json",
 });
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   if (!AIRTABLE_API_TOKEN || !BASE_ID || !TABLE_ID) {
     return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
@@ -24,16 +26,53 @@ export async function POST(request: NextRequest) {
       contactEmail,
       inquiryId,
       inquirySource,
+      mode, // "pending" = 분석대기만, "analyze" = 즉시 분석 (기본)
     } = await request.json();
 
-    if (!businessName || !industry) {
+    if (!businessName) {
       return NextResponse.json(
-        { error: "businessName과 industry는 필수입니다." },
+        { error: "businessName은 필수입니다." },
         { status: 400 },
       );
     }
 
-    // 1. Create initial record with status "analyzing"
+    // 분석대기 모드: 레코드만 생성하고 끝
+    if (mode === "pending") {
+      const createRes = await fetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`,
+        {
+          method: "POST",
+          headers: airtableHeaders(),
+          body: JSON.stringify({
+            typecast: true,
+            fields: {
+              businessName,
+              industry: industry ?? "",
+              contactName: contactName ?? "",
+              contactPhone: contactPhone ?? "",
+              contactEmail: contactEmail ?? "",
+              inquiryId: inquiryId ?? "",
+              inquirySource: inquirySource ?? "",
+              status: "pending",
+            },
+          }),
+        },
+      );
+
+      if (!createRes.ok) {
+        const err = await createRes.json();
+        console.error("Airtable 레코드 생성 실패:", err);
+        return NextResponse.json(
+          { error: "레코드 생성에 실패했습니다." },
+          { status: 500 },
+        );
+      }
+
+      const created = await createRes.json();
+      return NextResponse.json({ success: true, id: created.id });
+    }
+
+    // 즉시 분석 모드 (기본)
     const createRes = await fetch(
       `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`,
       {
@@ -42,7 +81,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           fields: {
             businessName,
-            industry,
+            industry: industry ?? "",
             contactName: contactName ?? "",
             contactPhone: contactPhone ?? "",
             contactEmail: contactEmail ?? "",
@@ -66,40 +105,37 @@ export async function POST(request: NextRequest) {
     const created = await createRes.json();
     const recordId: string = created.id;
 
-    // 2. Run brand analysis
+    // Run brand analysis
     let updateFields: Record<string, string | number>;
     try {
-      const result = await analyzeBrand({ businessName, industry });
+      const result = await analyzeBrand({
+        businessName,
+        industry: industry ?? "",
+      });
       updateFields = {
         status: "draft",
         reportContent: result.reportContent ?? "",
         summary: result.summary ?? "",
         naverScore: result.naverScore ?? 0,
         googleScore: result.googleScore ?? 0,
-        totalScore: result.overallScore ?? 0,
-        naverData: JSON.stringify(result.naverResult ?? {}),
-        googleData: JSON.stringify(result.googleResult ?? {}),
-        analysisErrors: JSON.stringify(result.errors ?? {}),
-        analyzedAt: result.analyzedAt ?? new Date().toISOString(),
+        overallScore: result.overallScore ?? 0,
+        naverSearchData: JSON.stringify(result.naverResult ?? {}),
+        googleSearchData: JSON.stringify(result.googleResult ?? {}),
       };
     } catch (analysisError) {
       console.error("브랜드 분석 실패:", analysisError);
       updateFields = {
         status: "draft",
-        summary: `분석 중 오류가 발생했습니다: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
+        summary: `분석 중 오류: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
         reportContent: "",
         naverScore: 0,
         googleScore: 0,
-        totalScore: 0,
-        naverData: "{}",
-        googleData: "{}",
-        analysisErrors: JSON.stringify({ report: "분석 실패" }),
-        analyzedAt: new Date().toISOString(),
+        overallScore: 0,
       };
     }
 
-    // 3. Update record with results
-    const updateRes = await fetch(
+    // Update record with results
+    await fetch(
       `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${recordId}`,
       {
         method: "PATCH",
@@ -107,15 +143,6 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({ fields: updateFields }),
       },
     );
-
-    if (!updateRes.ok) {
-      const err = await updateRes.json();
-      console.error("Airtable 레코드 업데이트 실패:", err);
-      return NextResponse.json(
-        { error: "레코드 업데이트에 실패했습니다." },
-        { status: 500 },
-      );
-    }
 
     return NextResponse.json({ success: true, id: recordId });
   } catch (error) {

@@ -42,14 +42,15 @@ interface BrandReport {
 
 const STATUS_TABS = [
   { value: "all", label: "전체" },
+  { value: "pending", label: "분석대기" },
   { value: "analyzing", label: "분석중" },
   { value: "draft", label: "검토대기" },
-  { value: "reviewed", label: "검토완료" },
   { value: "sent", label: "발송완료" },
   { value: "discarded", label: "폐기" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
+  pending: "분석대기",
   analyzing: "분석중",
   draft: "검토대기",
   reviewed: "검토완료",
@@ -59,6 +60,12 @@ const STATUS_LABELS: Record<string, string> = {
 
 function getStatusBadge(status: string) {
   switch (status) {
+    case "pending":
+      return (
+        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0">
+          분석대기
+        </Badge>
+      );
     case "analyzing":
       return (
         <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0">
@@ -173,6 +180,7 @@ export default function BrandReportsPage() {
 
   const stats = {
     total: reports.length,
+    pending: reports.filter((r) => r.status === "pending").length,
     draft: reports.filter((r) => r.status === "draft").length,
     sent: reports.filter((r) => r.status === "sent").length,
     discarded: reports.filter((r) => r.status === "discarded").length,
@@ -206,12 +214,14 @@ export default function BrandReportsPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">전체 리포트</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">분석 대기</CardTitle>
+            <FileText className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">누적 생성</p>
+            <div className="text-2xl font-bold text-orange-600">
+              {stats.pending}
+            </div>
+            <p className="text-xs text-muted-foreground">분석 시작 필요</p>
           </CardContent>
         </Card>
         <Card>
