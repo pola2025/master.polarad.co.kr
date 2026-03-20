@@ -81,14 +81,14 @@ async function generateKeywords(
 - 예시: "동대문 어린이축구", "답십리 축구교실", "동대문구 유아체육"
 
 JSON 배열만 반환 (마크다운 없이):
-["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"]`;
+["키워드1", "키워드2", "키워드3"]`;
 
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const match = text.match(/\[[\s\S]*\]/);
     if (!match) return [];
-    return JSON.parse(match[0]).slice(0, 5);
+    return JSON.parse(match[0]).slice(0, 3);
   } catch {
     return [];
   }
@@ -142,17 +142,17 @@ export async function searchLocalKeywords(
     return { keywords: [], score: 0, summary: "지역 키워드 생성 실패" };
   }
 
-  // Step 2: Search each keyword on Naver
-  const results: LocalKeywordResult[] = [];
-
-  for (const kw of keywords) {
-    const blogResults = await searchNaverBlog(kw);
-    const { found, position, topResults } = checkPresence(
-      businessName,
-      blogResults,
-    );
-    results.push({ keyword: kw, found, position, topResults });
-  }
+  // Step 2: Search all keywords on Naver in parallel
+  const results: LocalKeywordResult[] = await Promise.all(
+    keywords.map(async (kw) => {
+      const blogResults = await searchNaverBlog(kw);
+      const { found, position, topResults } = checkPresence(
+        businessName,
+        blogResults,
+      );
+      return { keyword: kw, found, position, topResults };
+    }),
+  );
 
   // Step 3: Calculate score
   // Each keyword: found in top 3 = 20pts, top 5 = 15pts, top 10 = 10pts
