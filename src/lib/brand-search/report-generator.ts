@@ -1,12 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { NaverSearchResult } from "./naver";
 import type { GoogleSearchResult } from "./google";
+import type { AISearchResult } from "./ai-search";
 
 interface ReportInput {
   businessName: string;
   industry: string;
   naverResult: NaverSearchResult | null;
   googleResult: GoogleSearchResult | null;
+  aiResult: AISearchResult | null;
   overallScore: number;
 }
 
@@ -37,8 +39,14 @@ function formatSnippets(
 }
 
 function buildPrompt(params: ReportInput): string {
-  const { businessName, industry, naverResult, googleResult, overallScore } =
-    params;
+  const {
+    businessName,
+    industry,
+    naverResult,
+    googleResult,
+    aiResult,
+    overallScore,
+  } = params;
 
   const naverScore = naverResult?.score ?? null;
   const googleScore = googleResult?.score ?? null;
@@ -92,6 +100,19 @@ ${webSnippets}${blogSnippets}${newsSnippets}${cafeSnippets}`;
 - 구글 분석 상세: ${googleResult.details}`;
   }
 
+  // Build AI search section
+  let aiSection = "AI 검색 데이터를 가져오지 못했습니다.";
+  if (aiResult && aiResult.models.length > 0) {
+    const lines = aiResult.models.map((m) => {
+      if (m.error) return `- ${m.model}: 체크 실패 (${m.error})`;
+      const status = m.knows ? "인지됨" : "미인지";
+      const accuracy = m.accurate ? "정확" : "부정확";
+      const resp = m.response.substring(0, 150);
+      return `- ${m.model}: ${status} / ${accuracy}\n  응답 요약: "${resp}..."`;
+    });
+    aiSection = `- AI 인지도 점수: ${aiResult.score}/100\n- 체크 요약: ${aiResult.summary}\n${lines.join("\n")}`;
+  }
+
   // Score availability description
   const scoreDesc =
     naverScore !== null && googleScore !== null
@@ -124,6 +145,9 @@ ${naverSection}
 ### 구글 검색 데이터
 ${googleSection}
 
+### AI 검색 출력 결과
+${aiSection}
+
 ---
 
 위 데이터를 기반으로 다음 구조로 진단 보고서를 작성하세요.
@@ -155,9 +179,18 @@ ${googleSection}
 |------|------|------|------|
 (모든 진단 항목을 표로 정리. 네이버·구글 각 세부 항목 포함)
 
+## 🤖 AI 검색 출력 결과
+각 AI(Gemini, ChatGPT, Claude 중 체크된 항목)에 '${businessName}'를 질문한 결과를 정리.
+- AI가 이 업체를 인지하고 있는지
+- 제공한 정보가 정확한지
+- 업종, 위치, 서비스 설명이 맞는지
+
 ## 💡 개선 포인트
 현재 미비한 항목을 우선순위 순으로 3-5개 나열.
 각 항목은 "~가 미확인 상태로 감지됨" 형식으로 서술하고, 예상 효과를 간략히 병기.
+
+보고서 맨 하단에 다음 면책문구를 반드시 포함하세요:
+> ※ 본 분석은 상호명만으로 자동 분석되어 실제와 다를 수 있습니다. 참고용으로 활용해주세요.
 
 보고서 작성 후, 마지막에 다음 형식으로 한 줄 요약을 추가하세요:
 SUMMARY: [1-2문장 객관적 진단 요약 — 반드시 점수와 등급 포함]`;

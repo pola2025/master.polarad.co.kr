@@ -1,10 +1,14 @@
 import { searchNaver, type NaverSearchResult } from "./naver";
 import { searchGoogle, type GoogleSearchResult } from "./google";
+import { searchAI, type AISearchResult } from "./ai-search";
 import { generateReport, getGrade } from "./report-generator";
+import { generateReportHTML, type ReportHTMLInput } from "./report-html";
 
 export type { NaverSearchResult } from "./naver";
 export type { GoogleSearchResult } from "./google";
+export type { AISearchResult } from "./ai-search";
 export { getGrade } from "./report-generator";
+export { generateReportHTML, type ReportHTMLInput } from "./report-html";
 
 // Industry weight profiles: how much Naver vs Google matters per industry
 const INDUSTRY_PROFILES: Record<string, { naver: number; google: number }> = {
@@ -40,9 +44,11 @@ export interface BrandAnalysisResult {
   // Search data (null when the search itself failed)
   naverResult: NaverSearchResult | null;
   googleResult: GoogleSearchResult | null;
+  aiResult: AISearchResult | null;
 
   // Report
   reportContent: string;
+  reportHTML: string;
   summary: string;
 
   // Scores (null = that source failed entirely)
@@ -65,14 +71,16 @@ export async function analyzeBrand(params: {
   const analyzedAt = new Date().toISOString();
   const errors: string[] = [];
 
-  // Step 1: Run Naver and Google searches in parallel
-  const [naverSettled, googleSettled] = await Promise.allSettled([
+  // Step 1: Run Naver, Google, and AI searches in parallel
+  const [naverSettled, googleSettled, aiSettled] = await Promise.allSettled([
     searchNaver(businessName, industry),
     searchGoogle(businessName, industry),
+    searchAI(businessName, industry),
   ]);
 
   let naverResult: NaverSearchResult | null = null;
   let googleResult: GoogleSearchResult | null = null;
+  let aiResult: AISearchResult | null = null;
   let naverScore: number | null = null;
   let googleScore: number | null = null;
 
@@ -96,6 +104,16 @@ export async function analyzeBrand(params: {
         ? googleSettled.reason.message
         : "Google search failed";
     errors.push(`구글: ${msg}`);
+  }
+
+  if (aiSettled.status === "fulfilled") {
+    aiResult = aiSettled.value;
+  } else {
+    const msg =
+      aiSettled.reason instanceof Error
+        ? aiSettled.reason.message
+        : "AI search failed";
+    errors.push(`AI 검색: ${msg}`);
   }
 
   // Step 2: Determine overall score and status based on available data
@@ -131,6 +149,7 @@ export async function analyzeBrand(params: {
       industry,
       naverResult,
       googleResult,
+      aiResult,
       overallScore,
     });
     reportContent = reportResult.reportContent;
@@ -144,13 +163,34 @@ export async function analyzeBrand(params: {
     reportContent = `보고서 생성 실패: ${msg}`;
   }
 
+  // Step 4: Generate HTML report
+  const now = new Date();
+  const reportDate = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, "0")}.${String(now.getDate()).padStart(2, "0")}`;
+  const reportNo = `PA-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(Math.floor(Math.random() * 900) + 100)}`;
+
+  const reportHTML = generateReportHTML({
+    businessName,
+    industry,
+    reportDate,
+    reportNo,
+    naverResult,
+    googleResult,
+    aiResult,
+    naverScore,
+    googleScore,
+    overallScore,
+    summary,
+  });
+
   return {
     businessName,
     industry,
     analyzedAt,
     naverResult,
     googleResult,
+    aiResult,
     reportContent,
+    reportHTML,
     summary,
     naverScore,
     googleScore,

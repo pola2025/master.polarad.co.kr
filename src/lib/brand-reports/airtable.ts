@@ -20,10 +20,12 @@ export const FIELDS = {
   inquirySource: "inquirySource",
   naverSearchData: "naverSearchData",
   googleSearchData: "googleSearchData",
+  aiSearchData: "aiSearchData",
   naverScore: "naverScore",
   googleScore: "googleScore",
   overallScore: "overallScore",
   reportContent: "reportContent",
+  reportHTML: "reportHTML",
   summary: "summary",
   status: "status",
   sentAt: "sentAt",
@@ -45,10 +47,12 @@ export interface BrandReport {
   inquirySource: string;
   naverSearchData: Record<string, unknown> | null;
   googleSearchData: Record<string, unknown> | null;
+  aiSearchData: Record<string, unknown> | null;
   naverScore: number | null;
   googleScore: number | null;
   overallScore: number | null;
   reportContent: string;
+  reportHTML: string;
   summary: string;
   status: string;
   sentAt: string | null;
@@ -251,10 +255,12 @@ export function normalizeRecord(record: AirtableRecord): BrandReport {
     inquirySource: (f[FIELDS.inquirySource] as string) ?? "",
     naverSearchData: parseJson(f[FIELDS.naverSearchData]),
     googleSearchData: parseJson(f[FIELDS.googleSearchData]),
+    aiSearchData: parseJson(f[FIELDS.aiSearchData]),
     naverScore: toNum(f[FIELDS.naverScore]),
     googleScore: toNum(f[FIELDS.googleScore]),
     overallScore: toNum(f[FIELDS.overallScore]),
     reportContent: (f[FIELDS.reportContent] as string) ?? "",
+    reportHTML: (f[FIELDS.reportHTML] as string) ?? "",
     summary: (f[FIELDS.summary] as string) ?? "",
     status: (f[FIELDS.status] as string) ?? "",
     sentAt: (f[FIELDS.sentAt] as string) ?? null,
