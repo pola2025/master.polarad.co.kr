@@ -14,6 +14,7 @@ import {
   User2,
   Search,
   LogOut,
+  SearchCheck,
 } from "lucide-react";
 
 import {
@@ -74,7 +75,7 @@ const menuItems = [
   {
     title: "브랜드 분석",
     url: "/brand-reports",
-    icon: BarChart3,
+    icon: SearchCheck,
   },
   {
     title: "설정",
