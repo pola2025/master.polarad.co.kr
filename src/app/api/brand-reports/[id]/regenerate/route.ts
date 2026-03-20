@@ -37,6 +37,11 @@ export async function POST(
     const f = record.fields as Record<string, unknown>;
     const businessName = f[FIELDS.businessName] as string | undefined;
     const industry = f[FIELDS.industry] as string | undefined;
+    const analysisType = f["analysisType"] as string | undefined as
+      | "local"
+      | "naming"
+      | "auto"
+      | undefined;
 
     if (!businessName || !industry) {
       return NextResponse.json(
@@ -51,7 +56,11 @@ export async function POST(
     // 3. Re-run brand analysis
     let updateFields: Record<string, unknown>;
     try {
-      const result = await analyzeBrand({ businessName, industry });
+      const result = await analyzeBrand({
+        businessName,
+        industry,
+        analysisType: analysisType ?? "auto",
+      });
       updateFields = {
         [FIELDS.status]: "draft",
         [FIELDS.reportContent]: result.reportContent ?? "",

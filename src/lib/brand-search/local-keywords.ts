@@ -62,6 +62,7 @@ function stripHtml(text: string): string {
 async function generateKeywords(
   businessName: string,
   industry: string,
+  location: string,
 ): Promise<string[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return [];
@@ -71,13 +72,19 @@ async function generateKeywords(
     model: "gemini-3-flash-preview",
   });
 
+  const locationHint = location
+    ? `이 업체는 "${location}" 지역에 위치합니다. 반드시 이 지역의 구/동 이름을 사용하세요.`
+    : "위치 정보가 없으므로 업종에 맞는 일반적인 지역 키워드를 생성하세요.";
+
   const prompt = `"${businessName}"은(는) "${industry}" 업종입니다.
-이 업체의 잠재 고객이 네이버에서 검색할 만한 지역+업종 키워드를 5개 생성하세요.
+${locationHint}
+
+이 업체의 잠재 고객이 네이버에서 검색할 만한 지역+업종 키워드를 3개 생성하세요.
 
 규칙:
 - 업체명을 포함하지 말 것 (지역+업종 조합만)
 - 실제 한국 소비자가 네이버에서 검색하는 자연스러운 키워드
-- 지역명은 구체적으로 (예: "동대문", "답십리", "장안동" 등)
+- 지역명은 반드시 업체 소재지 기준 (구 이름, 동 이름, 인근 랜드마크)
 - 예시: "동대문 어린이축구", "답십리 축구교실", "동대문구 유아체육"
 
 JSON 배열만 반환 (마크다운 없이):
@@ -135,9 +142,10 @@ function checkPresence(
 export async function searchLocalKeywords(
   businessName: string,
   industry: string,
+  location: string = "",
 ): Promise<LocalKeywordSearchResult> {
   // Step 1: Generate keywords
-  const keywords = await generateKeywords(businessName, industry);
+  const keywords = await generateKeywords(businessName, industry, location);
   if (keywords.length === 0) {
     return { keywords: [], score: 0, summary: "지역 키워드 생성 실패" };
   }

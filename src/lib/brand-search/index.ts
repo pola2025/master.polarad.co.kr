@@ -72,19 +72,18 @@ export interface BrandAnalysisResult {
 export async function analyzeBrand(params: {
   businessName: string;
   industry: string;
+  analysisType?: "local" | "naming" | "auto";
 }): Promise<BrandAnalysisResult> {
-  const { businessName, industry } = params;
+  const { businessName, industry, analysisType = "auto" } = params;
   const analyzedAt = new Date().toISOString();
   const errors: string[] = [];
 
-  // Step 1: Run Naver, Google, AI, and local keyword searches in parallel
-  const [naverSettled, googleSettled, aiSettled, localKwSettled] =
-    await Promise.allSettled([
-      searchNaver(businessName, industry),
-      searchGoogle(businessName, industry),
-      searchAI(businessName, industry),
-      searchLocalKeywords(businessName, industry),
-    ]);
+  // Step 1: Run Naver, Google, and AI searches in parallel
+  const [naverSettled, googleSettled, aiSettled] = await Promise.allSettled([
+    searchNaver(businessName, industry),
+    searchGoogle(businessName, industry),
+    searchAI(businessName, industry),
+  ]);
 
   let naverResult: NaverSearchResult | null = null;
   let googleResult: GoogleSearchResult | null = null;
@@ -124,15 +123,31 @@ export async function analyzeBrand(params: {
     errors.push(`AI 검색: ${msg}`);
   }
 
+  // Step 1.5: Run local keyword search (skip for naming-based businesses)
   let localKeywordResult: LocalKeywordSearchResult | null = null;
-  if (localKwSettled.status === "fulfilled") {
-    localKeywordResult = localKwSettled.value;
-  } else {
-    const msg =
-      localKwSettled.reason instanceof Error
-        ? localKwSettled.reason.message
-        : "Local keyword search failed";
-    errors.push(`지역 키워드: ${msg}`);
+  const shouldRunLocalKeywords =
+    analysisType === "local" ||
+    (analysisType === "auto" &&
+      naverResult !== null &&
+      naverResult.localResults.length > 0);
+
+  if (shouldRunLocalKeywords) {
+    try {
+      const location =
+        naverResult?.localResults?.[0]?.address
+          ?.split(" ")
+          .slice(0, 2)
+          .join(" ") ?? "";
+      localKeywordResult = await searchLocalKeywords(
+        businessName,
+        industry,
+        location,
+      );
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Local keyword search failed";
+      errors.push(`지역 키워드: ${msg}`);
+    }
   }
 
   // Step 2: Determine overall score and status based on available data
