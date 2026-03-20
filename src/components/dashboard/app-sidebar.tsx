@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   BarChart3,
@@ -14,7 +14,7 @@ import {
   User2,
   Search,
   LogOut,
-} from "lucide-react"
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -27,13 +27,13 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 const menuItems = [
   {
@@ -72,25 +72,30 @@ const menuItems = [
     icon: MessageSquare,
   },
   {
+    title: "브랜드 분석",
+    url: "/brand-reports",
+    icon: BarChart3,
+  },
+  {
     title: "설정",
     url: "/settings",
     icon: Settings,
   },
-]
+];
 
 export function AppSidebar() {
-  const pathname = usePathname()
-  const router = useRouter()
+  const pathname = usePathname();
+  const router = useRouter();
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
-      router.push("/login")
-      router.refresh()
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
     } catch (error) {
-      console.error("Logout failed:", error)
+      console.error("Logout failed:", error);
     }
-  }
+  };
 
   return (
     <Sidebar>
@@ -101,7 +106,9 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">폴라애드</span>
-            <span className="text-xs text-muted-foreground">Admin Dashboard</span>
+            <span className="text-xs text-muted-foreground">
+              Admin Dashboard
+            </span>
           </div>
         </div>
       </SidebarHeader>
@@ -113,10 +120,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url}
-                  >
+                  <SidebarMenuButton asChild isActive={pathname === item.url}>
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -157,5 +161,5 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

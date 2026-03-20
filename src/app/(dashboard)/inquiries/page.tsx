@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   MessageSquare,
   Search,
@@ -22,6 +23,7 @@ import {
   Pencil,
   X,
   Check,
+  BarChart3,
 } from "lucide-react";
 import {
   Card,
@@ -85,6 +87,7 @@ interface Inquiry {
   industry: string;
   smsStatus: string;
   smsSentAt: string;
+  smsError: string;
   smsReply: boolean;
   createdAt: string;
 }
@@ -192,6 +195,7 @@ function formatDate(iso: string) {
 }
 
 export default function InquiriesPage() {
+  const router = useRouter();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [stats, setStats] = useState<InquiryStats>({
     total: 0,
@@ -210,6 +214,7 @@ export default function InquiriesPage() {
   const [memoInput, setMemoInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   async function fetchInquiries() {
     setLoading(true);
@@ -358,6 +363,37 @@ export default function InquiriesPage() {
       setError("삭제에 실패했습니다.");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleGenerateBrandReport() {
+    if (!selectedInquiry) return;
+    setGeneratingReport(true);
+    try {
+      const wizard = parseWizardMessage(selectedInquiry.message);
+      const res = await fetch("/api/brand-reports/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName: selectedInquiry.company,
+          industry: wizard?.업종 || selectedInquiry.industry || "",
+          contactName: selectedInquiry.name,
+          contactPhone: selectedInquiry.phone,
+          contactEmail: selectedInquiry.email,
+          inquiryId: selectedInquiry.id,
+          inquirySource: selectedInquiry.source,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.id) {
+        router.push(`/brand-reports/${data.id}`);
+      } else {
+        setError(data.error || "브랜드 분석 생성에 실패했습니다.");
+      }
+    } catch {
+      setError("브랜드 분석 생성 중 오류가 발생했습니다.");
+    } finally {
+      setGeneratingReport(false);
     }
   }
 
@@ -1039,6 +1075,25 @@ export default function InquiriesPage() {
                       : "고객 회신 체크"}
                   </button>
                 )}
+
+                {selectedInquiry.source === "website" &&
+                  selectedInquiry.company && (
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={handleGenerateBrandReport}
+                      disabled={generatingReport}
+                    >
+                      {generatingReport ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                      )}
+                      {generatingReport
+                        ? "브랜드 분석 중..."
+                        : "브랜드 분석 생성"}
+                    </Button>
+                  )}
 
                 <div className="flex gap-2">
                   {selectedInquiry.email && (
