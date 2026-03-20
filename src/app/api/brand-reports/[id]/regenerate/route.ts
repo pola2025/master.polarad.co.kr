@@ -1,55 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeBrand } from "@/lib/brand-search";
-
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
-const BASE_ID = process.env.BRAND_REPORT_BASE_ID;
-const TABLE_ID = process.env.BRAND_REPORT_TABLE_ID;
-
-const airtableHeaders = () => ({
-  Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-  "Content-Type": "application/json",
-});
+import {
+  getRecord,
+  updateRecord,
+  NotFoundError,
+  FIELDS,
+} from "@/lib/brand-reports/airtable";
+import { requireAuth } from "@/lib/auth-check";
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!AIRTABLE_API_TOKEN || !BASE_ID || !TABLE_ID) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
+  // Allow admin_token cookie (admin UI) or x-api-key header (external callers)
+  const cronSecret = process.env.CRON_SECRET;
+  const apiKey = request.headers.get("x-api-key");
+  const isApiKeyAuth = cronSecret && apiKey === cronSecret;
+  if (!isApiKeyAuth && !(await requireAuth())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
   try {
     const { id } = await params;
 
-    // 1. Fetch existing record to get businessName, industry
-    const fetchRes = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
-      {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-        cache: "no-store",
-      },
-    );
-
-    if (!fetchRes.ok) {
-      if (fetchRes.status === 404) {
-        return NextResponse.json(
-          { error: "리포트를 찾을 수 없습니다." },
-          { status: 404 },
-        );
-      }
-      const err = await fetchRes.json();
-      console.error("Airtable 조회 실패:", err);
-      return NextResponse.json(
-        { error: "리포트 조회에 실패했습니다." },
-        { status: 500 },
-      );
-    }
-
-    const record = await fetchRes.json();
-    const { businessName, industry } = record.fields as {
-      businessName?: string;
-      industry?: string;
-    };
+    // 1. Fetch existing record
+    const record = await getRecord(id);
+    const f = record.fields as Record<string, unknown>;
+    const businessName = f[FIELDS.businessName] as string | undefined;
+    const industry = f[FIELDS.industry] as string | undefined;
 
     if (!businessName || !industry) {
       return NextResponse.json(
@@ -59,65 +36,47 @@ export async function POST(
     }
 
     // 2. Mark as analyzing
-    await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`, {
-      method: "PATCH",
-      headers: airtableHeaders(),
-      body: JSON.stringify({ fields: { status: "analyzing" } }),
-    });
+    await updateRecord(id, { [FIELDS.status]: "analyzing" });
 
     // 3. Re-run brand analysis
-    let updateFields: Record<string, string | number>;
+    let updateFields: Record<string, unknown>;
     try {
       const result = await analyzeBrand({ businessName, industry });
       updateFields = {
-        status: "draft",
-        reportContent: result.reportContent ?? "",
-        summary: result.summary ?? "",
-        naverScore: result.naverScore ?? 0,
-        googleScore: result.googleScore ?? 0,
-        totalScore: result.overallScore ?? 0,
-        naverData: JSON.stringify(result.naverResult ?? {}),
-        googleData: JSON.stringify(result.googleResult ?? {}),
-        analysisErrors: JSON.stringify(result.errors ?? {}),
-        analyzedAt: result.analyzedAt ?? new Date().toISOString(),
+        [FIELDS.status]: "draft",
+        [FIELDS.reportContent]: result.reportContent ?? "",
+        [FIELDS.summary]: result.summary ?? "",
+        [FIELDS.naverScore]: result.naverScore ?? 0,
+        [FIELDS.googleScore]: result.googleScore ?? 0,
+        [FIELDS.overallScore]: result.overallScore ?? 0,
+        [FIELDS.naverSearchData]: JSON.stringify(result.naverResult ?? {}),
+        [FIELDS.googleSearchData]: JSON.stringify(result.googleResult ?? {}),
       };
     } catch (analysisError) {
       console.error("브랜드 재분석 실패:", analysisError);
       updateFields = {
-        status: "draft",
-        summary: `분석 중 오류가 발생했습니다: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
-        reportContent: "",
-        naverScore: 0,
-        googleScore: 0,
-        totalScore: 0,
-        naverData: "{}",
-        googleData: "{}",
-        analysisErrors: JSON.stringify({ report: "분석 실패" }),
-        analyzedAt: new Date().toISOString(),
+        [FIELDS.status]: "failed",
+        [FIELDS.summary]: `분석 중 오류가 발생했습니다: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
+        [FIELDS.reportContent]: "",
+        [FIELDS.naverScore]: 0,
+        [FIELDS.googleScore]: 0,
+        [FIELDS.overallScore]: 0,
+        [FIELDS.naverSearchData]: "{}",
+        [FIELDS.googleSearchData]: "{}",
       };
     }
 
-    // 4. Update record with new results
-    const updateRes = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
-      {
-        method: "PATCH",
-        headers: airtableHeaders(),
-        body: JSON.stringify({ fields: updateFields }),
-      },
-    );
-
-    if (!updateRes.ok) {
-      const err = await updateRes.json();
-      console.error("Airtable 레코드 업데이트 실패:", err);
-      return NextResponse.json(
-        { error: "레코드 업데이트에 실패했습니다." },
-        { status: 500 },
-      );
-    }
+    // 4. Update record with new results — throws on failure
+    await updateRecord(id, updateFields);
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof NotFoundError) {
+      return NextResponse.json(
+        { error: "리포트를 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    }
     console.error("브랜드 리포트 재생성 오류:", error);
     return NextResponse.json(
       { error: "서버 오류가 발생했습니다." },

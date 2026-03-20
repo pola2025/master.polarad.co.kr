@@ -165,6 +165,7 @@ export async function GET() {
           industry: record.fields.industry ?? "",
           smsStatus: record.fields.smsStatus ?? "",
           smsSentAt: record.fields.smsSentAt ?? "",
+          smsError: record.fields.smsError ?? "",
           smsReply: record.fields.smsReply ?? false,
           createdAt: record.createdTime,
         });

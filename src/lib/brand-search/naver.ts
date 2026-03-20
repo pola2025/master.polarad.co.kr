@@ -123,52 +123,69 @@ function calculateScore(
   businessName: string,
 ): NaverSearchResult["scoreBreakdown"] & { total: number } {
   const nameLower = businessName.toLowerCase();
+  const nameCompact = nameLower.replace(/\s+/g, "");
 
-  // Official website in top web results (20pts)
-  const hasOfficialSite = webResults
+  // Official website (20pts): graduated by position
+  const top3Match = webResults
+    .slice(0, 3)
+    .some(
+      (item) =>
+        item.title.toLowerCase().includes(nameLower) ||
+        item.link.toLowerCase().includes(nameCompact),
+    );
+  const top5Match = webResults
     .slice(0, 5)
     .some(
       (item) =>
         item.title.toLowerCase().includes(nameLower) ||
-        item.link.toLowerCase().includes(nameLower.replace(/\s+/g, "")),
+        item.link.toLowerCase().includes(nameCompact),
     );
-  const officialWebsite = hasOfficialSite ? 20 : 0;
-
-  // Blog mentions 10+ results (20pts)
-  const blogMentions =
-    totalCounts.blog >= 10
-      ? 20
-      : totalCounts.blog >= 5
-        ? 12
-        : totalCounts.blog >= 1
-          ? 6
+  const top10Match = webResults
+    .slice(0, 10)
+    .some(
+      (item) =>
+        item.title.toLowerCase().includes(nameLower) ||
+        item.link.toLowerCase().includes(nameCompact),
+    );
+  const anyNameMatch = webResults.some((item) =>
+    item.title.toLowerCase().includes(nameLower),
+  );
+  const officialWebsite = top3Match
+    ? 20
+    : top5Match
+      ? 15
+      : top10Match
+        ? 10
+        : anyNameMatch
+          ? 5
           : 0;
 
-  // Place/local registration (20pts)
-  const localRegistration = localResults.length > 0 ? 20 : 0;
+  // Blog presence (20pts): log scale — 1=0, 10=10, 100=20
+  const blogMentions = Math.min(
+    20,
+    Math.round(Math.log10(totalCounts.blog + 1) * 10),
+  );
 
-  // News coverage (15pts)
-  const newsCoverage =
-    totalCounts.news >= 5 ? 15 : totalCounts.news >= 1 ? 8 : 0;
+  // Place/local registration (20pts): name match bonus
+  const localExactMatch = localResults.some((item) =>
+    item.title.toLowerCase().includes(nameLower),
+  );
+  const localRegistration =
+    localResults.length === 0 ? 0 : localExactMatch ? 20 : 15;
 
-  // Cafe/community mentions (10pts)
-  const cafeMentions =
-    totalCounts.cafe >= 3 ? 10 : totalCounts.cafe >= 1 ? 5 : 0;
+  // News coverage (15pts): 1=3, 3=9, 5+=15
+  const newsCoverage = Math.min(15, totalCounts.news * 3);
 
-  // Brand content in top 10 web results (15pts)
+  // Cafe/community mentions (10pts): 1=2, 3=6, 5+=10
+  const cafeMentions = Math.min(10, totalCounts.cafe * 2);
+
+  // Brand content in top 10 web results (15pts): 1=5, 2=10, 3+=15
   const brandWebCount = webResults.filter(
     (item) =>
       item.title.toLowerCase().includes(nameLower) ||
       item.description.toLowerCase().includes(nameLower),
   ).length;
-  const brandContent =
-    brandWebCount >= 5
-      ? 15
-      : brandWebCount >= 3
-        ? 10
-        : brandWebCount >= 1
-          ? 5
-          : 0;
+  const brandContent = Math.min(15, brandWebCount * 5);
 
   const total =
     officialWebsite +

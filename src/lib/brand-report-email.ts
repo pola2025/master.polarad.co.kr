@@ -4,6 +4,7 @@
  */
 
 import { google } from "googleapis";
+import { escapeHtml } from "@/lib/html-escape";
 
 function getGmailClient() {
   const oauth2Client = new google.auth.OAuth2(
@@ -85,7 +86,7 @@ function buildHtmlEmail(params: {
           <tr>
             <td style="background-color:#ffffff;padding:36px;">
               <p style="font-size:15px;color:#111827;margin:0 0 24px;line-height:1.6;">
-                안녕하세요, <strong>${businessName}</strong> 담당자님.<br>
+                안녕하세요, <strong>${escapeHtml(businessName)}</strong> 담당자님.<br>
                 폴라애드에서 브랜드 온라인 검색 평가 리포트를 보내드립니다.
               </p>
 
@@ -101,7 +102,7 @@ function buildHtmlEmail(params: {
               <!-- Summary -->
               <div style="background-color:#F0F7FF;border-left:4px solid #0066CC;border-radius:4px;padding:16px 20px;margin-bottom:28px;">
                 <div style="font-size:12px;font-weight:700;color:#0066CC;margin-bottom:8px;">진단 요약</div>
-                <p style="font-size:13px;color:#374151;line-height:1.7;margin:0;">${summary}</p>
+                <p style="font-size:13px;color:#374151;line-height:1.7;margin:0;">${escapeHtml(summary)}</p>
               </div>
 
               <p style="font-size:14px;color:#374151;margin:0 0 28px;line-height:1.6;">

@@ -4,6 +4,8 @@
  * 프로젝트에 이미 설정된 HCTI_API_USER_ID, HCTI_API_KEY 사용
  */
 
+import { escapeHtml } from "@/lib/html-escape";
+
 interface BrandReportPDFData {
   businessName: string;
   industry: string;
@@ -87,8 +89,8 @@ function buildReportHtml(data: BrandReportPDFData): string {
   </div>
 
   <div style="padding:30px;">
-    <div style="font-size:24px;font-weight:700;margin-bottom:4px;">${data.businessName}</div>
-    <div style="color:#888;font-size:14px;margin-bottom:20px;">${data.industry} · ${dateStr}</div>
+    <div style="font-size:24px;font-weight:700;margin-bottom:4px;">${escapeHtml(data.businessName)}</div>
+    <div style="color:#888;font-size:14px;margin-bottom:20px;">${escapeHtml(data.industry)} · ${dateStr}</div>
 
     <!-- SCORES -->
     <div style="display:flex;gap:12px;margin-bottom:24px;">
@@ -98,7 +100,7 @@ function buildReportHtml(data: BrandReportPDFData): string {
     </div>
 
     <!-- SUMMARY -->
-    ${data.summary ? `<div style="background:#EFF6FF;border-left:4px solid #0066CC;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:24px;font-size:13px;color:#333;">${data.summary}</div>` : ""}
+    ${data.summary ? `<div style="background:#EFF6FF;border-left:4px solid #0066CC;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:24px;font-size:13px;color:#333;">${escapeHtml(data.summary)}</div>` : ""}
 
     <!-- REPORT CONTENT -->
     <div style="margin-bottom:30px;">

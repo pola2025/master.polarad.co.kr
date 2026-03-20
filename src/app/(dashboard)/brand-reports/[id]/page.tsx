@@ -15,6 +15,8 @@ import {
   Phone,
   Building,
   Tag,
+  Play,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,15 +62,23 @@ interface BrandReport {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  pending: "분석대기",
   analyzing: "분석중",
   draft: "검토대기",
   reviewed: "검토완료",
   sent: "발송완료",
   discarded: "폐기",
+  failed: "분석실패",
 };
 
 function getStatusBadge(status: string) {
   switch (status) {
+    case "pending":
+      return (
+        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0">
+          분석대기
+        </Badge>
+      );
     case "analyzing":
       return (
         <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0">
@@ -95,6 +105,12 @@ function getStatusBadge(status: string) {
       );
     case "discarded":
       return <Badge variant="secondary">폐기</Badge>;
+    case "failed":
+      return (
+        <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-0">
+          분석실패
+        </Badge>
+      );
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
@@ -201,6 +217,7 @@ export default function BrandReportDetailPage({
   const [sending, setSending] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [startingAnalysis, setStartingAnalysis] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [naverCollapsed, setNaverCollapsed] = useState(true);
   const [googleCollapsed, setGoogleCollapsed] = useState(true);
@@ -237,9 +254,7 @@ export default function BrandReportDetailPage({
         body: JSON.stringify({ reportContent: content }),
       });
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      setReport(data.report);
-      setIsDirty(false);
+      await fetchReport();
     } catch {
       setError("저장에 실패했습니다.");
     } finally {
@@ -256,9 +271,8 @@ export default function BrandReportDetailPage({
         method: "POST",
       });
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      setReport(data.report);
       setShowSendDialog(false);
+      await fetchReport();
     } catch {
       setError("발송에 실패했습니다.");
     } finally {
@@ -271,13 +285,31 @@ export default function BrandReportDetailPage({
     setError("");
     try {
       const res = await fetch(`/api/brand-reports/${id}`, {
-        method: "DELETE",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "discarded" }),
       });
       if (!res.ok) throw new Error();
       router.push("/brand-reports");
     } catch {
       setError("폐기에 실패했습니다.");
       setDiscarding(false);
+    }
+  }
+
+  async function handleStartAnalysis() {
+    setStartingAnalysis(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/brand-reports/${id}/regenerate`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error();
+      await fetchReport();
+    } catch {
+      setError("분석 시작에 실패했습니다.");
+    } finally {
+      setStartingAnalysis(false);
     }
   }
 
@@ -430,6 +462,59 @@ export default function BrandReportDetailPage({
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* 분석 대기 배너 */}
+      {report.status === "pending" && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <Play className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-orange-800">
+              분석 대기 중입니다. 분석을 시작하면 네이버·구글 검색 데이터를 수집하고 리포트를 생성합니다.
+            </span>
+            <Button
+              size="sm"
+              className="ml-4 shrink-0 bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={handleStartAnalysis}
+              disabled={startingAnalysis}
+            >
+              {startingAnalysis ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              분석 시작
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* 분석 실패 배너 */}
+      {report.status === "failed" && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-red-800">
+              분석에 실패했습니다. 재분석을 실행하거나 업체명·업종 정보를 확인하세요.
+              {report.summary && (
+                <span className="block mt-1 text-xs text-red-600">{report.summary}</span>
+              )}
+            </span>
+            <Button
+              size="sm"
+              className="ml-4 shrink-0 bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleRegenerate}
+              disabled={regenerating}
+            >
+              {regenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              재분석
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 

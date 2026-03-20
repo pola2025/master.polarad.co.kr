@@ -4,8 +4,30 @@ import { sendLMS } from "@/lib/ncp-sens";
 const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN!;
 const META_BASE_ID = "appyUK6euzEJ5yrGX";
 const META_TABLE_ID = "tblxTgGtVkLpniFbb";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_LEAD_CHAT_ID = process.env.TELEGRAM_LEAD_CHAT_ID;
 
-const SMS_MESSAGE = `안녕하세요, 폴라애드입니다.
+async function notifyTelegram(name: string, phone: string) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_LEAD_CHAT_ID) return;
+  try {
+    await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_LEAD_CHAT_ID,
+          text: `📩 새 광고문의 접수\n이름: ${name}\n연락처: ${phone}`,
+          parse_mode: "HTML",
+        }),
+      },
+    );
+  } catch (e) {
+    console.error("텔레그램 접수 알림 실패:", e);
+  }
+}
+
+const SMS_MESSAGE = `안녕하세요.
 
 광고 문의를 주셔서 감사합니다.
 
@@ -20,10 +42,12 @@ AM 09:00 - PM 08:00
 감사합니다.`;
 
 function formatPhone(phone: string): string {
-  if (phone.startsWith("+82")) {
-    return "0" + phone.slice(3);
+  // 공백, 하이픈, 괄호 등 모든 비숫자 제거 (+ 제외)
+  let cleaned = phone.replace(/[^\d+]/g, "");
+  if (cleaned.startsWith("+82")) {
+    cleaned = "0" + cleaned.slice(3);
   }
-  return phone.replace(/-/g, "");
+  return cleaned.replace(/\D/g, "");
 }
 
 /**
@@ -76,7 +100,15 @@ export async function GET(request: Request) {
       if (!phone) continue;
 
       const cleanPhone = formatPhone(phone);
+      console.log(
+        `SMS 발송 시도: ${name} | 원본: ${phone} | 변환: ${cleanPhone}`,
+      );
       const smsResult = await sendLMS(cleanPhone, SMS_MESSAGE);
+
+      // 접수 알림 텔레그램 전송
+      if (smsResult.success) {
+        await notifyTelegram(name, cleanPhone);
+      }
 
       // Airtable에 발송 결과 기록
       const updateRes = await fetch(

@@ -1,34 +1,59 @@
 import { searchNaver, type NaverSearchResult } from "./naver";
 import { searchGoogle, type GoogleSearchResult } from "./google";
-import { generateReport } from "./report-generator";
+import { generateReport, getGrade } from "./report-generator";
 
 export type { NaverSearchResult } from "./naver";
 export type { GoogleSearchResult } from "./google";
+export { getGrade } from "./report-generator";
+
+// Industry weight profiles: how much Naver vs Google matters per industry
+const INDUSTRY_PROFILES: Record<string, { naver: number; google: number }> = {
+  음식점: { naver: 0.8, google: 0.2 },
+  카페: { naver: 0.8, google: 0.2 },
+  병원: { naver: 0.7, google: 0.3 },
+  학원: { naver: 0.7, google: 0.3 },
+  뷰티: { naver: 0.75, google: 0.25 },
+  제조업: { naver: 0.4, google: 0.6 },
+  IT: { naver: 0.4, google: 0.6 },
+  무역: { naver: 0.3, google: 0.7 },
+};
+
+const DEFAULT_WEIGHTS = { naver: 0.6, google: 0.4 };
+
+export function getIndustryWeights(
+  industry: string,
+): { naver: number; google: number } {
+  for (const [key, weights] of Object.entries(INDUSTRY_PROFILES)) {
+    if (industry.includes(key)) {
+      return weights;
+    }
+  }
+  return DEFAULT_WEIGHTS;
+}
 
 export interface BrandAnalysisResult {
   businessName: string;
   industry: string;
   analyzedAt: string;
 
-  // Search data
-  naverResult: NaverSearchResult;
-  googleResult: GoogleSearchResult;
+  // Search data (null when the search itself failed)
+  naverResult: NaverSearchResult | null;
+  googleResult: GoogleSearchResult | null;
 
   // Report
   reportContent: string;
   summary: string;
 
-  // Scores
-  naverScore: number;
-  googleScore: number;
+  // Scores (null = that source failed entirely)
+  naverScore: number | null;
+  googleScore: number | null;
   overallScore: number;
 
-  // Errors (partial failure tracking)
-  errors: {
-    naver?: string;
-    google?: string;
-    report?: string;
-  };
+  // Status
+  analysisStatus: "success" | "partial" | "failed";
+
+  // Error details
+  errors: string[];
 }
 
 export async function analyzeBrand(params: {
@@ -37,7 +62,7 @@ export async function analyzeBrand(params: {
 }): Promise<BrandAnalysisResult> {
   const { businessName, industry } = params;
   const analyzedAt = new Date().toISOString();
-  const errors: BrandAnalysisResult["errors"] = {};
+  const errors: string[] = [];
 
   // Step 1: Run Naver and Google searches in parallel
   const [naverSettled, googleSettled] = await Promise.allSettled([
@@ -45,68 +70,59 @@ export async function analyzeBrand(params: {
     searchGoogle(businessName, industry),
   ]);
 
-  let naverResult: NaverSearchResult;
-  let googleResult: GoogleSearchResult;
+  let naverResult: NaverSearchResult | null = null;
+  let googleResult: GoogleSearchResult | null = null;
+  let naverScore: number | null = null;
+  let googleScore: number | null = null;
 
   if (naverSettled.status === "fulfilled") {
     naverResult = naverSettled.value;
+    naverScore = naverResult.score;
   } else {
     const msg =
       naverSettled.reason instanceof Error
         ? naverSettled.reason.message
         : "Naver search failed";
-    errors.naver = msg;
-    // Zero-score fallback
-    naverResult = {
-      webResults: [],
-      blogResults: [],
-      cafeResults: [],
-      newsResults: [],
-      localResults: [],
-      totalCounts: { web: 0, blog: 0, cafe: 0, news: 0, local: 0 },
-      score: 0,
-      scoreBreakdown: {
-        officialWebsite: 0,
-        blogMentions: 0,
-        localRegistration: 0,
-        newsCoverage: 0,
-        cafeMentions: 0,
-        brandContent: 0,
-      },
-    };
+    errors.push(`네이버: ${msg}`);
   }
 
   if (googleSettled.status === "fulfilled") {
     googleResult = googleSettled.value;
+    googleScore = googleResult.score;
   } else {
     const msg =
       googleSettled.reason instanceof Error
         ? googleSettled.reason.message
         : "Google search failed";
-    errors.google = msg;
-    // Zero-score fallback
-    googleResult = {
-      isIndexed: false,
-      topRankPosition: null,
-      hasGoogleBusiness: false,
-      hasReviews: false,
-      hasImageResults: false,
-      details: `Google 검색 분석 실패: ${msg}`,
-      score: 0,
-      scoreBreakdown: {
-        indexed: 0,
-        topRank: 0,
-        googleBusiness: 0,
-        reviews: 0,
-        imagePresence: 0,
-      },
-    };
+    errors.push(`구글: ${msg}`);
   }
 
-  // Step 2: Generate report with whatever data we have
+  // Step 2: Determine overall score and status based on available data
+  const weights = getIndustryWeights(industry);
+  let overallScore: number;
+  let analysisStatus: BrandAnalysisResult["analysisStatus"];
+
+  if (naverScore !== null && googleScore !== null) {
+    overallScore = Math.round(
+      naverScore * weights.naver + googleScore * weights.google,
+    );
+    analysisStatus = "success";
+  } else if (naverScore !== null) {
+    // Only Naver available — use it at 100% weight
+    overallScore = naverScore;
+    analysisStatus = "partial";
+  } else if (googleScore !== null) {
+    // Only Google available — use it at 100% weight
+    overallScore = googleScore;
+    analysisStatus = "partial";
+  } else {
+    overallScore = 0;
+    analysisStatus = "failed";
+  }
+
+  // Step 3: Generate report with whatever data we have
   let reportContent: string;
   let summary: string;
-  let overallScore: number;
 
   try {
     const reportResult = await generateReport({
@@ -114,18 +130,16 @@ export async function analyzeBrand(params: {
       industry,
       naverResult,
       googleResult,
+      overallScore,
     });
     reportContent = reportResult.reportContent;
     summary = reportResult.summary;
-    overallScore = reportResult.overallScore;
   } catch (error) {
     const msg =
       error instanceof Error ? error.message : "Report generation failed";
-    errors.report = msg;
-    overallScore = Math.round(
-      naverResult.score * 0.6 + googleResult.score * 0.4,
-    );
-    summary = `${businessName} 브랜드 검색 분석 완료 (종합 점수: ${overallScore}/100)`;
+    errors.push(`리포트: ${msg}`);
+    const { grade, label } = getGrade(overallScore);
+    summary = `${businessName} 브랜드 검색 분석 완료 (종합 점수: ${overallScore}/100, ${grade}등급 · ${label})`;
     reportContent = `보고서 생성 실패: ${msg}`;
   }
 
@@ -137,9 +151,10 @@ export async function analyzeBrand(params: {
     googleResult,
     reportContent,
     summary,
-    naverScore: naverResult.score,
-    googleScore: googleResult.score,
+    naverScore,
+    googleScore,
     overallScore,
+    analysisStatus,
     errors,
   };
 }

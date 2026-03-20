@@ -46,6 +46,7 @@ const STATUS_TABS = [
   { value: "analyzing", label: "분석중" },
   { value: "draft", label: "검토대기" },
   { value: "sent", label: "발송완료" },
+  { value: "failed", label: "분석실패" },
   { value: "discarded", label: "폐기" },
 ];
 
@@ -88,6 +89,12 @@ function getStatusBadge(status: string) {
       return (
         <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0">
           발송완료
+        </Badge>
+      );
+    case "failed":
+      return (
+        <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-0">
+          분석실패
         </Badge>
       );
     case "discarded":
@@ -154,11 +161,18 @@ export default function BrandReportsPage() {
     setError("");
     try {
       const res = await fetch("/api/brand-reports");
-      if (!res.ok) throw new Error("조회 실패");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `서버 오류 (${res.status})`);
+      }
       const data = await res.json();
       setReports(data.reports || []);
-    } catch {
-      setError("브랜드 리포트 데이터를 불러오지 못했습니다.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `브랜드 리포트 데이터를 불러오지 못했습니다: ${err.message}`
+          : "브랜드 리포트 데이터를 불러오지 못했습니다.",
+      );
     } finally {
       setLoading(false);
     }
@@ -183,6 +197,7 @@ export default function BrandReportsPage() {
     pending: reports.filter((r) => r.status === "pending").length,
     draft: reports.filter((r) => r.status === "draft").length,
     sent: reports.filter((r) => r.status === "sent").length,
+    failed: reports.filter((r) => r.status === "failed").length,
     discarded: reports.filter((r) => r.status === "discarded").length,
   };
 
@@ -211,7 +226,7 @@ export default function BrandReportsPage() {
       </div>
 
       {/* 통계 카드 */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">분석 대기</CardTitle>
@@ -246,6 +261,18 @@ export default function BrandReportsPage() {
               {stats.sent}
             </div>
             <p className="text-xs text-muted-foreground">고객에게 발송됨</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">분석 실패</CardTitle>
+            <BarChart3 className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.failed}
+            </div>
+            <p className="text-xs text-muted-foreground">재분석 필요</p>
           </CardContent>
         </Card>
         <Card>
