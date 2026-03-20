@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { NaverSearchResult } from "./naver";
 import type { GoogleSearchResult } from "./google";
 import type { AISearchResult } from "./ai-search";
+import type { LocalKeywordSearchResult } from "./local-keywords";
 
 interface ReportInput {
   businessName: string;
@@ -9,6 +10,7 @@ interface ReportInput {
   naverResult: NaverSearchResult | null;
   googleResult: GoogleSearchResult | null;
   aiResult: AISearchResult | null;
+  localKeywordResult: LocalKeywordSearchResult | null;
   overallScore: number;
 }
 
@@ -45,6 +47,7 @@ function buildPrompt(params: ReportInput): string {
     naverResult,
     googleResult,
     aiResult,
+    localKeywordResult,
     overallScore,
   } = params;
 
@@ -148,6 +151,18 @@ ${googleSection}
 ### AI 검색 출력 결과
 ${aiSection}
 
+### 지역 키워드 검색 노출 현황
+${
+  localKeywordResult && localKeywordResult.keywords.length > 0
+    ? localKeywordResult.keywords
+        .map(
+          (k) =>
+            `- "${k.keyword}": ${k.found ? `${k.position}위에 노출` : "상위 10위 내 미노출"}`,
+        )
+        .join("\n") + `\n- 지역 키워드 점수: ${localKeywordResult.score}/100`
+    : "지역 키워드 검색 데이터를 가져오지 못했습니다."
+}
+
 ---
 
 위 데이터를 기반으로 다음 구조로 진단 보고서를 작성하세요.
@@ -178,6 +193,10 @@ ${aiSection}
 | 항목 | 상태 | 수치 | 비고 |
 |------|------|------|------|
 (모든 진단 항목을 표로 정리. 네이버·구글 각 세부 항목 포함)
+
+## 📍 지역 키워드 검색 노출 현황
+잠재 고객이 실제로 검색할 지역+업종 키워드로 네이버 블로그 검색 시 업체가 노출되는지 확인.
+각 키워드별 노출 여부와 순위를 정리.
 
 ## 🤖 AI 검색 출력 결과
 각 AI(Gemini, ChatGPT, Claude 중 체크된 항목)에 '${businessName}'를 질문한 결과를 정리.

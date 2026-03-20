@@ -1,12 +1,17 @@
 import { searchNaver, type NaverSearchResult } from "./naver";
 import { searchGoogle, type GoogleSearchResult } from "./google";
 import { searchAI, type AISearchResult } from "./ai-search";
+import {
+  searchLocalKeywords,
+  type LocalKeywordSearchResult,
+} from "./local-keywords";
 import { generateReport, getGrade } from "./report-generator";
 import { generateReportHTML, type ReportHTMLInput } from "./report-html";
 
 export type { NaverSearchResult } from "./naver";
 export type { GoogleSearchResult } from "./google";
 export type { AISearchResult } from "./ai-search";
+export type { LocalKeywordSearchResult } from "./local-keywords";
 export { getGrade } from "./report-generator";
 export { generateReportHTML, type ReportHTMLInput } from "./report-html";
 
@@ -45,6 +50,7 @@ export interface BrandAnalysisResult {
   naverResult: NaverSearchResult | null;
   googleResult: GoogleSearchResult | null;
   aiResult: AISearchResult | null;
+  localKeywordResult: LocalKeywordSearchResult | null;
 
   // Report
   reportContent: string;
@@ -71,12 +77,14 @@ export async function analyzeBrand(params: {
   const analyzedAt = new Date().toISOString();
   const errors: string[] = [];
 
-  // Step 1: Run Naver, Google, and AI searches in parallel
-  const [naverSettled, googleSettled, aiSettled] = await Promise.allSettled([
-    searchNaver(businessName, industry),
-    searchGoogle(businessName, industry),
-    searchAI(businessName, industry),
-  ]);
+  // Step 1: Run Naver, Google, AI, and local keyword searches in parallel
+  const [naverSettled, googleSettled, aiSettled, localKwSettled] =
+    await Promise.allSettled([
+      searchNaver(businessName, industry),
+      searchGoogle(businessName, industry),
+      searchAI(businessName, industry),
+      searchLocalKeywords(businessName, industry),
+    ]);
 
   let naverResult: NaverSearchResult | null = null;
   let googleResult: GoogleSearchResult | null = null;
@@ -116,6 +124,17 @@ export async function analyzeBrand(params: {
     errors.push(`AI 검색: ${msg}`);
   }
 
+  let localKeywordResult: LocalKeywordSearchResult | null = null;
+  if (localKwSettled.status === "fulfilled") {
+    localKeywordResult = localKwSettled.value;
+  } else {
+    const msg =
+      localKwSettled.reason instanceof Error
+        ? localKwSettled.reason.message
+        : "Local keyword search failed";
+    errors.push(`지역 키워드: ${msg}`);
+  }
+
   // Step 2: Determine overall score and status based on available data
   const weights = getIndustryWeights(industry);
   let overallScore: number;
@@ -150,6 +169,7 @@ export async function analyzeBrand(params: {
       naverResult,
       googleResult,
       aiResult,
+      localKeywordResult,
       overallScore,
     });
     reportContent = reportResult.reportContent;
@@ -176,6 +196,7 @@ export async function analyzeBrand(params: {
     naverResult,
     googleResult,
     aiResult,
+    localKeywordResult,
     naverScore,
     googleScore,
     overallScore,
@@ -189,6 +210,7 @@ export async function analyzeBrand(params: {
     naverResult,
     googleResult,
     aiResult,
+    localKeywordResult,
     reportContent,
     reportHTML,
     summary,

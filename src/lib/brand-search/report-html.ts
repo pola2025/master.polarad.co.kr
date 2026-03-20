@@ -6,6 +6,7 @@
 import type { NaverSearchResult } from "./naver";
 import type { GoogleSearchResult } from "./google";
 import type { AISearchResult } from "./ai-search";
+import type { LocalKeywordSearchResult } from "./local-keywords";
 import { getGrade } from "./report-generator";
 
 export interface ReportHTMLInput {
@@ -18,6 +19,7 @@ export interface ReportHTMLInput {
   naverResult: NaverSearchResult | null;
   googleResult: GoogleSearchResult | null;
   aiResult: AISearchResult | null;
+  localKeywordResult: LocalKeywordSearchResult | null;
 
   naverScore: number | null;
   googleScore: number | null;
@@ -448,6 +450,31 @@ function renderProjection(d: ReportHTMLInput): string {
 </div>`;
 }
 
+function renderLocalKeywords(d: ReportHTMLInput): string {
+  if (!d.localKeywordResult || d.localKeywordResult.keywords.length === 0)
+    return "";
+  const kws = d.localKeywordResult.keywords;
+
+  const rows = kws
+    .map((k) => {
+      const color = k.found ? (k.position! <= 3 ? "good" : "warn") : "bad";
+      const posText = k.found ? `${k.position}위` : "미노출";
+      return `<div class="hbar-row">
+  <div class="hbar-name">${k.keyword}</div>
+  <div class="hbar-track"><div class="hbar-fill ${color === "good" ? "hi" : color === "warn" ? "mid" : "lo"}" style="width:${k.found ? Math.max(100 - (k.position! - 1) * 10, 20) : 8}%">${posText}</div></div>
+  <div class="hbar-val">${k.found ? `<span style="color:var(--green)">${k.position}위</span>` : `<span style="color:var(--red)">-</span>`}</div>
+</div>`;
+    })
+    .join("\n");
+
+  const foundCount = kws.filter((k) => k.found).length;
+
+  return `<div class="sec">
+  <div class="sec-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="sec-title">지역 키워드 검색 노출</span><span class="sec-sub">${foundCount}/${kws.length}개 노출</span></div>
+  <div class="hbar">${rows}</div>
+</div>`;
+}
+
 function renderAIResults(d: ReportHTMLInput): string {
   if (!d.aiResult || d.aiResult.models.length === 0) return "";
 
@@ -645,6 +672,8 @@ export function generateReportHTML(data: ReportHTMLInput): string {
     `<hr class="divider"/>`,
     renderGoogleBreakdown(data),
     `<hr class="divider"/>`,
+    renderLocalKeywords(data),
+    renderLocalKeywords(data).length > 0 ? `<hr class="divider"/>` : "",
     renderImprovements(data),
     `<hr class="divider"/>`,
     renderProjection(data),
