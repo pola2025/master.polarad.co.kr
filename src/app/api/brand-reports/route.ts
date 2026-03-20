@@ -9,8 +9,6 @@ export async function GET() {
   try {
     const records = await listRecords({
       maxRecords: 100,
-      sortField: "createdTime",
-      sortDirection: "desc",
     });
     const reports = records.map(normalizeRecord);
     return NextResponse.json({ reports });

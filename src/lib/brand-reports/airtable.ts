@@ -175,8 +175,10 @@ export async function listRecords(
   do {
     const url = new URL(tableUrl());
     url.searchParams.set("pageSize", "100");
-    url.searchParams.set("sort[0][field]", sortField);
-    url.searchParams.set("sort[0][direction]", sortDirection);
+    if (sortField && sortField !== "createdTime") {
+      url.searchParams.set("sort[0][field]", sortField);
+      url.searchParams.set("sort[0][direction]", sortDirection);
+    }
     if (filterByFormula) {
       url.searchParams.set("filterByFormula", filterByFormula);
     }
