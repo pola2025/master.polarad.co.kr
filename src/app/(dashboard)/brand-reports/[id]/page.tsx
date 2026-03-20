@@ -54,8 +54,8 @@ interface BrandReport {
   status: string;
   summary: string;
   reportContent: string;
-  naverRawData: string | null;
-  googleRawData: string | null;
+  naverSearchData: Record<string, unknown> | null;
+  googleSearchData: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string | null;
   sentAt: string | null;
@@ -739,18 +739,8 @@ export default function BrandReportDetailPage({
           {!naverCollapsed && (
             <CardContent className="pt-0">
               <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap break-all">
-                {report.naverRawData
-                  ? (() => {
-                      try {
-                        return JSON.stringify(
-                          JSON.parse(report.naverRawData),
-                          null,
-                          2,
-                        );
-                      } catch {
-                        return report.naverRawData;
-                      }
-                    })()
+                {report.naverSearchData
+                  ? JSON.stringify(report.naverSearchData, null, 2)
                   : "데이터 없음"}
               </pre>
             </CardContent>
@@ -774,18 +764,8 @@ export default function BrandReportDetailPage({
           {!googleCollapsed && (
             <CardContent className="pt-0">
               <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap break-all">
-                {report.googleRawData
-                  ? (() => {
-                      try {
-                        return JSON.stringify(
-                          JSON.parse(report.googleRawData),
-                          null,
-                          2,
-                        );
-                      } catch {
-                        return report.googleRawData;
-                      }
-                    })()
+                {report.googleSearchData
+                  ? JSON.stringify(report.googleSearchData, null, 2)
                   : "데이터 없음"}
               </pre>
             </CardContent>
