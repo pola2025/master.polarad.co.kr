@@ -32,7 +32,12 @@ function getScoreLabel(score: number): string {
 }
 
 function markdownToHtml(md: string): string {
-  return md
+  // Escape raw HTML entities before applying markdown transformations
+  const escaped = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return escaped
     .split("\n")
     .map((line) => {
       const trimmed = line.trim();

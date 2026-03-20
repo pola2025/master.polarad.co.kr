@@ -1,5 +1,12 @@
 const NAVER_BASE_URL = "https://openapi.naver.com";
 
+function normalizeBusinessName(name: string): string {
+  return name
+    .replace(/\(주\)|주식회사|㈜|Inc\.|LLC|Ltd\./gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export interface NaverItem {
   title: string;
   link: string;
@@ -209,12 +216,13 @@ function calculateScore(
 export async function searchNaver(
   businessName: string,
 ): Promise<NaverSearchResult> {
+  const normalizedName = normalizeBusinessName(businessName);
   const results = await Promise.allSettled([
-    callNaverApi("/v1/search/webkr.json", businessName),
-    callNaverApi("/v1/search/blog.json", businessName),
-    callNaverApi("/v1/search/cafearticle.json", businessName),
-    callNaverApi("/v1/search/news.json", businessName),
-    callNaverApi("/v1/search/local.json", businessName),
+    callNaverApi("/v1/search/webkr.json", normalizedName),
+    callNaverApi("/v1/search/blog.json", normalizedName),
+    callNaverApi("/v1/search/cafearticle.json", normalizedName),
+    callNaverApi("/v1/search/news.json", normalizedName),
+    callNaverApi("/v1/search/local.json", normalizedName),
   ]);
 
   const [webRaw, blogRaw, cafeRaw, newsRaw, localRaw] = results;
@@ -251,7 +259,7 @@ export async function searchNaver(
     newsResults,
     localResults,
     totalCounts,
-    businessName,
+    normalizedName,
   );
 
   return {

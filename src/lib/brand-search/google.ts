@@ -6,6 +6,9 @@ export interface GoogleSearchResult {
   hasGoogleBusiness: boolean;
   hasReviews: boolean;
   hasImageResults: boolean;
+  reviewCount: number;
+  avgRating: number;
+  businessCompleteness: number;
   details: string;
   score: number;
   scoreBreakdown: {
@@ -23,6 +26,9 @@ interface GeminiGroundedResponse {
   hasGoogleBusiness: boolean;
   hasReviews: boolean;
   hasImageResults: boolean;
+  reviewCount: number;
+  avgRating: number;
+  businessCompleteness: number;
   details: string;
 }
 
@@ -30,20 +36,37 @@ function calculateGoogleScore(data: GeminiGroundedResponse): {
   score: number;
   scoreBreakdown: GoogleSearchResult["scoreBreakdown"];
 } {
-  // Google indexed: 30pts
+  // Google indexed: 30pts (binary)
   const indexed = data.isIndexed ? 30 : 0;
 
-  // Official site in top 5: 25pts
-  const topRank =
-    data.topRankPosition !== null && data.topRankPosition <= 5 ? 25 : 0;
+  // Official site rank: gradient by position
+  let topRank = 0;
+  if (data.topRankPosition !== null) {
+    if (data.topRankPosition === 1) topRank = 25;
+    else if (data.topRankPosition === 2) topRank = 22;
+    else if (data.topRankPosition === 3) topRank = 20;
+    else if (data.topRankPosition <= 5) topRank = 15;
+    else if (data.topRankPosition <= 10) topRank = 10;
+    else topRank = 5;
+  }
 
-  // Google Business Profile: 20pts
-  const googleBusiness = data.hasGoogleBusiness ? 20 : 0;
+  // Google Business Profile: weighted by completeness (0-1 scale)
+  const completeness = Math.max(0, Math.min(1, data.businessCompleteness ?? 0));
+  const googleBusiness = data.hasGoogleBusiness
+    ? Math.round(20 * (completeness > 0 ? completeness : 1))
+    : 0;
 
-  // Reviews exist: 15pts
-  const reviews = data.hasReviews ? 15 : 0;
+  // Reviews: log scale weighted by rating
+  const reviewCount = Math.max(0, data.reviewCount ?? 0);
+  const avgRating = Math.max(0, Math.min(5, data.avgRating ?? 0));
+  const reviews = data.hasReviews
+    ? Math.min(
+        15,
+        Math.round(Math.log10(reviewCount + 1) * 5 + (avgRating / 5) * 5),
+      )
+    : 0;
 
-  // Image search presence: 10pts
+  // Image search presence: 10pts (binary)
   const imagePresence = data.hasImageResults ? 10 : 0;
 
   const score = indexed + topRank + googleBusiness + reviews + imagePresence;
@@ -86,6 +109,9 @@ Return ONLY a JSON object with these exact fields (no markdown, no explanation):
   "hasGoogleBusiness": true or false (does the business have a Google Business Profile / Google Maps listing?),
   "hasReviews": true or false (does the business have Google reviews?),
   "hasImageResults": true or false (do image search results show branded images for this business?),
+  "reviewCount": number (approximate total number of Google reviews, 0 if none),
+  "avgRating": number (average Google star rating 0-5, 0 if no reviews),
+  "businessCompleteness": number (Google Business Profile completeness from 0 to 1: 0=missing, 0.5=partial info, 1=fully complete with hours/photos/description),
   "details": "A 2-3 sentence summary of the business's Google presence in Korean"
 }`;
 
@@ -109,6 +135,9 @@ Return ONLY a JSON object with these exact fields (no markdown, no explanation):
       hasGoogleBusiness: parsed.hasGoogleBusiness ?? false,
       hasReviews: parsed.hasReviews ?? false,
       hasImageResults: parsed.hasImageResults ?? false,
+      reviewCount: parsed.reviewCount ?? 0,
+      avgRating: parsed.avgRating ?? 0,
+      businessCompleteness: parsed.businessCompleteness ?? 0,
       details: parsed.details ?? "",
       score,
       scoreBreakdown,
@@ -126,6 +155,9 @@ Return ONLY a JSON object with these exact fields (no markdown, no explanation):
       hasGoogleBusiness: false,
       hasReviews: false,
       hasImageResults: false,
+      reviewCount: 0,
+      avgRating: 0,
+      businessCompleteness: 0,
       details: fallbackDetails,
       score: 0,
       scoreBreakdown: {

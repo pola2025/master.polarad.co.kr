@@ -46,6 +46,14 @@ export async function PATCH(
     const { id } = await params;
     const { reportContent, summary, status } = await request.json();
 
+    const ALLOWED_STATUSES = ["draft", "reviewed", "sent", "discarded"];
+    if (status !== undefined && !ALLOWED_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { error: "유효하지 않은 상태" },
+        { status: 400 },
+      );
+    }
+
     const fields: Record<string, string> = {};
     if (reportContent !== undefined)
       fields[FIELDS.reportContent] = reportContent;

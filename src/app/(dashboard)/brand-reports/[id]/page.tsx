@@ -243,6 +243,12 @@ export default function BrandReportDetailPage({
     fetchReport();
   }, [id]);
 
+  useEffect(() => {
+    if (report?.status !== "analyzing") return;
+    const interval = setInterval(() => fetchReport(), 5000);
+    return () => clearInterval(interval);
+  }, [report?.status]);
+
   async function handleSave() {
     if (!report) return;
     setSaving(true);
@@ -471,7 +477,8 @@ export default function BrandReportDetailPage({
           <Play className="h-4 w-4 text-orange-600" />
           <AlertDescription className="flex items-center justify-between">
             <span className="text-orange-800">
-              분석 대기 중입니다. 분석을 시작하면 네이버·구글 검색 데이터를 수집하고 리포트를 생성합니다.
+              분석 대기 중입니다. 분석을 시작하면 네이버·구글 검색 데이터를
+              수집하고 리포트를 생성합니다.
             </span>
             <Button
               size="sm"
@@ -496,9 +503,12 @@ export default function BrandReportDetailPage({
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertDescription className="flex items-center justify-between">
             <span className="text-red-800">
-              분석에 실패했습니다. 재분석을 실행하거나 업체명·업종 정보를 확인하세요.
+              분석에 실패했습니다. 재분석을 실행하거나 업체명·업종 정보를
+              확인하세요.
               {report.summary && (
-                <span className="block mt-1 text-xs text-red-600">{report.summary}</span>
+                <span className="block mt-1 text-xs text-red-600">
+                  {report.summary}
+                </span>
               )}
             </span>
             <Button

@@ -30,7 +30,11 @@ export async function POST(request: NextRequest) {
       mode, // "pending" = 분석대기만, "analyze" = 즉시 분석 (기본)
     } = await request.json();
 
-    if (!businessName || typeof businessName !== "string" || businessName.length > 200) {
+    if (
+      !businessName ||
+      typeof businessName !== "string" ||
+      businessName.length > 200
+    ) {
       return NextResponse.json(
         { error: "유효하지 않은 업체명" },
         { status: 400 },
@@ -97,9 +101,6 @@ export async function POST(request: NextRequest) {
         [FIELDS.status]: "failed",
         [FIELDS.summary]: `분석 중 오류: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
         [FIELDS.reportContent]: "",
-        [FIELDS.naverScore]: 0,
-        [FIELDS.googleScore]: 0,
-        [FIELDS.overallScore]: 0,
       };
     }
 
