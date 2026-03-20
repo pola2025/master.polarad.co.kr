@@ -65,9 +65,8 @@ export async function POST(
         [FIELDS.overallScore]: result.overallScore,
         [FIELDS.naverSearchData]: JSON.stringify(result.naverResult ?? {}),
         [FIELDS.googleSearchData]: JSON.stringify(result.googleResult ?? {}),
-        // aiSearchData와 reportHTML은 Airtable 필드 생성 후 활성화
-        // [FIELDS.aiSearchData]: JSON.stringify(result.aiResult ?? {}),
-        // [FIELDS.reportHTML]: result.reportHTML ?? "",
+        [FIELDS.aiSearchData]: JSON.stringify(result.aiResult ?? {}),
+        [FIELDS.reportHTML]: result.reportHTML ?? "",
       };
     } catch (analysisError) {
       console.error("브랜드 재분석 실패:", analysisError);

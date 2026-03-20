@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       updateFields = {
         [FIELDS.status]: "draft",
         [FIELDS.reportContent]: result.reportContent ?? "",
-        // [FIELDS.reportHTML]: result.reportHTML ?? "",
+        [FIELDS.reportHTML]: result.reportHTML ?? "",
         [FIELDS.summary]: result.summary ?? "",
         ...(result.naverScore !== null && {
           [FIELDS.naverScore]: result.naverScore,
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         [FIELDS.overallScore]: result.overallScore,
         [FIELDS.naverSearchData]: JSON.stringify(result.naverResult ?? {}),
         [FIELDS.googleSearchData]: JSON.stringify(result.googleResult ?? {}),
-        // [FIELDS.aiSearchData]: JSON.stringify(result.aiResult ?? {}),
+        [FIELDS.aiSearchData]: JSON.stringify(result.aiResult ?? {}),
       };
     } catch (analysisError) {
       console.error("브랜드 분석 실패:", analysisError);
