@@ -174,9 +174,9 @@ export async function listRecords(
 
   do {
     const url = new URL(tableUrl());
+    url.searchParams.set("pageSize", "100");
     url.searchParams.set("sort[0][field]", sortField);
     url.searchParams.set("sort[0][direction]", sortDirection);
-    url.searchParams.set("maxRecords", String(maxRecords));
     if (filterByFormula) {
       url.searchParams.set("filterByFormula", filterByFormula);
     }
@@ -198,9 +198,10 @@ export async function listRecords(
     const data = await res.json();
     allRecords.push(...((data.records ?? []) as AirtableRecord[]));
     offset = data.offset as string | undefined;
+    if (allRecords.length >= maxRecords) break;
   } while (offset);
 
-  return allRecords;
+  return allRecords.slice(0, maxRecords);
 }
 
 /**
