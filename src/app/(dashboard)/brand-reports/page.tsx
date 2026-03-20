@@ -347,7 +347,7 @@ export default function BrandReportsPage() {
                     <TableHead>업종</TableHead>
                     <TableHead className="min-w-[140px]">종합점수</TableHead>
                     <TableHead>상태</TableHead>
-                    <TableHead>생성일</TableHead>
+                    <TableHead>접수일</TableHead>
                     <TableHead className="w-[30px]"></TableHead>
                   </TableRow>
                 </TableHeader>
