@@ -69,7 +69,7 @@ async function generateKeywords(
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: "gemini-3.1-flash",
+    model: "gemini-3-flash-preview",
   });
 
   const locationHint = location
