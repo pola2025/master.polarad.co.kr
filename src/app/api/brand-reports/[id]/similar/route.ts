@@ -42,6 +42,12 @@ export async function POST(
       [FIELDS.reportContent]: reportContent,
       [FIELDS.reportHTML]: reportHTML,
       [FIELDS.summary]: `유사상호로 분류됨. '${businessName}' 상호 검색 시 다수의 동일·유사 업체가 검색되어 점수 산출 보류.`,
+      [FIELDS.overallScore]: null,
+      [FIELDS.naverScore]: null,
+      [FIELDS.googleScore]: null,
+      [FIELDS.naverSearchData]: "",
+      [FIELDS.googleSearchData]: "",
+      [FIELDS.aiSearchData]: "",
       analysisType: "similar",
     });
 
