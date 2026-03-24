@@ -233,24 +233,30 @@ function renderChannelStatus(d: ReportHTMLInput): string {
   const nr = d.naverResult;
   const hasPlace = nr ? nr.localResults.length > 0 : false;
   const hasOfficialSite = nr ? nr.scoreBreakdown.officialWebsite > 0 : false;
-  // Blog/Cafe ownership cannot be determined from search data alone
-  // We mark based on whether brand content exists
   const hasBrandContent = nr ? nr.scoreBreakdown.brandContent > 0 : false;
+  const hasBlog = nr ? nr.scoreBreakdown.blogMentions > 0 : false;
 
-  function card(name: string, has: boolean): string {
-    const cls = has ? "ch-card-yes" : "ch-card-no";
+  const channels = [
+    { name: "공식 홈페이지", has: hasOfficialSite },
+    { name: "플레이스", has: hasPlace },
+    { name: "블로그 노출", has: hasBlog },
+    { name: "브랜드 콘텐츠", has: hasBrandContent },
+  ];
+
+  const good = channels.filter((c) => c.has);
+  const bad = channels.filter((c) => !c.has);
+
+  function badge(name: string, has: boolean): string {
+    const cls = has ? "ch-badge-yes" : "ch-badge-no";
     const icon = has ? ICONS.check : ICONS.x;
-    const status = has ? "확인됨" : "미보유";
-    return `<div class="ch-card ${cls}"><div class="ch-icon">${icon}</div><div class="ch-name">${name}</div><div class="ch-status">${status}</div></div>`;
+    return `<span class="ch-badge ${cls}">${icon} ${name}</span>`;
   }
 
   return `<div class="sec">
-  <div class="sec-head">${ICONS.home}<span class="sec-title">네이버 자체 채널 보유 현황</span></div>
-  <div class="ch-grid">
-    ${card("공식 홈페이지", hasOfficialSite)}
-    ${card("플레이스", hasPlace)}
-    ${card("자체 블로그", hasBrandContent)}
-    ${card("브랜드 콘텐츠", hasBrandContent)}
+  <div class="sec-head">${ICONS.home}<span class="sec-title">채널 보유 현황</span></div>
+  <div class="ch-list">
+    ${good.length > 0 ? `<div class="ch-row"><span class="ch-row-label">보유</span><div class="ch-badges">${good.map((c) => badge(c.name, true)).join("")}</div></div>` : ""}
+    ${bad.length > 0 ? `<div class="ch-row"><span class="ch-row-label">미비</span><div class="ch-badges">${bad.map((c) => badge(c.name, false)).join("")}</div></div>` : ""}
   </div>
 </div>`;
 }
@@ -590,21 +596,19 @@ body{font-family:"Pretendard Variable","Pretendard",system-ui,sans-serif;backgro
 .sc-bad .sc-num{color:var(--red)}.sc-warn .sc-num{color:var(--amber)}.sc-good .sc-num{color:var(--green)}
 .sc-max{font-size:16px;font-weight:500;color:var(--ink4)}
 .sc-detail{font-size:13px;color:var(--ink3);margin-top:8px;font-weight:500}
-.sc-badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:5px;margin-top:10px}
+.sc-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:8px}
 .sc-bad .sc-badge{background:var(--red15);color:var(--red)}
 .sc-warn .sc-badge{background:var(--amber15);color:var(--amber)}
 .sc-good .sc-badge{background:var(--green15);color:var(--green)}
-.ch-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
-.ch-card{padding:24px 16px;border-radius:14px;text-align:center;border:1.5px solid var(--rule);background:var(--white)}
-.ch-card-yes{border-color:var(--green15);background:var(--green08)}
-.ch-card-no{border-color:var(--red15);background:var(--red04)}
-.ch-icon{width:40px;height:40px;margin:0 auto 10px;border-radius:10px;display:flex;align-items:center;justify-content:center}
-.ch-card-yes .ch-icon{background:var(--green15)}.ch-card-no .ch-icon{background:var(--red15)}
-.ch-icon svg{width:20px;height:20px}
-.ch-card-yes .ch-icon svg{color:var(--green)}.ch-card-no .ch-icon svg{color:var(--red)}
-.ch-name{font-size:14px;font-weight:700;color:var(--ink2);margin-bottom:6px}
-.ch-status{font-size:16px;font-weight:800}
-.ch-card-yes .ch-status{color:var(--green)}.ch-card-no .ch-status{color:var(--red)}
+.ch-list{margin-bottom:32px}
+.ch-row{display:flex;align-items:center;gap:12px;padding:10px 0}
+.ch-row+.ch-row{border-top:1px solid var(--rule)}
+.ch-row-label{font-size:13px;font-weight:700;width:36px;flex-shrink:0;color:var(--ink3)}
+.ch-badges{display:flex;flex-wrap:wrap;gap:8px}
+.ch-badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px}
+.ch-badge svg{width:13px;height:13px}
+.ch-badge-yes{background:var(--green08);border:1px solid var(--green15);color:var(--green)}
+.ch-badge-no{background:var(--red04);border:1px solid var(--red15);color:var(--red)}
 .hbar{margin-bottom:12px}
 .hbar-row{display:flex;align-items:center;gap:16px;padding:14px 0}
 .hbar-row+.hbar-row{border-top:1px solid var(--rule)}
