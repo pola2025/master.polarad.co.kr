@@ -105,9 +105,14 @@ function buildHtmlEmail(params: {
                 <p style="font-size:13px;color:#374151;line-height:1.7;margin:0;">${escapeHtml(summary)}</p>
               </div>
 
-              <p style="font-size:14px;color:#374151;margin:0 0 28px;line-height:1.6;">
+              <p style="font-size:14px;color:#374151;margin:0 0 12px;line-height:1.6;">
                 자세한 분석 결과는 <strong>첨부된 리포트 이미지</strong>를 확인해주세요.
               </p>
+              <div style="background-color:#F3F4F6;border-radius:6px;padding:10px 14px;margin-bottom:28px;">
+                <p style="font-size:12px;color:#6B7280;margin:0;line-height:1.5;">
+                  PC에서 첨부파일을 클릭하시면 상세 분석 결과를 확인하실 수 있습니다.
+                </p>
+              </div>
 
               <!-- CTA Button -->
               <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">

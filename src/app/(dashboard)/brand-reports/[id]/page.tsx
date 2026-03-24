@@ -8,6 +8,7 @@ import {
   Send,
   Trash2,
   RefreshCw,
+  Eye,
   Save,
   Mail,
   Phone,
@@ -229,6 +230,9 @@ export default function BrandReportDetailPage({
   const [regenerating, setRegenerating] = useState(false);
   const [startingAnalysis, setStartingAnalysis] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
+  const [previewStep, setPreviewStep] = useState<"preview" | "confirm">(
+    "preview",
+  );
 
   async function fetchReport() {
     setLoading(true);
@@ -422,15 +426,18 @@ export default function BrandReportDetailPage({
             <Button
               size="sm"
               className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => setShowSendDialog(true)}
+              onClick={() => {
+                setPreviewStep("preview");
+                setShowSendDialog(true);
+              }}
               disabled={sending}
             >
               {sending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
-                <Send className="h-4 w-4 mr-2" />
+                <Eye className="h-4 w-4 mr-2" />
               )}
-              발송
+              미리보기 · 발송
             </Button>
           )}
 
@@ -536,42 +543,79 @@ export default function BrandReportDetailPage({
         </Alert>
       )}
 
-      {/* 발송 확인 다이얼로그 */}
+      {/* 발송 미리보기 · 확인 다이얼로그 */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>리포트 발송 확인</DialogTitle>
+            <DialogTitle>
+              {previewStep === "preview" ? "리포트 미리보기" : "발송 확인"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              아래 이메일로 브랜드 분석 리포트를 발송합니다.
-            </p>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{report.contactEmail}</span>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowSendDialog(false)}
+
+          {previewStep === "preview" ? (
+            <div className="flex-1 min-h-0 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                수신자에게 아래와 같은 리포트가 첨부파일로 발송됩니다.
+              </p>
+              <div
+                className="border rounded-lg overflow-hidden flex-1"
+                style={{ height: "60vh" }}
               >
-                취소
-              </Button>
-              <Button
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                onClick={handleSend}
-                disabled={sending}
-              >
-                {sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
+                <iframe
+                  src={`/api/brand-reports/${id}/preview`}
+                  className="w-full h-full border-0"
+                  title="리포트 미리보기"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowSendDialog(false)}
+                >
+                  닫기
+                </Button>
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => setPreviewStep("confirm")}
+                >
                   <Send className="h-4 w-4 mr-2" />
-                )}
-                발송
-              </Button>
+                  발송하기
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4 pt-2">
+              <p className="text-sm text-muted-foreground">
+                아래 이메일로 리포트를 발송합니다.
+              </p>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{report.contactEmail}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setPreviewStep("preview")}
+                >
+                  돌아가기
+                </Button>
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleSend}
+                  disabled={sending}
+                >
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  발송 확인
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
