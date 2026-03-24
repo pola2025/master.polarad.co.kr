@@ -436,6 +436,23 @@ function renderImprovements(d: ReportHTMLInput): string {
 </div>`;
 }
 
+function renderDisclaimer(d: ReportHTMLInput): string {
+  // 네이버 웹검색 top 결과에서 공식 사이트 추출
+  const nr = d.naverResult;
+  const topWeb = nr?.webResults?.[0];
+  const officialUrl = topWeb?.link || "";
+  const officialTitle = topWeb ? stripHtml(topWeb.title) : "";
+
+  const websiteHtml = officialUrl
+    ? `<p style="font-size:13px;color:var(--ink3);margin-bottom:8px"><strong>검색된 공식 웹사이트:</strong> <a href="${officialUrl}" target="_blank" rel="noopener" style="color:var(--c);text-decoration:underline">${officialTitle || officialUrl}</a></p>`
+    : `<p style="font-size:13px;color:var(--ink4);margin-bottom:8px">공식 웹사이트가 검색되지 않았습니다.</p>`;
+
+  return `<div style="margin:36px 48px 0;padding:20px 24px;background:var(--bg);border:1px solid var(--rule);border-radius:10px">
+  ${websiteHtml}
+  <p style="font-size:12px;color:var(--ink4);line-height:1.7;margin:0">※ 본 리포트는 상호명 기반 자동 검색 분석 결과입니다. 동일·유사 상호의 다른 업체 정보가 포함되었을 수 있으며, 위 웹사이트가 귀사의 공식 사이트가 아닌 경우 분석 결과의 신뢰도가 낮을 수 있습니다. 참고 자료로만 활용해주세요.</p>
+</div>`;
+}
+
 function renderProjection(d: ReportHTMLInput): string {
   const now = d.overallScore;
   const mid = Math.min(100, now + 20);
@@ -684,8 +701,8 @@ export function generateReportHTML(data: ReportHTMLInput): string {
     renderAIResults(data).length > 0
       ? `<hr class="divider"/>${renderAIResults(data)}`
       : "",
-    // Disclaimer
-    `<div style="margin:36px 48px 0;padding:16px 24px;background:var(--bg);border:1px solid var(--rule);border-radius:10px;text-align:center"><p style="font-size:13px;color:var(--ink4);line-height:1.6">※ 본 분석은 상호명만으로 자동 분석되어 실제와 다를 수 있습니다. 참고용으로 활용해주세요.</p></div>`,
+    // 검색된 공식 웹사이트 + Disclaimer
+    renderDisclaimer(data),
     // Footer
     `<footer class="foot"><div class="foot-brand">POLARAD</div><div class="foot-info">Brand Presence Diagnostic · polarad.co.kr · 010-9897-9834</div></footer>`,
   ].filter(Boolean);
