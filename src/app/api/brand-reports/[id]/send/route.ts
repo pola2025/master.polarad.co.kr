@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateBrandReportPDF } from "@/lib/brand-report-pdf";
 import { sendBrandReportEmail } from "@/lib/brand-report-email";
 import {
   getRecord,
@@ -23,7 +22,6 @@ export async function POST(
       return NextResponse.json({ error: "유효하지 않은 ID" }, { status: 400 });
     }
 
-    // 1. Fetch the report record
     const raw = await getRecord(id);
     const report = normalizeRecord(raw);
 
@@ -41,19 +39,7 @@ export async function POST(
       );
     }
 
-    // 2. Generate PDF buffer
-    const pdfBuffer = await generateBrandReportPDF({
-      businessName: report.businessName,
-      industry: report.industry,
-      reportContent: report.reportContent,
-      summary: report.summary,
-      naverScore: report.naverScore ?? 0,
-      googleScore: report.googleScore ?? 0,
-      overallScore: report.overallScore ?? 0,
-      analyzedAt: report.sentAt ?? new Date().toISOString(),
-    });
-
-    // 3. Send email with PDF attachment — check return value
+    // 이메일 발송 (리포트 링크 포함, 첨부파일 없음)
     const emailSent = await sendBrandReportEmail({
       to: report.contactEmail,
       businessName: report.businessName,
@@ -61,7 +47,7 @@ export async function POST(
       naverScore: report.naverScore ?? 0,
       googleScore: report.googleScore ?? 0,
       summary: report.summary,
-      pdfBuffer,
+      reportId: id,
     });
 
     if (!emailSent) {
@@ -71,7 +57,6 @@ export async function POST(
       );
     }
 
-    // 4. Update Airtable: status "sent", sentAt — throw on failure
     await updateRecord(id, {
       [FIELDS.status]: "sent",
       [FIELDS.sentAt]: new Date().toISOString(),

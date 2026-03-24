@@ -10,6 +10,8 @@ import {
   RefreshCw,
   Eye,
   Save,
+  ChevronDown,
+  ChevronUp,
   Mail,
   Phone,
   Building,
@@ -221,7 +223,9 @@ export default function BrandReportDetailPage({
   const [report, setReport] = useState<BrandReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [editMode, setEditMode] = useState<"edit" | "preview">("preview");
+  const [editMode, setEditMode] = useState<"edit" | "preview" | "hidden">(
+    "hidden",
+  );
   const [content, setContent] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -230,9 +234,6 @@ export default function BrandReportDetailPage({
   const [regenerating, setRegenerating] = useState(false);
   const [startingAnalysis, setStartingAnalysis] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
-  const [previewStep, setPreviewStep] = useState<"preview" | "confirm">(
-    "preview",
-  );
 
   async function fetchReport() {
     setLoading(true);
@@ -423,22 +424,31 @@ export default function BrandReportDetailPage({
           </Button>
 
           {canSend && (
-            <Button
-              size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => {
-                setPreviewStep("preview");
-                setShowSendDialog(true);
-              }}
-              disabled={sending}
-            >
-              {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  window.open(`/api/brand-reports/${id}/preview`, "_blank")
+                }
+              >
                 <Eye className="h-4 w-4 mr-2" />
-              )}
-              미리보기 · 발송
-            </Button>
+                미리보기
+              </Button>
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => setShowSendDialog(true)}
+                disabled={sending}
+              >
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Send className="h-4 w-4 mr-2" />
+                )}
+                발송
+              </Button>
+            </>
           )}
 
           <AlertDialog>
@@ -543,79 +553,53 @@ export default function BrandReportDetailPage({
         </Alert>
       )}
 
-      {/* 발송 미리보기 · 확인 다이얼로그 */}
+      {/* 발송 확인 다이얼로그 */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {previewStep === "preview" ? "리포트 미리보기" : "발송 확인"}
-            </DialogTitle>
+            <DialogTitle>리포트 발송 확인</DialogTitle>
           </DialogHeader>
-
-          {previewStep === "preview" ? (
-            <div className="flex-1 min-h-0 space-y-3">
-              <p className="text-xs text-muted-foreground">
-                수신자에게 아래와 같은 리포트가 첨부파일로 발송됩니다.
-              </p>
-              <div
-                className="border rounded-lg overflow-hidden flex-1"
-                style={{ height: "60vh" }}
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              아래 이메일로 리포트(HTML 첨부)를 발송합니다.
+            </p>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{report.contactEmail}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              발송 전 미리보기를 확인하셨나요?{" "}
+              <a
+                href={`/api/brand-reports/${id}/preview`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
               >
-                <iframe
-                  src={`/api/brand-reports/${id}/preview`}
-                  className="w-full h-full border-0"
-                  title="리포트 미리보기"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowSendDialog(false)}
-                >
-                  닫기
-                </Button>
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => setPreviewStep("confirm")}
-                >
+                새 탭에서 미리보기 열기
+              </a>
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowSendDialog(false)}
+              >
+                취소
+              </Button>
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleSend}
+                disabled={sending}
+              >
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
                   <Send className="h-4 w-4 mr-2" />
-                  발송하기
-                </Button>
-              </div>
+                )}
+                발송
+              </Button>
             </div>
-          ) : (
-            <div className="space-y-4 pt-2">
-              <p className="text-sm text-muted-foreground">
-                아래 이메일로 리포트를 발송합니다.
-              </p>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{report.contactEmail}</span>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setPreviewStep("preview")}
-                >
-                  돌아가기
-                </Button>
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                  onClick={handleSend}
-                  disabled={sending}
-                >
-                  {sending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Send className="h-4 w-4 mr-2" />
-                  )}
-                  발송 확인
-                </Button>
-              </div>
-            </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -701,77 +685,11 @@ export default function BrandReportDetailPage({
         </CardContent>
       </Card>
 
-      {/* 리포트 편집기 */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">리포트 내용</CardTitle>
-            <div className="flex gap-1">
-              <Button
-                variant={editMode === "preview" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setEditMode("preview")}
-              >
-                미리보기
-              </Button>
-              <Button
-                variant={editMode === "edit" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setEditMode("edit")}
-              >
-                편집
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {editMode === "edit" ? (
-            <div className="space-y-3">
-              <textarea
-                value={content}
-                onChange={(e) => {
-                  setContent(e.target.value);
-                  setIsDirty(true);
-                }}
-                className="w-full min-h-[400px] resize-y rounded-md border border-input bg-background px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="마크다운 형식으로 리포트 내용을 작성하세요..."
-              />
-              {isDirty && (
-                <div className="flex justify-end">
-                  <Button size="sm" onClick={handleSave} disabled={saving}>
-                    {saving ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    저장
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="min-h-[200px]">
-              {content ? (
-                <SimpleMarkdown content={content} />
-              ) : (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  아직 리포트 내용이 없습니다. 편집 모드에서 작성하거나 재분석을
-                  실행하세요.
-                </p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 검색 분석 상세 */}
+      {/* 구조화 시각화 리포트 */}
       {(report.naverSearchData ||
         report.googleSearchData ||
         report.aiSearchData) && (
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground">
-            수집 분석 데이터
-          </h3>
           <p className="text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/30">
             본 데이터는 상호명 기반으로 공개된 검색 결과를 수집·분석한 것으로,
             수집 시점이나 검색 환경에 따라 실제와 다를 수 있습니다.
@@ -801,6 +719,79 @@ export default function BrandReportDetailPage({
           {report.aiSearchData && <AISearchCards data={report.aiSearchData} />}
         </div>
       )}
+
+      {/* 리포트 원문 (접기/펼치기) */}
+      <Card>
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+          onClick={() =>
+            setEditMode(editMode === "hidden" ? "preview" : "hidden")
+          }
+        >
+          <span>리포트 원문</span>
+          {editMode === "hidden" ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+        {editMode !== "hidden" && (
+          <CardContent className="pt-0">
+            <div className="flex justify-end gap-1 mb-3">
+              <Button
+                variant={editMode === "preview" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setEditMode("preview")}
+              >
+                보기
+              </Button>
+              <Button
+                variant={editMode === "edit" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setEditMode("edit")}
+              >
+                편집
+              </Button>
+            </div>
+            {editMode === "edit" ? (
+              <div className="space-y-3">
+                <textarea
+                  value={content}
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    setIsDirty(true);
+                  }}
+                  className="w-full min-h-[400px] resize-y rounded-md border border-input bg-background px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="마크다운 형식으로 리포트 내용을 작성하세요..."
+                />
+                {isDirty && (
+                  <div className="flex justify-end">
+                    <Button size="sm" onClick={handleSave} disabled={saving}>
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      저장
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="min-h-[100px]">
+                {content ? (
+                  <SimpleMarkdown content={content} />
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    리포트 내용이 없습니다.
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
 
       {/* 타임라인 */}
       <Card>

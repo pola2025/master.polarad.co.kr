@@ -38,13 +38,12 @@ function buildScoreBox(title: string, score: number): string {
   const pct = Math.max(0, Math.min(100, score));
 
   return `
-    <td style="width:33%;padding:0 8px;text-align:center;">
-      <div style="border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
-        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;">${title}</div>
-        <div style="font-size:32px;font-weight:700;color:${color};margin-bottom:4px;">${score}</div>
-        <div style="font-size:11px;color:${color};margin-bottom:10px;">${label}</div>
-        <div style="background:#F3F4F6;border-radius:4px;height:8px;overflow:hidden;">
-          <div style="background:${color};height:8px;width:${pct}%;border-radius:4px;"></div>
+    <td style="width:33%;padding:0 4px;text-align:center;">
+      <div style="border:1px solid #E5E7EB;border-radius:8px;padding:10px 8px;">
+        <div style="font-size:10px;font-weight:700;color:#374151;margin-bottom:4px;white-space:nowrap;">${title}</div>
+        <div style="font-size:22px;font-weight:700;color:${color};margin-bottom:2px;">${score}<span style="font-size:11px;font-weight:400;color:#9CA3AF;">/100</span></div>
+        <div style="background:#F3F4F6;border-radius:3px;height:6px;overflow:hidden;">
+          <div style="background:${color};height:6px;width:${pct}%;border-radius:3px;"></div>
         </div>
       </div>
     </td>
@@ -57,9 +56,16 @@ function buildHtmlEmail(params: {
   naverScore: number;
   googleScore: number;
   summary: string;
+  reportUrl: string;
 }): string {
-  const { businessName, overallScore, naverScore, googleScore, summary } =
-    params;
+  const {
+    businessName,
+    overallScore,
+    naverScore,
+    googleScore,
+    summary,
+    reportUrl,
+  } = params;
 
   return `<!DOCTYPE html>
 <html lang="ko">
@@ -105,22 +111,35 @@ function buildHtmlEmail(params: {
                 <p style="font-size:13px;color:#374151;line-height:1.7;margin:0;">${escapeHtml(summary)}</p>
               </div>
 
-              <p style="font-size:14px;color:#374151;margin:0 0 12px;line-height:1.6;">
-                자세한 분석 결과는 <strong>첨부된 리포트 이미지</strong>를 확인해주세요.
+              <p style="font-size:14px;color:#374151;margin:0 0 20px;line-height:1.6;">
+                아래 버튼을 클릭하시면 상세 분석 리포트를 확인하실 수 있습니다.
               </p>
-              <div style="background-color:#F3F4F6;border-radius:6px;padding:10px 14px;margin-bottom:28px;">
+
+              <!-- 리포트 열람 버튼 -->
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+                <tr>
+                  <td style="border-radius:8px;background-color:#0066CC;">
+                    <a href="${reportUrl}"
+                       style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
+                      상세 리포트 확인하기 &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="background-color:#F3F4F6;border-radius:6px;padding:10px 14px;margin-bottom:20px;">
                 <p style="font-size:12px;color:#6B7280;margin:0;line-height:1.5;">
-                  PC에서 첨부파일을 클릭하시면 상세 분석 결과를 확인하실 수 있습니다.
+                  리포트 열람 시 접수할 때 등록하신 이메일 인증이 필요합니다.
                 </p>
               </div>
 
-              <!-- CTA Button -->
+              <!-- 상담 예약 -->
               <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">
                 <tr>
-                  <td style="border-radius:8px;background-color:#0066CC;">
+                  <td style="border-radius:8px;border:1px solid #0066CC;">
                     <a href="https://polarad.co.kr/contact"
-                       style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
-                      폴라애드 상담 예약 &rarr;
+                       style="display:inline-block;padding:12px 24px;font-size:13px;font-weight:600;color:#0066CC;text-decoration:none;border-radius:8px;">
+                      폴라애드 상담 예약
                     </a>
                   </td>
                 </tr>
@@ -153,7 +172,7 @@ function buildHtmlEmail(params: {
 }
 
 /**
- * Gmail API로 이메일 발송 (첨부파일 포함)
+ * Gmail API로 이메일 발송 (리포트 링크 포함, 첨부파일 없음)
  */
 export async function sendBrandReportEmail(params: {
   to: string;
@@ -162,7 +181,7 @@ export async function sendBrandReportEmail(params: {
   naverScore: number;
   googleScore: number;
   summary: string;
-  pdfBuffer: Buffer;
+  reportId: string;
 }): Promise<boolean> {
   const {
     to,
@@ -171,10 +190,13 @@ export async function sendBrandReportEmail(params: {
     naverScore,
     googleScore,
     summary,
-    pdfBuffer,
+    reportId,
   } = params;
 
   const sanitizedTo = to.replace(/[\r\n]/g, "");
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "https://master.polarad.co.kr";
+  const reportUrl = `${baseUrl}/report/${reportId}`;
 
   const senderEmail = process.env.GMAIL_SENDER_EMAIL || "mkt@polarad.co.kr";
   const subject = `[폴라애드] ${businessName} 브랜드 온라인 검색 평가 리포트`;
@@ -184,33 +206,18 @@ export async function sendBrandReportEmail(params: {
     naverScore,
     googleScore,
     summary,
+    reportUrl,
   });
 
-  const fileName = `브랜드분석리포트_${businessName}.png`;
-  const boundary = "boundary_" + Date.now().toString(36);
-
-  // RFC 2822 형식의 MIME 메시지 생성
   const messageParts = [
     `From: 폴라애드 <${senderEmail}>`,
     `To: ${sanitizedTo}`,
     `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
     "MIME-Version: 1.0",
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    "",
-    `--${boundary}`,
     "Content-Type: text/html; charset=UTF-8",
     "Content-Transfer-Encoding: base64",
     "",
     Buffer.from(html).toString("base64"),
-    "",
-    `--${boundary}`,
-    `Content-Type: image/png; name="=?UTF-8?B?${Buffer.from(fileName).toString("base64")}?="`,
-    "Content-Transfer-Encoding: base64",
-    `Content-Disposition: attachment; filename="=?UTF-8?B?${Buffer.from(fileName).toString("base64")}?="`,
-    "",
-    pdfBuffer.toString("base64"),
-    "",
-    `--${boundary}--`,
   ];
 
   const rawMessage = messageParts.join("\r\n");

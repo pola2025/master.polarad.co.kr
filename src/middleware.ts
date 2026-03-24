@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   "/api/cron/",
   "/api/brand-reports/",
   "/api/analytics/bot-stats",
+  "/report/",
+  "/api/report/",
 ];
 
 // 봇 탐지 패턴 (간소화 버전 - middleware에서 사용)
