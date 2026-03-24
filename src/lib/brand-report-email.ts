@@ -1,23 +1,21 @@
 /**
- * Brand Report Email - Gmail API + OAuth2
- * 환경변수: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER_EMAIL
+ * Brand Report Email - NAVER WORKS SMTP (nodemailer)
+ * 환경변수: SMTP_USER, SMTP_PASS, SMTP_FROM_NAME
  */
 
-import { google } from "googleapis";
+import nodemailer from "nodemailer";
 import { escapeHtml } from "@/lib/html-escape";
 
-function getGmailClient() {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    "https://developers.google.com/oauthplayground",
-  );
-
-  oauth2Client.setCredentials({
-    refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: "smtp.worksmobile.com",
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER || "mkt@polarad.co.kr",
+      pass: process.env.SMTP_PASS!,
+    },
   });
-
-  return google.gmail({ version: "v1", auth: oauth2Client });
 }
 
 function getScoreColor(score: number): string {
@@ -26,15 +24,8 @@ function getScoreColor(score: number): string {
   return "#22C55E";
 }
 
-function getScoreLabel(score: number): string {
-  if (score <= 30) return "개선 필요";
-  if (score <= 60) return "보통";
-  return "양호";
-}
-
 function buildScoreBox(title: string, score: number): string {
   const color = getScoreColor(score);
-  const label = getScoreLabel(score);
   const pct = Math.max(0, Math.min(100, score));
 
   return `
@@ -172,7 +163,7 @@ function buildHtmlEmail(params: {
 }
 
 /**
- * Gmail API로 이메일 발송 (리포트 링크 포함, 첨부파일 없음)
+ * 네이버웍스 SMTP로 이메일 발송 (리포트 링크 포함)
  */
 export async function sendBrandReportEmail(params: {
   to: string;
@@ -194,11 +185,11 @@ export async function sendBrandReportEmail(params: {
   } = params;
 
   const sanitizedTo = to.replace(/[\r\n]/g, "");
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL || "https://master.polarad.co.kr";
+  const baseUrl = process.env.FRONTEND_URL || "https://polarad.co.kr";
   const reportUrl = `${baseUrl}/report/${reportId}`;
 
-  const senderEmail = process.env.GMAIL_SENDER_EMAIL || "mkt@polarad.co.kr";
+  const senderEmail = process.env.SMTP_USER || "mkt@polarad.co.kr";
+  const senderName = process.env.SMTP_FROM_NAME || "폴라애드";
   const subject = `[폴라애드] ${businessName} 브랜드 온라인 검색 평가 리포트`;
   const html = buildHtmlEmail({
     businessName,
@@ -209,38 +200,20 @@ export async function sendBrandReportEmail(params: {
     reportUrl,
   });
 
-  const messageParts = [
-    `From: 폴라애드 <${senderEmail}>`,
-    `To: ${sanitizedTo}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
-    "MIME-Version: 1.0",
-    "Content-Type: text/html; charset=UTF-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    Buffer.from(html).toString("base64"),
-  ];
-
-  const rawMessage = messageParts.join("\r\n");
-  const encodedMessage = Buffer.from(rawMessage)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
   try {
-    const gmail = getGmailClient();
+    const transporter = getTransporter();
 
-    await gmail.users.messages.send({
-      userId: "me",
-      requestBody: {
-        raw: encodedMessage,
-      },
+    await transporter.sendMail({
+      from: `${senderName} <${senderEmail}>`,
+      to: sanitizedTo,
+      subject,
+      html,
     });
 
-    console.log(`[brand-report-email] Email sent to ${sanitizedTo}`);
+    console.log(`[brand-report-email] Email sent to ${sanitizedTo} via SMTP`);
     return true;
   } catch (err) {
-    console.error("[brand-report-email] Gmail API error:", err);
+    console.error("[brand-report-email] SMTP error:", err);
     return false;
   }
 }
