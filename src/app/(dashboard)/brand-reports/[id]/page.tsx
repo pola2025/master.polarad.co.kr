@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  ActionItems,
   ChannelStatusGrid,
   NaverBreakdownChart,
   GoogleBreakdownChart,
@@ -684,6 +685,12 @@ export default function BrandReportDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* 핵심 조치 사항 — 종합점수 바로 아래 */}
+      <ActionItems
+        naverData={report.naverSearchData}
+        googleData={report.googleSearchData}
+      />
 
       {/* 구조화 시각화 리포트 */}
       {(report.naverSearchData ||

@@ -87,7 +87,93 @@ function StatusIcon({ ok }: { ok: boolean }) {
   );
 }
 
-// ─── 1. Channel Status Grid ───
+// ─── 0. Action Items (핵심 조치 사항) ───
+
+export function ActionItems({
+  naverData,
+  googleData,
+}: {
+  naverData: Record<string, unknown> | null;
+  googleData: Record<string, unknown> | null;
+}) {
+  const naver = naverData as unknown as NaverSearchData | null;
+  const google = googleData as unknown as GoogleSearchData | null;
+
+  const actions: { action: string; reason: string }[] = [];
+
+  if (naver?.scoreBreakdown) {
+    if (naver.scoreBreakdown.officialWebsite === 0) {
+      actions.push({
+        action: "공식 홈페이지 개설 및 네이버 서치어드바이저 등록",
+        reason: "네이버 검색에 공식 사이트 미노출",
+      });
+    }
+    if (naver.scoreBreakdown.brandContent === 0) {
+      actions.push({
+        action: "공식 블로그 개설 및 정기 포스팅",
+        reason: "브랜드 자체 콘텐츠 부재",
+      });
+    }
+    if (naver.scoreBreakdown.blogMentions < 15) {
+      actions.push({
+        action: "지역명 키워드 블로그 포스팅 (예: OO동+업종)",
+        reason: "지역 검색 노출 부족",
+      });
+    }
+    if (naver.scoreBreakdown.localRegistration === 0) {
+      actions.push({
+        action: "네이버 플레이스 등록",
+        reason: "지도 검색 미노출",
+      });
+    }
+  }
+
+  if (google) {
+    if (!google.hasGoogleBusiness) {
+      actions.push({
+        action: "구글 비즈니스 프로필 등록",
+        reason: "구글 지도 미등록, 리뷰 수집 불가",
+      });
+    }
+    if (google.topRankPosition === null || google.topRankPosition > 5) {
+      actions.push({
+        action: "구글 SEO 최적화 (사이트맵, 메타태그)",
+        reason: "구글 검색 상위 노출 미비",
+      });
+    }
+  }
+
+  if (actions.length === 0) return null;
+
+  return (
+    <Card className="border-orange-200 bg-orange-50/50">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-orange-800">
+          핵심 조치 사항
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {actions.slice(0, 5).map((item, i) => (
+            <div key={i} className="flex gap-3 items-start">
+              <span className="text-xs font-bold text-orange-600 bg-orange-100 rounded px-1.5 py-0.5 shrink-0">
+                {i + 1}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {item.action}
+                </p>
+                <p className="text-xs text-gray-500">{item.reason}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── 1. Channel Status (보유/미비 분리) ───
 
 export function ChannelStatusGrid({
   data,
@@ -99,48 +185,57 @@ export function ChannelStatusGrid({
   if (!d.scoreBreakdown) return null;
 
   const channels = [
-    {
-      label: "공식 홈페이지",
-      ok: d.scoreBreakdown.officialWebsite > 0,
-    },
-    {
-      label: "플레이스 등록",
-      ok: d.scoreBreakdown.localRegistration > 0,
-    },
-    {
-      label: "블로그 언급",
-      ok: d.scoreBreakdown.blogMentions > 0,
-    },
-    {
-      label: "브랜드 콘텐츠",
-      ok: d.scoreBreakdown.brandContent > 0,
-    },
+    { label: "공식 홈페이지", ok: d.scoreBreakdown.officialWebsite > 0 },
+    { label: "플레이스 등록", ok: d.scoreBreakdown.localRegistration > 0 },
+    { label: "블로그 노출", ok: d.scoreBreakdown.blogMentions > 0 },
+    { label: "브랜드 콘텐츠", ok: d.scoreBreakdown.brandContent > 0 },
   ];
+
+  const good = channels.filter((c) => c.ok);
+  const bad = channels.filter((c) => !c.ok);
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">채널 보유 현황</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {channels.map((ch) => (
-            <div
-              key={ch.label}
-              className="flex items-center gap-2 rounded-lg border p-3"
-            >
-              <StatusIcon ok={ch.ok} />
-              <div>
-                <p className="text-xs font-medium">{ch.label}</p>
-                <p
-                  className={`text-xs ${ch.ok ? "text-green-600" : "text-red-500"}`}
+      <CardContent className="space-y-2">
+        {good.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 w-8 shrink-0">
+              보유
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {good.map((ch) => (
+                <span
+                  key={ch.label}
+                  className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded bg-green-50 text-green-700 border border-green-200"
                 >
-                  {ch.ok ? "확인됨" : "미보유"}
-                </p>
-              </div>
+                  <CheckCircle2 className="h-3 w-3" />
+                  {ch.label}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+        {bad.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 w-8 shrink-0">
+              미비
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {bad.map((ch) => (
+                <span
+                  key={ch.label}
+                  className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded bg-red-50 text-red-600 border border-red-200"
+                >
+                  <XCircle className="h-3 w-3" />
+                  {ch.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
