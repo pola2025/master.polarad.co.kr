@@ -722,3 +722,166 @@ ${sections.join("\n")}
 </body>
 </html>`;
 }
+
+// ─── Similar Name Report ───
+
+export function generateSimilarNameReportHTML(params: {
+  businessName: string;
+  industry: string;
+  contactName?: string;
+  reportNo?: string;
+}): string {
+  const { businessName, industry, contactName, reportNo } = params;
+  const date = new Date()
+    .toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+    .replace(/\. /g, "-")
+    .replace(".", "");
+
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>${businessName} — Brand Presence Diagnostic</title>
+<style>${getCSS()}</style>
+</head>
+<body>
+<div class="rpt">
+
+<!-- Header -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="hdr-mark">${ICONS.logo}<span>POLARAD</span></div>
+    <div class="hdr-meta">${reportNo || "RPT-" + Date.now()}</div>
+  </div>
+  <h1>${businessName}<span class="sub">${industry}${contactName ? ` · ${contactName}` : ""} · 브랜드 검색 평가 리포트 · ${date}</span></h1>
+</header>
+
+<!-- Hero: 판별보류 게이지 -->
+<div class="hero">
+  <div class="gauge">
+    <svg viewBox="0 0 200 200">
+      <circle class="gauge-bg" cx="100" cy="100" r="88"/>
+      <circle class="gauge-bg" cx="100" cy="100" r="88" stroke-dasharray="8 8" style="stroke:var(--ink4);stroke-width:2;fill:none;opacity:.3"/>
+    </svg>
+    <div class="gauge-inner">
+      <div class="gauge-grade" style="color:var(--ink4);font-size:80px">?</div>
+      <div class="gauge-score mono" style="color:var(--ink4)">— / 100</div>
+      <div class="gauge-label">판별 보류</div>
+    </div>
+  </div>
+  <div class="hero-body">
+    <p class="excerpt"><strong>'${businessName}'</strong> 상호명은 동일·유사한 이름의 다른 업체가 다수 존재하여, 검색 결과만으로는 <span class="warn">정확한 브랜드 식별이 어렵습니다.</span></p>
+    <div class="tags">
+      <span class="tag tag-warn">유사상호 다수</span>
+      <span class="tag tag-warn">점수 산출 보류</span>
+      <span class="tag" style="border-color:var(--c25);color:var(--c);background:var(--c04)">추가 정보 필요</span>
+    </div>
+  </div>
+</div>
+
+<!-- Platform scores: N/A -->
+<div class="plat">
+  <div class="plat-box" style="opacity:.5">
+    <div class="plat-label">Naver</div>
+    <div class="plat-num mono" style="color:var(--ink4);font-size:48px">N/A</div>
+    <div class="plat-bar"><div class="plat-fill" style="width:0%"></div></div>
+  </div>
+  <div class="plat-box" style="opacity:.5">
+    <div class="plat-label">Google</div>
+    <div class="plat-num mono" style="color:var(--ink4);font-size:48px">N/A</div>
+    <div class="plat-bar"><div class="plat-fill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- Alert -->
+<div class="alert">
+  ${ICONS.warn}
+  <div class="alert-body">
+    <div class="alert-title">유사 상호 판별</div>
+    <p>'<strong>${businessName}</strong>' 검색 시 동일하거나 유사한 상호를 가진 다른 업체들의 정보가 다수 검색됩니다. 접수된 정보만으로는 귀사의 브랜드를 특정하기 어려워 <strong>객관적인 점수 산출이 불가</strong>합니다.</p>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- 안내 섹션 -->
+<div class="sec">
+  <div class="sec-head">${ICONS.doc}<span class="sec-title">정확한 분석을 위해 필요한 정보</span></div>
+  <p style="font-size:16px;color:var(--ink2);line-height:1.8;margin-bottom:28px">아래 정보를 제공해 주시면, 귀사만을 대상으로 한 정밀 브랜드 검색 분석 리포트를 제작해 드립니다.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px">
+    <div style="padding:24px 24px;background:var(--c04);border:1.5px solid var(--c15);border-radius:14px">
+      <div style="width:28px;height:28px;background:var(--c08);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--c)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+      <p style="font-size:15px;font-weight:700;color:var(--ink);margin:0 0 6px">공식 웹사이트</p>
+      <p style="font-size:13px;color:var(--ink3);line-height:1.6;margin:0">홈페이지 URL을 알려주시면 검색 노출 현황을 정확히 진단합니다.</p>
+    </div>
+    <div style="padding:24px 24px;background:var(--c04);border:1.5px solid var(--c15);border-radius:14px">
+      <div style="width:28px;height:28px;background:var(--c08);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--c)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
+      <p style="font-size:15px;font-weight:700;color:var(--ink);margin:0 0 6px">공식 SNS 계정</p>
+      <p style="font-size:13px;color:var(--ink3);line-height:1.6;margin:0">인스타그램, 블로그, 유튜브 등 운영 중인 채널 정보가 필요합니다.</p>
+    </div>
+    <div style="padding:24px 24px;background:var(--c04);border:1.5px solid var(--c15);border-radius:14px">
+      <div style="width:28px;height:28px;background:var(--c08);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--c)" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+      <p style="font-size:15px;font-weight:700;color:var(--ink);margin:0 0 6px">사업장 주소</p>
+      <p style="font-size:13px;color:var(--ink3);line-height:1.6;margin:0">지역 키워드 검색 노출 현황을 분석하는 데 활용됩니다.</p>
+    </div>
+    <div style="padding:24px 24px;background:var(--c04);border:1.5px solid var(--c15);border-radius:14px">
+      <div style="width:28px;height:28px;background:var(--c08);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--c)" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div>
+      <p style="font-size:15px;font-weight:700;color:var(--ink);margin:0 0 6px">네이버 플레이스</p>
+      <p style="font-size:13px;color:var(--ink3);line-height:1.6;margin:0">플레이스 등록 여부 및 리뷰 현황을 확인하여 지역 검색력을 진단합니다.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- 다음 단계 안내 -->
+<div class="sec">
+  <div class="sec-head">${ICONS.arrow}<span class="sec-title">다음 단계</span></div>
+  <div class="actions">
+    <div class="act">
+      <div class="act-n">1</div>
+      <div class="act-body">
+        <div class="act-t">브랜드 정보 전달</div>
+        <div class="act-d">위 항목 중 가능한 정보를 전화 또는 이메일로 전달해 주세요.</div>
+      </div>
+    </div>
+    <div class="act">
+      <div class="act-n">2</div>
+      <div class="act-body">
+        <div class="act-t">맞춤 분석 진행</div>
+        <div class="act-d">제공된 정보를 기반으로 귀사 브랜드만을 대상으로 한 정밀 분석을 진행합니다.</div>
+      </div>
+    </div>
+    <div class="act">
+      <div class="act-n">3</div>
+      <div class="act-body">
+        <div class="act-t">분석 리포트 발송</div>
+        <div class="act-d">네이버·구글 검색 현황, 채널 보유 현황, 개선 전략이 포함된 리포트를 이메일로 전달합니다.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- CTA -->
+<div style="margin:0 48px;padding:40px 36px;background:var(--ink);border-radius:16px;text-align:center">
+  <p style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin:0 0 16px;font-weight:700">CONTACT US</p>
+  <p style="font-size:32px;color:#fff;font-weight:800;margin:0 0 8px;letter-spacing:-1px">032-345-9834</p>
+  <p style="font-size:15px;color:rgba(255,255,255,0.6);margin:0 0 24px">mkt@polarad.co.kr</p>
+  <a href="https://polarad.co.kr" style="display:inline-block;background:var(--c);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:.5px">폴라애드 홈페이지 방문하기</a>
+</div>
+
+<!-- Footer -->
+<footer class="foot"><div class="foot-brand">POLARAD</div><div class="foot-info">Brand Presence Diagnostic · polarad.co.kr · 010-9897-9834</div></footer>
+
+</div>
+</body>
+</html>`;
+}

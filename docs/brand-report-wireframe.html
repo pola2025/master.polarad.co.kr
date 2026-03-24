@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>브랜드 분석 리포트 - 와이어프레임</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap");
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Noto Sans KR", sans-serif;
+        background: #f5f5f5;
+        color: #111;
+        padding: 24px;
+      }
+      .page {
+        max-width: 800px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+
+      /* 헤더 */
+      .header {
+        background: #0f172a;
+        color: #fff;
+        padding: 32px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .header-left .logo {
+        font-size: 12px;
+        letter-spacing: 3px;
+        color: #94a3b8;
+        margin-bottom: 4px;
+      }
+      .header-left h1 {
+        font-size: 20px;
+        font-weight: 800;
+      }
+      .header-right {
+        text-align: right;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+
+      .body {
+        padding: 24px 32px 32px;
+      }
+
+      /* 종합 점수 */
+      .score-hero {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+        padding: 24px;
+        background: #fafafa;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+      }
+      .gauge {
+        width: 120px;
+        height: 120px;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .gauge svg {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+      }
+      .gauge-bg {
+        fill: none;
+        stroke: #e5e7eb;
+        stroke-width: 8;
+      }
+      .gauge-arc {
+        fill: none;
+        stroke: #ef4444;
+        stroke-width: 8;
+        stroke-linecap: round;
+      }
+      .gauge-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .gauge-grade {
+        font-size: 40px;
+        font-weight: 900;
+        color: #ef4444;
+      }
+      .gauge-score {
+        font-size: 14px;
+        color: #888;
+      }
+      .score-summary {
+        flex: 1;
+      }
+      .score-summary .score-num {
+        font-size: 28px;
+        font-weight: 900;
+        color: #111;
+      }
+      .score-summary .score-num span {
+        font-size: 16px;
+        color: #999;
+        font-weight: 500;
+      }
+      .score-summary .score-desc {
+        font-size: 14px;
+        color: #555;
+        line-height: 1.7;
+        margin-top: 8px;
+      }
+
+      /* 핵심 조치 */
+      .action-box {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 20px;
+      }
+      .action-box h3 {
+        font-size: 14px;
+        font-weight: 800;
+        color: #c2410c;
+        margin-bottom: 12px;
+      }
+      .action-item {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 8px 0;
+      }
+      .action-item + .action-item {
+        border-top: 1px solid #fed7aa;
+      }
+      .action-num {
+        font-size: 11px;
+        font-weight: 800;
+        color: #ea580c;
+        background: #ffedd5;
+        border-radius: 4px;
+        padding: 2px 7px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .action-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+      }
+      .action-reason {
+        font-size: 11px;
+        color: #888;
+        margin-top: 2px;
+      }
+
+      /* 채널 보유 현황 */
+      .channel-section {
+        margin-bottom: 20px;
+      }
+      .channel-section h3 {
+        font-size: 14px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #111;
+      }
+      .channel-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+      }
+      .channel-row + .channel-row {
+        border-top: 1px solid #f0f0f0;
+      }
+      .channel-row-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        width: 32px;
+        flex-shrink: 0;
+      }
+      .badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+      }
+      .badge svg {
+        width: 12px;
+        height: 12px;
+      }
+      .badge-good {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+      }
+      .badge-bad {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+      }
+
+      /* 세부 진단 2열 */
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .detail-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .detail-card h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .detail-card .sub {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 16px;
+      }
+      .bar-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+      }
+      .bar-row + .bar-row {
+        border-top: 1px solid #f5f5f5;
+      }
+      .bar-label {
+        width: 80px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #555;
+        flex-shrink: 0;
+      }
+      .bar-track {
+        flex: 1;
+        height: 20px;
+        background: #f5f5f5;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        min-width: fit-content;
+      }
+      .bar-fill.green {
+        background: #22c55e;
+      }
+      .bar-fill.yellow {
+        background: #eab308;
+      }
+      .bar-fill.red {
+        background: #ef4444;
+      }
+      .bar-val {
+        width: 40px;
+        text-align: right;
+        font-size: 13px;
+        font-weight: 800;
+        color: #333;
+      }
+
+      /* 플랫폼 균형 */
+      .platform-balance {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+      .donut-wrap {
+        width: 120px;
+        height: 120px;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .donut-wrap svg {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+      }
+      .donut-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .donut-big {
+        font-size: 28px;
+        font-weight: 900;
+      }
+      .donut-small {
+        font-size: 11px;
+        color: #888;
+      }
+      .platform-legend {
+        flex: 1;
+      }
+      .leg-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+      }
+      .leg-item + .leg-item {
+        border-top: 1px solid #f0f0f0;
+      }
+      .leg-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+      }
+      .leg-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #555;
+        flex: 1;
+      }
+      .leg-score {
+        font-size: 20px;
+        font-weight: 800;
+      }
+
+      /* AI 인지도 */
+      .ai-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .ai-card h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+      .ai-model {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+      }
+      .ai-model-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .ai-model-name {
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .ai-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .ai-detail {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: #666;
+      }
+      .ai-detail svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      /* 접기 원문 */
+      .collapsible {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 20px;
+      }
+      .collapsible-header {
+        padding: 12px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #888;
+        background: #fafafa;
+        cursor: pointer;
+      }
+
+      /* 면책 */
+      .disclaimer {
+        font-size: 11px;
+        color: #aaa;
+        text-align: center;
+        padding: 16px;
+        border-top: 1px solid #f0f0f0;
+      }
+
+      /* ─── 모바일 ─── */
+      @media (max-width: 640px) {
+        body {
+          padding: 0;
+        }
+        .page {
+          border-radius: 0;
+        }
+
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+          padding: 20px;
+        }
+        .header-right {
+          text-align: left;
+          font-size: 12px;
+        }
+        .header-left h1 {
+          font-size: 17px;
+        }
+
+        .body {
+          padding: 16px;
+        }
+
+        .score-hero {
+          flex-direction: column;
+          gap: 16px;
+          padding: 20px;
+          text-align: center;
+        }
+        .gauge {
+          width: 100px;
+          height: 100px;
+          margin: 0 auto;
+        }
+        .gauge-grade {
+          font-size: 32px;
+        }
+        .gauge-score {
+          font-size: 12px;
+        }
+        .score-summary .score-num {
+          font-size: 22px;
+        }
+        .score-summary .score-desc {
+          font-size: 13px;
+        }
+
+        .action-box {
+          padding: 16px;
+        }
+        .action-box h3 {
+          font-size: 13px;
+        }
+        .action-text {
+          font-size: 12px;
+        }
+        .action-reason {
+          font-size: 10px;
+        }
+
+        .channel-row {
+          flex-wrap: wrap;
+        }
+        .badges {
+          gap: 4px;
+        }
+        .badge {
+          font-size: 10px;
+          padding: 3px 8px;
+        }
+
+        .detail-grid {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .detail-card {
+          padding: 16px;
+        }
+        .bar-label {
+          width: 64px;
+          font-size: 11px;
+        }
+        .bar-val {
+          width: 36px;
+          font-size: 12px;
+        }
+
+        .platform-balance {
+          flex-direction: column;
+          gap: 16px;
+          padding: 20px;
+        }
+        .donut-wrap {
+          width: 100px;
+          height: 100px;
+          margin: 0 auto;
+        }
+        .donut-big {
+          font-size: 22px;
+        }
+        .leg-score {
+          font-size: 16px;
+        }
+
+        .ai-card {
+          padding: 16px;
+        }
+        .ai-model {
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- 헤더 -->
+      <div class="header">
+        <div class="header-left">
+          <div class="logo">POLARAD</div>
+          <h1>브랜드 온라인 검색 평가 리포트</h1>
+        </div>
+        <div class="header-right">
+          토모축구클럽<br />유아체육 · 2026년 3월 24일
+        </div>
+      </div>
+
+      <div class="body">
+        <!-- 종합 점수 -->
+        <div class="score-hero">
+          <div class="gauge">
+            <svg viewBox="0 0 100 100">
+              <circle class="gauge-bg" cx="50" cy="50" r="42" />
+              <circle
+                class="gauge-arc"
+                cx="50"
+                cy="50"
+                r="42"
+                stroke-dasharray="264"
+                stroke-dashoffset="142"
+              />
+            </svg>
+            <div class="gauge-center">
+              <div class="gauge-grade">D</div>
+              <div class="gauge-score">46/100</div>
+            </div>
+          </div>
+          <div class="score-summary">
+            <div class="score-num">46 <span>/ 100점</span></div>
+            <div class="score-desc">
+              구글 검색 1위 노출은 양호하나, 네이버 공식 채널 부재 및 지역
+              키워드 노출 미비로 전반적인 검색 가시성이 낮은 상태.
+            </div>
+          </div>
+        </div>
+
+        <!-- 핵심 조치 사항 -->
+        <div class="action-box">
+          <h3>핵심 조치 사항</h3>
+          <div class="action-item">
+            <span class="action-num">1</span>
+            <div>
+              <div class="action-text">
+                공식 홈페이지 개설 및 네이버 서치어드바이저 등록
+              </div>
+              <div class="action-reason">
+                네이버 검색에 공식 사이트 미노출 (0/20점)
+              </div>
+            </div>
+          </div>
+          <div class="action-item">
+            <span class="action-num">2</span>
+            <div>
+              <div class="action-text">
+                공식 블로그 개설 + 지역 키워드 포스팅
+              </div>
+              <div class="action-reason">
+                브랜드 콘텐츠 부재 (0/15점) · 지역 키워드 "답십리 축구교실" 등
+                미노출
+              </div>
+            </div>
+          </div>
+          <div class="action-item">
+            <span class="action-num">3</span>
+            <div>
+              <div class="action-text">구글 비즈니스 프로필 등록</div>
+              <div class="action-reason">구글 지도 미등록, 리뷰 수집 불가</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 채널 보유 현황 -->
+        <div class="channel-section">
+          <h3>채널 보유 현황</h3>
+          <div class="channel-row">
+            <span class="channel-row-label">보유</span>
+            <div class="badges">
+              <span class="badge badge-good"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" /></svg
+                >구글 검색 1위</span
+              >
+              <span class="badge badge-good"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" /></svg
+                >플레이스 등록</span
+              >
+              <span class="badge badge-good"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" /></svg
+                >블로그 노출</span
+              >
+              <span class="badge badge-good"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" /></svg
+                >이미지 검색</span
+              >
+            </div>
+          </div>
+          <div class="channel-row">
+            <span class="channel-row-label">미비</span>
+            <div class="badges">
+              <span class="badge badge-bad"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" /></svg
+                >공식 홈페이지</span
+              >
+              <span class="badge badge-bad"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" /></svg
+                >브랜드 콘텐츠</span
+              >
+              <span class="badge badge-bad"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" /></svg
+                >구글 비즈니스</span
+              >
+              <span class="badge badge-bad"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" /></svg
+                >구글 리뷰</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- 세부 진단 2열 -->
+        <div class="detail-grid">
+          <div class="detail-card">
+            <h4>네이버 세부 진단</h4>
+            <div class="sub">38 / 100점</div>
+            <div class="bar-row">
+              <span class="bar-label">웹사이트</span>
+              <div class="bar-track">
+                <div class="bar-fill red" style="width: 8%">0</div>
+              </div>
+              <span class="bar-val">0/20</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">블로그</span>
+              <div class="bar-track">
+                <div class="bar-fill yellow" style="width: 50%">10</div>
+              </div>
+              <span class="bar-val">10/20</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">플레이스</span>
+              <div class="bar-track">
+                <div class="bar-fill green" style="width: 75%">15</div>
+              </div>
+              <span class="bar-val">15/20</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">카페</span>
+              <div class="bar-track">
+                <div class="bar-fill green" style="width: 100%">10</div>
+              </div>
+              <span class="bar-val">10/10</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">뉴스</span>
+              <div class="bar-track">
+                <div class="bar-fill red" style="width: 20%">3</div>
+              </div>
+              <span class="bar-val">3/15</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">콘텐츠</span>
+              <div class="bar-track">
+                <div class="bar-fill red" style="width: 8%">0</div>
+              </div>
+              <span class="bar-val">0/15</span>
+            </div>
+          </div>
+
+          <div class="detail-card">
+            <h4>구글 세부 진단</h4>
+            <div class="sub">65 / 100점</div>
+            <div class="bar-row">
+              <span class="bar-label">인덱싱</span>
+              <div class="bar-track">
+                <div class="bar-fill green" style="width: 100%">25</div>
+              </div>
+              <span class="bar-val">25/25</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">검색 순위</span>
+              <div class="bar-track">
+                <div class="bar-fill green" style="width: 100%">25</div>
+              </div>
+              <span class="bar-val">25/25</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">비즈니스</span>
+              <div class="bar-track">
+                <div class="bar-fill red" style="width: 8%">0</div>
+              </div>
+              <span class="bar-val">0/25</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">리뷰</span>
+              <div class="bar-track">
+                <div class="bar-fill red" style="width: 8%">0</div>
+              </div>
+              <span class="bar-val">0/15</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">이미지</span>
+              <div class="bar-track">
+                <div class="bar-fill green" style="width: 100%">10</div>
+              </div>
+              <span class="bar-val">10/10</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 플랫폼 균형 -->
+        <div class="platform-balance">
+          <div class="donut-wrap">
+            <svg viewBox="0 0 100 100">
+              <circle
+                fill="none"
+                stroke="#e5e7eb"
+                stroke-width="12"
+                cx="50"
+                cy="50"
+                r="38"
+              />
+              <circle
+                fill="none"
+                stroke="#22c55e"
+                stroke-width="12"
+                cx="50"
+                cy="50"
+                r="38"
+                stroke-dasharray="239"
+                stroke-dashoffset="151"
+              />
+              <circle
+                fill="none"
+                stroke="#3b82f6"
+                stroke-width="12"
+                cx="50"
+                cy="50"
+                r="38"
+                stroke-dasharray="239"
+                stroke-dashoffset="89"
+                stroke-dashoffset="89"
+                transform="rotate(132 50 50)"
+              />
+            </svg>
+            <div class="donut-center">
+              <div class="donut-big">46</div>
+              <div class="donut-small">종합</div>
+            </div>
+          </div>
+          <div class="platform-legend">
+            <div class="leg-item">
+              <div class="leg-dot" style="background: #22c55e"></div>
+              <span class="leg-label">네이버</span>
+              <span class="leg-score" style="color: #22c55e">38</span>
+            </div>
+            <div class="leg-item">
+              <div class="leg-dot" style="background: #3b82f6"></div>
+              <span class="leg-label">구글</span>
+              <span class="leg-score" style="color: #3b82f6">65</span>
+            </div>
+            <div class="leg-item">
+              <div class="leg-dot" style="background: #e5e7eb"></div>
+              <span class="leg-label">플랫폼 격차</span>
+              <span class="leg-score" style="color: #888">27</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 외부 플랫폼 인지도 -->
+        <div class="ai-card">
+          <h4>외부 플랫폼 인지도 · 100/100</h4>
+          <div class="ai-model">
+            <div class="ai-model-head">
+              <span class="ai-model-name">Gemini</span>
+              <span class="badge badge-good" style="font-size: 10px"
+                >인지됨</span
+              >
+            </div>
+            <div class="ai-detail-grid">
+              <div class="ai-detail">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#22c55e"
+                  stroke-width="2.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                상호명
+              </div>
+              <div class="ai-detail">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#22c55e"
+                  stroke-width="2.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                업종
+              </div>
+              <div class="ai-detail">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#ef4444"
+                  stroke-width="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" />
+                </svg>
+                위치
+              </div>
+              <div class="ai-detail">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#22c55e"
+                  stroke-width="2.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                설명
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 리포트 원문 (접기) -->
+        <div class="collapsible">
+          <div class="collapsible-header">▶ 리포트 원문 (클릭하여 펼치기)</div>
+        </div>
+
+        <!-- 면책 -->
+        <div class="disclaimer">
+          ※ 본 진단은 상호명 기반으로 수집된 공개 데이터를 분석한 결과이며, 수집
+          시점이나 검색 환경에 따라 실제와 다를 수 있습니다.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

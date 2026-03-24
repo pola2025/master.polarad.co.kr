@@ -18,6 +18,7 @@ import {
   Tag,
   Play,
   AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,7 @@ interface BrandReport {
   naverSearchData: Record<string, unknown> | null;
   googleSearchData: Record<string, unknown> | null;
   aiSearchData: Record<string, unknown> | null;
+  analysisType: string | null;
   createdAt: string;
   updatedAt: string | null;
   sentAt: string | null;
@@ -235,6 +237,7 @@ export default function BrandReportDetailPage({
   const [regenerating, setRegenerating] = useState(false);
   const [startingAnalysis, setStartingAnalysis] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
+  const [markingSimilar, setMarkingSimilar] = useState(false);
 
   async function fetchReport() {
     setLoading(true);
@@ -349,6 +352,22 @@ export default function BrandReportDetailPage({
     }
   }
 
+  async function handleSimilarName() {
+    setMarkingSimilar(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/brand-reports/${id}/similar`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error();
+      await fetchReport();
+    } catch {
+      setError("유사상호 처리에 실패했습니다.");
+    } finally {
+      setMarkingSimilar(false);
+    }
+  }
+
   const canSend =
     report &&
     (report.status === "draft" || report.status === "reviewed") &&
@@ -422,6 +441,21 @@ export default function BrandReportDetailPage({
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
             재분석
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSimilarName}
+            disabled={markingSimilar}
+            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            {markingSimilar ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <HelpCircle className="h-4 w-4 mr-2" />
+            )}
+            유사상호
           </Button>
 
           {canSend && (
@@ -665,7 +699,9 @@ export default function BrandReportDetailPage({
       <Card>
         <CardContent className="py-6 flex flex-col items-center gap-3">
           <p className="text-sm font-medium text-muted-foreground">종합 점수</p>
-          {report.overallScore === null ? (
+          {report.analysisType === "similar" ? (
+            <div className="text-5xl font-bold text-amber-500">?</div>
+          ) : report.overallScore === null ? (
             <div className="text-4xl font-bold text-muted-foreground">-</div>
           ) : (
             <>

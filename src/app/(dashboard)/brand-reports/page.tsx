@@ -34,6 +34,7 @@ interface BrandReport {
   naverScore: number | null;
   googleScore: number | null;
   overallScore: number | null;
+  analysisType: string | null;
   status: string;
   summary: string;
   inquiryDate: string | null;
@@ -371,7 +372,13 @@ export default function BrandReportsPage() {
                         {report.industry || "-"}
                       </TableCell>
                       <TableCell>
-                        <ScoreBar score={report.overallScore} />
+                        {report.analysisType === "similar" ? (
+                          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">
+                            유사상호
+                          </Badge>
+                        ) : (
+                          <ScoreBar score={report.overallScore} />
+                        )}
                       </TableCell>
                       <TableCell>{getStatusBadge(report.status)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">

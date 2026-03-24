@@ -58,6 +58,7 @@ export interface BrandReport {
   sentAt: string | null;
   pdfUrl: string | null;
   inquiryDate: string | null;
+  analysisType: string | null;
   createdAt: string;
 }
 
@@ -266,6 +267,7 @@ export function normalizeRecord(record: AirtableRecord): BrandReport {
     sentAt: (f[FIELDS.sentAt] as string) ?? null,
     pdfUrl: (f[FIELDS.pdfUrl] as string) ?? null,
     inquiryDate: (f[FIELDS.inquiryDate] as string) ?? null,
+    analysisType: (f["analysisType"] as string) ?? null,
   };
 }
 
