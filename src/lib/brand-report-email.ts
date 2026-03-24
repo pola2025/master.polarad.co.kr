@@ -75,7 +75,7 @@ function buildHtmlEmail(params: {
           <tr>
             <td style="background-color:#0066CC;border-radius:12px 12px 0 0;padding:32px 36px;">
               <div style="font-size:13px;color:#BFDBFE;letter-spacing:2px;margin-bottom:8px;">POLARAD</div>
-              <div style="font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">브랜드 온라인 검색 평가 리포트</div>
+              <div style="font-size:18px;font-weight:700;color:#ffffff;line-height:1.3;white-space:nowrap;">브랜드 온라인 검색 평가 리포트</div>
             </td>
           </tr>
 
