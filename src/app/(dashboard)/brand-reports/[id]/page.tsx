@@ -9,8 +9,6 @@ import {
   Trash2,
   RefreshCw,
   Save,
-  ChevronDown,
-  ChevronUp,
   Mail,
   Phone,
   Building,
@@ -40,6 +38,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  ChannelStatusGrid,
+  NaverBreakdownChart,
+  GoogleBreakdownChart,
+  PlatformBalance,
+  AISearchCards,
+} from "@/components/brand-reports/search-data-viz";
 
 interface BrandReport {
   id: string;
@@ -56,6 +61,7 @@ interface BrandReport {
   reportContent: string;
   naverSearchData: Record<string, unknown> | null;
   googleSearchData: Record<string, unknown> | null;
+  aiSearchData: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string | null;
   sentAt: string | null;
@@ -223,8 +229,6 @@ export default function BrandReportDetailPage({
   const [regenerating, setRegenerating] = useState(false);
   const [startingAnalysis, setStartingAnalysis] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
-  const [naverCollapsed, setNaverCollapsed] = useState(true);
-  const [googleCollapsed, setGoogleCollapsed] = useState(true);
 
   async function fetchReport() {
     setLoading(true);
@@ -716,62 +720,43 @@ export default function BrandReportDetailPage({
         </CardContent>
       </Card>
 
-      {/* 검색 원본 데이터 */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-muted-foreground">
-          검색 원본 데이터
-        </h3>
+      {/* 검색 분석 상세 */}
+      {(report.naverSearchData ||
+        report.googleSearchData ||
+        report.aiSearchData) && (
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground">
+            수집 분석 데이터
+          </h3>
+          <p className="text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/30">
+            본 데이터는 상호명 기반으로 공개된 검색 결과를 수집·분석한 것으로,
+            수집 시점이나 검색 환경에 따라 실제와 다를 수 있습니다.
+          </p>
 
-        {/* 네이버 */}
-        <Card>
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
-            onClick={() => setNaverCollapsed((v) => !v)}
-          >
-            <span>네이버 원본 데이터</span>
-            {naverCollapsed ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
-          {!naverCollapsed && (
-            <CardContent className="pt-0">
-              <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap break-all">
-                {report.naverSearchData
-                  ? JSON.stringify(report.naverSearchData, null, 2)
-                  : "데이터 없음"}
-              </pre>
-            </CardContent>
+          {report.naverSearchData && (
+            <ChannelStatusGrid data={report.naverSearchData} />
           )}
-        </Card>
 
-        {/* 구글 */}
-        <Card>
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
-            onClick={() => setGoogleCollapsed((v) => !v)}
-          >
-            <span>구글 원본 데이터</span>
-            {googleCollapsed ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          <div className="grid gap-4 md:grid-cols-2">
+            {report.naverSearchData && (
+              <NaverBreakdownChart data={report.naverSearchData} />
             )}
-          </button>
-          {!googleCollapsed && (
-            <CardContent className="pt-0">
-              <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap break-all">
-                {report.googleSearchData
-                  ? JSON.stringify(report.googleSearchData, null, 2)
-                  : "데이터 없음"}
-              </pre>
-            </CardContent>
+            {report.googleSearchData && (
+              <GoogleBreakdownChart data={report.googleSearchData} />
+            )}
+          </div>
+
+          {report.naverSearchData && report.googleSearchData && (
+            <PlatformBalance
+              naverData={report.naverSearchData}
+              googleData={report.googleSearchData}
+              overallScore={report.overallScore}
+            />
           )}
-        </Card>
-      </div>
+
+          {report.aiSearchData && <AISearchCards data={report.aiSearchData} />}
+        </div>
+      )}
 
       {/* 타임라인 */}
       <Card>
