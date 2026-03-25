@@ -80,8 +80,11 @@ export async function GET() {
   try {
     const headers = { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` };
 
-    // 두 Airtable을 병렬로 조회
-    const [websiteRes, metaRes] = await Promise.all([
+    // 세 Airtable을 병렬로 조회 (홈페이지 + Meta + 브랜드분석)
+    const brandReportBaseId = process.env.BRAND_REPORT_BASE_ID;
+    const brandReportTableId = process.env.BRAND_REPORT_TABLE_ID;
+
+    const [websiteRes, metaRes, brandReportRes] = await Promise.all([
       // 홈페이지 접수 리드
       fetch(
         (() => {
@@ -106,6 +109,23 @@ export async function GET() {
         })(),
         { headers, cache: "no-store" },
       ),
+      // 브랜드분석 리포트 (inquiryId + emailOpenedAt + status)
+      brandReportBaseId && brandReportTableId
+        ? fetch(
+            (() => {
+              const url = new URL(
+                `https://api.airtable.com/v0/${brandReportBaseId}/${brandReportTableId}`,
+              );
+              url.searchParams.set("maxRecords", "500");
+              url.searchParams.set("fields[]", "inquiryId");
+              url.searchParams.append("fields[]", "emailOpenedAt");
+              url.searchParams.append("fields[]", "status");
+              url.searchParams.append("fields[]", "sentAt");
+              return url.toString();
+            })(),
+            { headers, cache: "no-store" },
+          )
+        : Promise.resolve(null),
     ]);
 
     // 홈페이지 리드 처리
@@ -174,11 +194,43 @@ export async function GET() {
       console.error("Meta 리드 조회 실패:", await metaRes.text());
     }
 
-    // 날짜 기준 통합 정렬 (최신순)
-    const inquiries = [...websiteInquiries, ...metaInquiries].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+    // 브랜드분석 리포트 매핑 (inquiryId → { emailOpenedAt, reportStatus, sentAt })
+    const reportMap = new Map<
+      string,
+      { emailOpenedAt: string; reportStatus: string; sentAt: string }
+    >();
+    if (brandReportRes && brandReportRes.ok) {
+      const data = await brandReportRes.json();
+      for (const r of data.records || []) {
+        const f = r.fields as Record<string, string>;
+        if (f.inquiryId) {
+          reportMap.set(f.inquiryId, {
+            emailOpenedAt: f.emailOpenedAt || "",
+            reportStatus: f.status || "",
+            sentAt: f.sentAt || "",
+          });
+        }
+      }
+    }
+
+    // 날짜 기준 통합 정렬 (최신순) + 브랜드분석 조인
+    const inquiries = [...websiteInquiries, ...metaInquiries]
+      .map((inquiry) => {
+        const realId = inquiry.id.startsWith("meta_")
+          ? inquiry.id.replace("meta_", "")
+          : inquiry.id;
+        const report = reportMap.get(realId);
+        return {
+          ...inquiry,
+          reportStatus: report?.reportStatus || "",
+          reportEmailOpenedAt: report?.emailOpenedAt || "",
+          reportSentAt: report?.sentAt || "",
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
 
     const thisMonth = new Date();
     thisMonth.setDate(1);

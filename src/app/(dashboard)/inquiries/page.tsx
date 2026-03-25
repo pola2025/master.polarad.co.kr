@@ -82,6 +82,9 @@ interface Inquiry {
   smsError: string;
   smsReply: boolean;
   createdAt: string;
+  reportStatus: string;
+  reportEmailOpenedAt: string;
+  reportSentAt: string;
 }
 
 interface InquiryStats {
@@ -843,6 +846,35 @@ export default function InquiriesPage() {
                                 ))}
                             </div>
                           )}
+
+                          {/* 수신확인 배지 */}
+                          {inquiry.reportEmailOpenedAt && (
+                            <div className="mb-3 flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-green-500/10 border border-green-500/20">
+                              <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                              <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+                                리포트 열람
+                              </span>
+                              <span className="text-muted-foreground text-xs ml-auto">
+                                {new Date(
+                                  inquiry.reportEmailOpenedAt,
+                                ).toLocaleDateString("ko-KR", {
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          )}
+                          {inquiry.reportStatus === "sent" &&
+                            !inquiry.reportEmailOpenedAt && (
+                              <div className="mb-3 flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted/50">
+                                <span className="w-2 h-2 rounded-full bg-muted-foreground/30 shrink-0" />
+                                <span className="text-muted-foreground text-xs">
+                                  리포트 발송 (미열람)
+                                </span>
+                              </div>
+                            )}
 
                           {/* 하단: 시간 + 메모 + SMS + 액션 */}
                           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
