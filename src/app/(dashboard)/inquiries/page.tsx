@@ -651,10 +651,14 @@ export default function InquiriesPage() {
                       ? "ring-1 ring-orange-400 bg-orange-50/50 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
                       : isNew
                         ? "border-l-2 border-l-blue-500"
-                        : "opacity-60"
+                        : ""
                 }`}
                 onClick={() => setSelectedInquiry(inquiry)}
               >
+                {/* 비활성 회색 오버레이 */}
+                {!isActive && !isNew && (
+                  <div className="absolute inset-0 bg-gray-200/50 dark:bg-gray-800/50 pointer-events-none z-10 rounded-[inherit]" />
+                )}
                 {/* 우선순위 스트라이프 */}
                 <div
                   className={`h-[3px] w-full ${getStripeColor(inquiry.status)}`}
