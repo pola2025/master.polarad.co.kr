@@ -521,6 +521,18 @@ export default function InquiriesPage() {
             filterKey: "google_ads" as const,
             filterType: "source" as const,
           },
+          {
+            label: "문자 회신",
+            value: stats.smsReplyCount,
+            sub:
+              stats.meta > 0
+                ? `${stats.meta}건 중 ${stats.smsReplyCount}건 (${Math.round((stats.smsReplyCount / stats.meta) * 100)}%)`
+                : "Meta 접수 없음",
+            icon: Reply,
+            color: "text-[#0668E1]",
+            filterKey: "all" as const,
+            filterType: "none" as const,
+          },
         ].map((stat) => {
           const isActive =
             stat.filterType === "source" &&
@@ -677,7 +689,7 @@ export default function InquiriesPage() {
               >
                 {/* 비활성 검정 오버레이 */}
                 {!isActive && (
-                  <div className="absolute inset-0 bg-black/90 pointer-events-none z-10 rounded-[inherit]" />
+                  <div className="absolute inset-0 bg-black/50 pointer-events-none z-10 rounded-[inherit]" />
                 )}
                 {/* 우선순위 스트라이프 */}
                 <div

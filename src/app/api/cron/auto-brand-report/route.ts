@@ -3,17 +3,15 @@ import {
   listRecords as listReports,
   FIELDS as REPORT_FIELDS,
 } from "@/lib/brand-reports/airtable";
-import { analyzeBrand } from "@/lib/brand-search";
-import { createRecord, updateRecord } from "@/lib/brand-reports/airtable";
+import { createRecord } from "@/lib/brand-reports/airtable";
 
 const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN!;
 const INQUIRIES_BASE_ID = "appSGHxitRzYPE43H";
 const TABLE_NAME = "Lead";
 
-export const maxDuration = 60;
-
 /**
- * 홈페이지 접수 중 브랜드분석이 없는 건을 자동으로 등록+분석
+ * 홈페이지 접수 중 브랜드분석이 없는 건을 자동으로 pending 등록
+ * 분석은 관리자가 수동으로 실행
  * Vercel Cron: 5분마다 실행
  */
 export async function GET(request: Request) {
@@ -66,11 +64,11 @@ export async function GET(request: Request) {
     );
 
     if (newInquiries.length === 0) {
-      return NextResponse.json({ message: "신규 분석 대상 없음", created: 0 });
+      return NextResponse.json({ message: "신규 등록 대상 없음", created: 0 });
     }
 
-    // 4. 최대 3건씩 처리 (타임아웃 방지)
-    const toProcess = newInquiries.slice(0, 3);
+    // 4. pending 상태로 등록만 (분석은 관리자가 수동)
+    const toProcess = newInquiries.slice(0, 10);
     const results = [];
 
     for (const record of toProcess) {
@@ -84,12 +82,11 @@ export async function GET(request: Request) {
       // 위저드 메시지에서 업종 추출
       let industry = "";
       if (message.startsWith("[위저드]")) {
-        const match = message.match(/업종:\s*([^/]+)/);
+        const match = message.match(/업종:\s*([^/\n]+)/);
         if (match) industry = match[1].trim();
       }
 
       try {
-        // 레코드 생성 (analyzing 상태)
         const reportId = await createRecord({
           [REPORT_FIELDS.businessName]: businessName,
           [REPORT_FIELDS.industry]: industry,
@@ -99,54 +96,15 @@ export async function GET(request: Request) {
           [REPORT_FIELDS.inquiryId]: record.id,
           [REPORT_FIELDS.inquirySource]: "website",
           [REPORT_FIELDS.inquiryDate]: record.createdTime,
-          [REPORT_FIELDS.status]: "analyzing",
+          [REPORT_FIELDS.status]: "pending",
         });
 
-        // 브랜드 분석 실행
-        let updateFields: Record<string, unknown>;
-        try {
-          const result = await analyzeBrand({ businessName, industry });
-          updateFields = {
-            [REPORT_FIELDS.status]: "draft",
-            [REPORT_FIELDS.reportContent]: result.reportContent ?? "",
-            [REPORT_FIELDS.reportHTML]: result.reportHTML ?? "",
-            [REPORT_FIELDS.summary]: result.summary ?? "",
-            ...(result.naverScore !== null && {
-              [REPORT_FIELDS.naverScore]: result.naverScore,
-            }),
-            ...(result.googleScore !== null && {
-              [REPORT_FIELDS.googleScore]: result.googleScore,
-            }),
-            [REPORT_FIELDS.overallScore]: result.overallScore,
-            [REPORT_FIELDS.naverSearchData]: JSON.stringify(
-              result.naverResult ?? {},
-            ),
-            [REPORT_FIELDS.googleSearchData]: JSON.stringify(
-              result.googleResult ?? {},
-            ),
-            [REPORT_FIELDS.aiSearchData]: JSON.stringify(result.aiResult ?? {}),
-          };
-        } catch (analysisError) {
-          console.error(
-            `[auto-brand-report] 분석 실패: ${businessName}`,
-            analysisError,
-          );
-          updateFields = {
-            [REPORT_FIELDS.status]: "failed",
-            [REPORT_FIELDS.summary]: `분석 중 오류: ${analysisError instanceof Error ? analysisError.message : "알 수 없는 오류"}`,
-          };
-        }
-
-        await updateRecord(reportId, updateFields);
         results.push({ businessName, reportId, status: "ok" });
         console.log(
-          `[auto-brand-report] 자동 생성 완료: ${businessName} → ${reportId}`,
+          `[auto-brand-report] 대기 등록: ${businessName} → ${reportId}`,
         );
       } catch (e) {
-        console.error(
-          `[auto-brand-report] 레코드 생성 실패: ${businessName}`,
-          e,
-        );
+        console.error(`[auto-brand-report] 등록 실패: ${businessName}`, e);
         results.push({
           businessName,
           status: "error",
@@ -156,7 +114,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      message: `${results.length}건 처리`,
+      message: `${results.length}건 등록`,
       created: results.filter((r) => r.status === "ok").length,
       pending: newInquiries.length - toProcess.length,
       results,
