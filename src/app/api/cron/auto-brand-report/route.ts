@@ -81,7 +81,7 @@ export async function GET(request: Request) {
 
       // 위저드 메시지에서 업종 추출
       let industry = "";
-      if (message.startsWith("[위저드]")) {
+      if (message.includes("위저드") || message.includes("업종:")) {
         const match = message.match(/업종:\s*([^/\n]+)/);
         if (match) industry = match[1].trim();
       }
