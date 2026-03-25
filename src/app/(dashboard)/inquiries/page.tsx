@@ -646,18 +646,16 @@ export default function InquiriesPage() {
                 key={inquiry.id}
                 className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
                   isMetaActive
-                    ? "ring-1 ring-violet-400 bg-violet-50/50 dark:bg-violet-950/20 border-l-2 border-l-violet-500"
+                    ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
                     : isWebActive
-                      ? "ring-1 ring-orange-400 bg-orange-50/50 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
-                      : isNew
-                        ? "border-l-2 border-l-blue-500"
-                        : ""
+                      ? "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
+                      : ""
                 }`}
                 onClick={() => setSelectedInquiry(inquiry)}
               >
-                {/* 비활성 회색 오버레이 */}
-                {!isActive && !isNew && (
-                  <div className="absolute inset-0 bg-gray-200/50 dark:bg-gray-800/50 pointer-events-none z-10 rounded-[inherit]" />
+                {/* 비활성 검정 오버레이 */}
+                {!isActive && (
+                  <div className="absolute inset-0 bg-black/90 pointer-events-none z-10 rounded-[inherit]" />
                 )}
                 {/* 우선순위 스트라이프 */}
                 <div
@@ -802,7 +800,7 @@ export default function InquiriesPage() {
                           </span>
                         )}
                       {inquiry.source === "meta" && inquiry.smsReply && (
-                        <span className="flex items-center gap-1 text-violet-600">
+                        <span className="flex items-center gap-1 text-[#0668E1]">
                           <Reply className="h-3 w-3" />
                           회신
                         </span>
