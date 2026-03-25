@@ -6,6 +6,7 @@ import {
   getDeviceCategoriesWithPercent,
   getRegionData,
   getHourlyTrafficData,
+  getGoogleAdsPerformanceData,
 } from "@/lib/google-analytics";
 import {
   saveDailyAnalytics,
@@ -14,6 +15,7 @@ import {
   saveDeviceStats,
   saveRegionStats,
   saveHourlyTraffic,
+  saveGoogleAdsDaily,
   updateCacheMetadata,
   CACHE_KEYS,
 } from "@/lib/airtable-cache";
@@ -275,6 +277,70 @@ export async function GET(request: NextRequest) {
       results.collections = {
         ...(results.collections as object),
         hourly_traffic: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      };
+    }
+
+    // 7. 구글광고 일별 통계 수집
+    console.log("[Cron] Collecting Google Ads daily stats...");
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const adsData = await getGoogleAdsPerformanceData(today, today);
+
+      const adsDaily = {
+        date: today,
+        visitors: adsData.overview.ads_visitors,
+        sessions: adsData.overview.ads_sessions,
+        pageviews: adsData.overview.ads_pageviews,
+        conversions: adsData.overview.ads_conversions,
+        bounceRate: adsData.overview.ads_bounceRate,
+        avgDuration: adsData.overview.ads_avgDuration,
+        cvr: adsData.overview.ads_cvr,
+        total_visitors: adsData.overview.total_visitors,
+        total_sessions: adsData.overview.total_sessions,
+        total_conversions: adsData.overview.total_conversions,
+        visitor_contribution: adsData.overview.visitor_contribution,
+        session_contribution: adsData.overview.session_contribution,
+        conversion_contribution: adsData.overview.conversion_contribution,
+        ads_cost: adsData.overview.ads_cost,
+        ads_clicks: adsData.overview.ads_clicks,
+        ads_impressions: adsData.overview.ads_impressions,
+        cpc: adsData.overview.cpc,
+        cpa: adsData.overview.cpa,
+        campaigns_json: JSON.stringify(adsData.campaigns),
+      };
+
+      const savedCount = await saveGoogleAdsDaily(adsDaily);
+
+      await updateCacheMetadata({
+        cache_key: CACHE_KEYS.GOOGLE_ADS_DAILY,
+        last_updated: new Date().toISOString(),
+        status: "success",
+        record_count: savedCount,
+      });
+
+      results.collections = {
+        ...(results.collections as object),
+        google_ads_daily: {
+          status: "success",
+          count: savedCount,
+        },
+      };
+      console.log(`[Cron] Google Ads daily: ${savedCount} records saved`);
+    } catch (error) {
+      console.error("[Cron] Google Ads daily error:", error);
+      await updateCacheMetadata({
+        cache_key: CACHE_KEYS.GOOGLE_ADS_DAILY,
+        last_updated: new Date().toISOString(),
+        status: "error",
+        record_count: 0,
+        error_message: error instanceof Error ? error.message : "Unknown error",
+      });
+      results.collections = {
+        ...(results.collections as object),
+        google_ads_daily: {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",
         },

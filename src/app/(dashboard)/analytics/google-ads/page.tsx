@@ -102,6 +102,10 @@ export default function GoogleAdsPage() {
           <p className="text-muted-foreground">
             Google Ads를 통한 유입과 전환 기여도를 분석합니다. (최근 30일)
           </p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            광고비는 GA4 경유 데이터로, Google Ads 대시보드와 최대 48시간 차이가
+            있을 수 있습니다.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => fetchData()}>

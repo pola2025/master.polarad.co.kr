@@ -12,6 +12,7 @@ const TABLES = {
   CACHE_METADATA: "cache_metadata",
   BOT_VISITS: "bot_visits",
   BOT_DAILY_STATS: "bot_daily_stats",
+  GOOGLE_ADS_DAILY: "google_ads_daily",
 };
 
 // Airtable Base 인스턴스
@@ -327,6 +328,7 @@ export const CACHE_KEYS = {
   DEVICES: "devices",
   COUNTRIES: "countries",
   HOURLY_TRAFFIC: "hourly_traffic",
+  GOOGLE_ADS_DAILY: "google_ads_daily",
 } as const;
 
 // =====================
@@ -842,6 +844,135 @@ export async function getBotDailyStatsFromCache(
     }));
   } catch (error) {
     console.error("Failed to get bot daily stats from cache:", error);
+    return [];
+  }
+}
+
+// =====================
+// 구글광고 일별 통계 캐시
+// =====================
+
+export interface GoogleAdsDailyCache {
+  date: string;
+  visitors: number;
+  sessions: number;
+  pageviews: number;
+  conversions: number;
+  bounceRate: number;
+  avgDuration: number;
+  cvr: number;
+  // 전체 대비 기여도
+  total_visitors: number;
+  total_sessions: number;
+  total_conversions: number;
+  visitor_contribution: number;
+  session_contribution: number;
+  conversion_contribution: number;
+  // 광고비 (GA4↔Ads 연결 시)
+  ads_cost: number | null;
+  ads_clicks: number | null;
+  ads_impressions: number | null;
+  cpc: number | null;
+  cpa: number | null;
+  // 캠페인 요약 (JSON 문자열)
+  campaigns_json: string;
+}
+
+// 구글광고 일별 통계 저장
+export async function saveGoogleAdsDaily(
+  data: GoogleAdsDailyCache,
+): Promise<number> {
+  const base = getBase();
+  let savedCount = 0;
+
+  try {
+    // 해당 날짜에 기존 레코드 있는지 확인
+    const records = await base(TABLES.GOOGLE_ADS_DAILY)
+      .select({
+        filterByFormula: `{date} = '${data.date}'`,
+        maxRecords: 1,
+      })
+      .firstPage();
+
+    const fields = {
+      date: data.date,
+      visitors: data.visitors,
+      sessions: data.sessions,
+      pageviews: data.pageviews,
+      conversions: data.conversions,
+      bounceRate: data.bounceRate,
+      avgDuration: data.avgDuration,
+      cvr: data.cvr,
+      total_visitors: data.total_visitors,
+      total_sessions: data.total_sessions,
+      total_conversions: data.total_conversions,
+      visitor_contribution: data.visitor_contribution,
+      session_contribution: data.session_contribution,
+      conversion_contribution: data.conversion_contribution,
+      ads_cost: data.ads_cost ?? 0,
+      ads_clicks: data.ads_clicks ?? 0,
+      ads_impressions: data.ads_impressions ?? 0,
+      cpc: data.cpc ?? 0,
+      cpa: data.cpa ?? 0,
+      campaigns_json: data.campaigns_json,
+      collected_at: new Date().toISOString(),
+    };
+
+    if (records.length > 0) {
+      await base(TABLES.GOOGLE_ADS_DAILY).update(records[0].id, fields);
+    } else {
+      await base(TABLES.GOOGLE_ADS_DAILY).create([{ fields }]);
+    }
+    savedCount = 1;
+  } catch (error) {
+    console.error(`Failed to save Google Ads daily for ${data.date}:`, error);
+  }
+
+  return savedCount;
+}
+
+// 구글광고 일별 통계 조회 (캐시에서)
+export async function getGoogleAdsDailyFromCache(
+  days: number = 90,
+): Promise<GoogleAdsDailyCache[]> {
+  try {
+    const base = getBase();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = formatDate(startDate);
+
+    const records = await base(TABLES.GOOGLE_ADS_DAILY)
+      .select({
+        filterByFormula: `IS_AFTER({date}, '${startDateStr}')`,
+        sort: [{ field: "date", direction: "desc" }],
+      })
+      .all();
+
+    return records.map((record) => ({
+      date: record.get("date") as string,
+      visitors: (record.get("visitors") as number) || 0,
+      sessions: (record.get("sessions") as number) || 0,
+      pageviews: (record.get("pageviews") as number) || 0,
+      conversions: (record.get("conversions") as number) || 0,
+      bounceRate: (record.get("bounceRate") as number) || 0,
+      avgDuration: (record.get("avgDuration") as number) || 0,
+      cvr: (record.get("cvr") as number) || 0,
+      total_visitors: (record.get("total_visitors") as number) || 0,
+      total_sessions: (record.get("total_sessions") as number) || 0,
+      total_conversions: (record.get("total_conversions") as number) || 0,
+      visitor_contribution: (record.get("visitor_contribution") as number) || 0,
+      session_contribution: (record.get("session_contribution") as number) || 0,
+      conversion_contribution:
+        (record.get("conversion_contribution") as number) || 0,
+      ads_cost: (record.get("ads_cost") as number) || null,
+      ads_clicks: (record.get("ads_clicks") as number) || null,
+      ads_impressions: (record.get("ads_impressions") as number) || null,
+      cpc: (record.get("cpc") as number) || null,
+      cpa: (record.get("cpa") as number) || null,
+      campaigns_json: (record.get("campaigns_json") as string) || "[]",
+    }));
+  } catch (error) {
+    console.error("Failed to get Google Ads daily from cache:", error);
     return [];
   }
 }
