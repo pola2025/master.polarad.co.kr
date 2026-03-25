@@ -1392,3 +1392,306 @@ export async function getDashboardData() {
     throw error;
   }
 }
+
+// =====================
+// 구글광고 성과 분석
+// =====================
+
+export interface GoogleAdsOverview {
+  // 구글광고 트래픽
+  ads_visitors: number;
+  ads_sessions: number;
+  ads_pageviews: number;
+  ads_bounceRate: number;
+  ads_avgDuration: number;
+  ads_conversions: number;
+  ads_cvr: number;
+  // 전체 대비 기여도
+  total_visitors: number;
+  total_sessions: number;
+  total_conversions: number;
+  visitor_contribution: number; // %
+  session_contribution: number; // %
+  conversion_contribution: number; // %
+  // 광고비 (GA4↔Ads 연결 시)
+  ads_cost: number | null;
+  ads_clicks: number | null;
+  ads_impressions: number | null;
+  cpc: number | null; // Cost Per Click
+  cpa: number | null; // Cost Per Acquisition
+}
+
+export interface GoogleAdsDailyData {
+  date: string;
+  visitors: number;
+  sessions: number;
+  conversions: number;
+  cost: number | null;
+}
+
+export interface GoogleAdsCampaignData {
+  campaign: string;
+  visitors: number;
+  sessions: number;
+  conversions: number;
+  cvr: number;
+  bounceRate: number;
+  avgDuration: number;
+  cost: number | null;
+  cpc: number | null;
+}
+
+export interface GoogleAdsPerformanceData {
+  overview: GoogleAdsOverview;
+  daily: GoogleAdsDailyData[];
+  campaigns: GoogleAdsCampaignData[];
+  period: { start: string; end: string };
+}
+
+// 구글광고 필터 조건 (source=google, medium=cpc)
+const GOOGLE_ADS_FILTER = {
+  andGroup: {
+    expressions: [
+      {
+        filter: {
+          fieldName: "sessionSource",
+          stringFilter: {
+            matchType: "EXACT" as const,
+            value: "google",
+            caseSensitive: false,
+          },
+        },
+      },
+      {
+        filter: {
+          fieldName: "sessionMedium",
+          stringFilter: {
+            matchType: "EXACT" as const,
+            value: "cpc",
+            caseSensitive: false,
+          },
+        },
+      },
+    ],
+  },
+};
+
+export async function getGoogleAdsPerformanceData(
+  startDate?: string,
+  endDate?: string,
+): Promise<GoogleAdsPerformanceData> {
+  const client = getAnalyticsClient();
+  const start = startDate || getDaysAgo(29);
+  const end = endDate || formatDate(new Date());
+
+  // 1) 전체 트래픽 (비교 기준)
+  const totalPromise = client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate: start, endDate: end }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "sessions" },
+      { name: "conversions" },
+    ],
+  });
+
+  // 2) 구글광고 전체 요약
+  const adsOverviewPromise = client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate: start, endDate: end }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "sessions" },
+      { name: "screenPageViews" },
+      { name: "bounceRate" },
+      { name: "averageSessionDuration" },
+      { name: "conversions" },
+    ],
+    dimensionFilter: GOOGLE_ADS_FILTER,
+  });
+
+  // 3) 구글광고 일별 추이
+  const adsDailyPromise = client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate: start, endDate: end }],
+    dimensions: [{ name: "date" }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "sessions" },
+      { name: "conversions" },
+    ],
+    dimensionFilter: GOOGLE_ADS_FILTER,
+    orderBys: [{ dimension: { dimensionName: "date" }, desc: false }],
+  });
+
+  // 4) 구글광고 캠페인별 성과
+  const adsCampaignPromise = client.runReport({
+    property: `properties/${GA4_PROPERTY_ID}`,
+    dateRanges: [{ startDate: start, endDate: end }],
+    dimensions: [{ name: "sessionCampaignName" }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "sessions" },
+      { name: "bounceRate" },
+      { name: "averageSessionDuration" },
+      { name: "conversions" },
+    ],
+    dimensionFilter: GOOGLE_ADS_FILTER,
+    orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+    limit: 20,
+  });
+
+  // 5) 광고비 데이터 시도 (GA4↔Ads 연결 필요)
+  let adsCostData: {
+    cost: number;
+    clicks: number;
+    impressions: number;
+  } | null = null;
+  try {
+    const [costResponse] = await client.runReport({
+      property: `properties/${GA4_PROPERTY_ID}`,
+      dateRanges: [{ startDate: start, endDate: end }],
+      dimensions: [{ name: "sessionSource" }],
+      metrics: [
+        { name: "advertiserAdCost" },
+        { name: "advertiserAdClicks" },
+        { name: "advertiserAdImpressions" },
+      ],
+      dimensionFilter: {
+        filter: {
+          fieldName: "sessionSource",
+          stringFilter: {
+            matchType: "EXACT" as const,
+            value: "google",
+            caseSensitive: false,
+          },
+        },
+      },
+    });
+    const cost = parseFloat(
+      costResponse.rows?.[0]?.metricValues?.[0]?.value || "0",
+    );
+    const clicks = parseInt(
+      costResponse.rows?.[0]?.metricValues?.[1]?.value || "0",
+    );
+    const impressions = parseInt(
+      costResponse.rows?.[0]?.metricValues?.[2]?.value || "0",
+    );
+    if (cost > 0 || clicks > 0) {
+      adsCostData = { cost, clicks, impressions };
+    }
+  } catch {
+    // GA4↔Ads 미연결 시 무시
+    console.log(
+      "Google Ads cost data not available (Ads account not linked to GA4)",
+    );
+  }
+
+  // 병렬 실행
+  const [[totalResponse], [adsResponse], [dailyResponse], [campaignResponse]] =
+    await Promise.all([
+      totalPromise,
+      adsOverviewPromise,
+      adsDailyPromise,
+      adsCampaignPromise,
+    ]);
+
+  // 전체 트래픽
+  const totalVisitors = parseInt(
+    totalResponse.rows?.[0]?.metricValues?.[0]?.value || "0",
+  );
+  const totalSessions = parseInt(
+    totalResponse.rows?.[0]?.metricValues?.[1]?.value || "0",
+  );
+  const totalConversions = parseInt(
+    totalResponse.rows?.[0]?.metricValues?.[2]?.value || "0",
+  );
+
+  // 구글광고 요약
+  const adsVisitors = parseInt(
+    adsResponse.rows?.[0]?.metricValues?.[0]?.value || "0",
+  );
+  const adsSessions = parseInt(
+    adsResponse.rows?.[0]?.metricValues?.[1]?.value || "0",
+  );
+  const adsPageviews = parseInt(
+    adsResponse.rows?.[0]?.metricValues?.[2]?.value || "0",
+  );
+  const adsBounceRate =
+    parseFloat(adsResponse.rows?.[0]?.metricValues?.[3]?.value || "0") * 100;
+  const adsAvgDuration = parseFloat(
+    adsResponse.rows?.[0]?.metricValues?.[4]?.value || "0",
+  );
+  const adsConversions = parseInt(
+    adsResponse.rows?.[0]?.metricValues?.[5]?.value || "0",
+  );
+
+  const overview: GoogleAdsOverview = {
+    ads_visitors: adsVisitors,
+    ads_sessions: adsSessions,
+    ads_pageviews: adsPageviews,
+    ads_bounceRate: adsBounceRate,
+    ads_avgDuration: adsAvgDuration,
+    ads_conversions: adsConversions,
+    ads_cvr: adsSessions > 0 ? (adsConversions / adsSessions) * 100 : 0,
+    total_visitors: totalVisitors,
+    total_sessions: totalSessions,
+    total_conversions: totalConversions,
+    visitor_contribution:
+      totalVisitors > 0 ? (adsVisitors / totalVisitors) * 100 : 0,
+    session_contribution:
+      totalSessions > 0 ? (adsSessions / totalSessions) * 100 : 0,
+    conversion_contribution:
+      totalConversions > 0 ? (adsConversions / totalConversions) * 100 : 0,
+    ads_cost: adsCostData?.cost ?? null,
+    ads_clicks: adsCostData?.clicks ?? null,
+    ads_impressions: adsCostData?.impressions ?? null,
+    cpc:
+      adsCostData && adsCostData.clicks > 0
+        ? adsCostData.cost / adsCostData.clicks
+        : null,
+    cpa:
+      adsCostData && adsConversions > 0
+        ? adsCostData.cost / adsConversions
+        : null,
+  };
+
+  // 일별 데이터
+  const daily: GoogleAdsDailyData[] = (dailyResponse.rows || []).map((row) => ({
+    date: row.dimensionValues?.[0]?.value || "",
+    visitors: parseInt(row.metricValues?.[0]?.value || "0"),
+    sessions: parseInt(row.metricValues?.[1]?.value || "0"),
+    conversions: parseInt(row.metricValues?.[2]?.value || "0"),
+    cost: null, // 일별 비용은 별도 쿼리 필요
+  }));
+
+  // 캠페인별 데이터
+  const campaigns: GoogleAdsCampaignData[] = (campaignResponse.rows || [])
+    .filter((row) => {
+      const name = row.dimensionValues?.[0]?.value || "(not set)";
+      return name !== "(not set)" && name !== "(direct)";
+    })
+    .map((row) => {
+      const visitors = parseInt(row.metricValues?.[0]?.value || "0");
+      const sessions = parseInt(row.metricValues?.[1]?.value || "0");
+      const conversions = parseInt(row.metricValues?.[4]?.value || "0");
+      return {
+        campaign: row.dimensionValues?.[0]?.value || "(not set)",
+        visitors,
+        sessions,
+        conversions,
+        cvr: sessions > 0 ? (conversions / sessions) * 100 : 0,
+        bounceRate: parseFloat(row.metricValues?.[2]?.value || "0") * 100,
+        avgDuration: parseFloat(row.metricValues?.[3]?.value || "0"),
+        cost: null,
+        cpc: null,
+      };
+    });
+
+  return {
+    overview,
+    daily,
+    campaigns,
+    period: { start, end },
+  };
+}

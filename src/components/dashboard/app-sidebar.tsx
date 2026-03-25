@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   BarChart3,
   TrendingUp,
+  DollarSign,
   Megaphone,
   FileText,
   MessageSquare,
@@ -51,6 +52,11 @@ const menuItems = [
     title: "방문 분석",
     url: "/analytics/insights",
     icon: TrendingUp,
+  },
+  {
+    title: "구글광고",
+    url: "/analytics/google-ads",
+    icon: DollarSign,
   },
   {
     title: "캠페인 분석",
