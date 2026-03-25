@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   DollarSign,
   Users,
@@ -9,8 +9,8 @@ import {
   RefreshCw,
   BarChart3,
   Percent,
-  Loader2,
   AlertCircle,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,12 +23,20 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type {
   GoogleAdsPerformanceData,
-  GoogleAdsOverview,
   GoogleAdsDailyData,
-  GoogleAdsCampaignData,
 } from "@/lib/google-analytics";
+
+type ViewMode = "daily" | "weekly" | "monthly";
 
 // 금액 포맷 (원)
 function formatCurrency(value: number | null): string {
@@ -52,16 +60,138 @@ function formatShortDate(dateStr: string): string {
   return `${month}/${day}`;
 }
 
+// "20260326" → "2026-03-26"
+function toIsoDate(dateStr: string): string {
+  if (dateStr.length !== 8) return dateStr;
+  return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+}
+
+// ISO week number
+function getWeekKey(dateStr: string): string {
+  const d = new Date(toIsoDate(dateStr));
+  const onejan = new Date(d.getFullYear(), 0, 1);
+  const weekNum = Math.ceil(
+    ((d.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7,
+  );
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+function getMonthKey(dateStr: string): string {
+  if (dateStr.length !== 8) return dateStr;
+  return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}`;
+}
+
+function formatMonthLabel(key: string): string {
+  const [y, m] = key.split("-");
+  return `${y}년 ${parseInt(m)}월`;
+}
+
+// n일 전 날짜 → "YYYY-MM-DD"
+function getDaysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split("T")[0];
+}
+
+function todayIso(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+interface AggregatedRow {
+  label: string;
+  visitors: number;
+  sessions: number;
+  conversions: number;
+  cost: number | null;
+}
+
+function aggregateDaily(
+  daily: GoogleAdsDailyData[],
+  mode: ViewMode,
+): AggregatedRow[] {
+  if (mode === "daily") {
+    return daily.map((d) => ({
+      label: formatShortDate(d.date),
+      visitors: d.visitors,
+      sessions: d.sessions,
+      conversions: d.conversions,
+      cost: d.cost,
+    }));
+  }
+
+  const groups = new Map<
+    string,
+    {
+      visitors: number;
+      sessions: number;
+      conversions: number;
+      cost: number | null;
+      dates: string[];
+    }
+  >();
+
+  for (const d of daily) {
+    const key = mode === "weekly" ? getWeekKey(d.date) : getMonthKey(d.date);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.visitors += d.visitors;
+      existing.sessions += d.sessions;
+      existing.conversions += d.conversions;
+      existing.dates.push(d.date);
+    } else {
+      groups.set(key, {
+        visitors: d.visitors,
+        sessions: d.sessions,
+        conversions: d.conversions,
+        cost: d.cost,
+        dates: [d.date],
+      });
+    }
+  }
+
+  return Array.from(groups.entries()).map(([key, v]) => ({
+    label:
+      mode === "weekly"
+        ? `${key} (${formatShortDate(v.dates[0])}~${formatShortDate(v.dates[v.dates.length - 1])})`
+        : formatMonthLabel(key),
+    ...v,
+  }));
+}
+
 export default function GoogleAdsPage() {
   const [data, setData] = useState<GoogleAdsPerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 날짜 필터
+  const [dateRange, setDateRange] = useState("30d");
+  const [customDialogOpen, setCustomDialogOpen] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [customLabel, setCustomLabel] = useState("");
+
+  // 뷰 모드
+  const [viewMode, setViewMode] = useState<ViewMode>("daily");
+
+  // 날짜 계산
+  const getDateParams = (): { start: string; end: string } => {
+    const end = todayIso();
+    if (dateRange === "custom" && customStartDate && customEndDate) {
+      return { start: customStartDate, end: customEndDate };
+    }
+    const daysMap: Record<string, number> = { "7d": 6, "30d": 29, "90d": 89 };
+    const days = daysMap[dateRange] ?? 29;
+    return { start: getDaysAgoIso(days), end };
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch("/api/analytics/google-ads");
+      const { start, end } = getDateParams();
+      const response = await fetch(
+        `/api/analytics/google-ads?start_date=${start}&end_date=${end}`,
+      );
       if (response.status === 501) {
         setError("GA4 API 인증이 설정되지 않았습니다.");
         return;
@@ -82,13 +212,48 @@ export default function GoogleAdsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [dateRange, customStartDate, customEndDate]);
+
+  const applyCustomDateRange = () => {
+    if (!customStartDate || !customEndDate) return;
+    const start = new Date(customStartDate);
+    const end = new Date(customEndDate);
+    if (start > end) return;
+    const startLabel = customStartDate.slice(5).replace("-", "/");
+    const endLabel = customEndDate.slice(5).replace("-", "/");
+    setCustomLabel(`${startLabel} ~ ${endLabel}`);
+    setDateRange("custom");
+    setCustomDialogOpen(false);
+  };
+
+  // 자동 뷰 모드 추천
+  useEffect(() => {
+    if (dateRange === "7d") setViewMode("daily");
+    else if (dateRange === "30d") setViewMode("daily");
+    else if (dateRange === "90d") setViewMode("weekly");
+  }, [dateRange]);
 
   const overview = data?.overview;
   const hasCostData =
     overview?.ads_cost !== null &&
     overview?.ads_cost !== undefined &&
     overview.ads_cost > 0;
+
+  // 집계 데이터
+  const aggregated = useMemo(() => {
+    if (!data?.daily) return [];
+    return aggregateDaily(data.daily, viewMode);
+  }, [data?.daily, viewMode]);
+
+  // 기간 라벨
+  const periodLabel =
+    dateRange === "custom" && customLabel
+      ? customLabel
+      : dateRange === "7d"
+        ? "최근 7일"
+        : dateRange === "30d"
+          ? "최근 30일"
+          : "최근 90일";
 
   return (
     <div className="space-y-6">
@@ -100,19 +265,79 @@ export default function GoogleAdsPage() {
             구글광고 성과
           </h1>
           <p className="text-muted-foreground">
-            Google Ads를 통한 유입과 전환 기여도를 분석합니다. (최근 30일)
+            Google Ads를 통한 유입과 전환 기여도를 분석합니다. ({periodLabel})
           </p>
           <p className="text-xs text-muted-foreground/60 mt-1">
             광고비는 GA4 경유 데이터로, Google Ads 대시보드와 최대 48시간 차이가
             있을 수 있습니다.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 날짜 필터 */}
+          <div className="flex rounded-lg border bg-background p-1">
+            {["7d", "30d", "90d"].map((range) => (
+              <Button
+                key={range}
+                variant={dateRange === range ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setDateRange(range);
+                  setCustomLabel("");
+                }}
+                className="px-3"
+              >
+                {range === "7d" ? "7일" : range === "30d" ? "30일" : "90일"}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant={dateRange === "custom" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setCustomDialogOpen(true)}
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            {dateRange === "custom" && customLabel
+              ? customLabel
+              : "사용자 지정"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fetchData()}>
             <RefreshCw className="mr-2 h-4 w-4" />
             새로고침
           </Button>
         </div>
+
+        {/* 사용자 지정 날짜 다이얼로그 */}
+        <Dialog open={customDialogOpen} onOpenChange={setCustomDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>날짜 범위 선택</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="ads-start-date">시작일</Label>
+                <Input
+                  id="ads-start-date"
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  max={customEndDate || undefined}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ads-end-date">종료일</Label>
+                <Input
+                  id="ads-end-date"
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  min={customStartDate || undefined}
+                  max={todayIso()}
+                />
+              </div>
+              <Button onClick={applyCustomDateRange}>적용</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {error && (
@@ -211,8 +436,6 @@ export default function GoogleAdsPage() {
                 percentage={overview.conversion_contribution}
               />
             </div>
-
-            {/* 광고 트래픽 품질 */}
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-muted/50 rounded-lg">
                 <div className="text-sm text-muted-foreground">이탈률</div>
@@ -249,80 +472,122 @@ export default function GoogleAdsPage() {
         </Card>
       )}
 
-      {/* 일별 추이 */}
-      {!loading && data?.daily && data.daily.length > 0 && (
+      {/* 일별/주별/월별 추이 */}
+      {!loading && aggregated.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              일별 광고 유입 추이
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                광고 유입 추이
+              </CardTitle>
+              <div className="flex rounded-lg border bg-background p-1">
+                {(["daily", "weekly", "monthly"] as ViewMode[]).map((mode) => (
+                  <Button
+                    key={mode}
+                    variant={viewMode === mode ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode(mode)}
+                    className="px-3 text-xs"
+                  >
+                    {mode === "daily"
+                      ? "일별"
+                      : mode === "weekly"
+                        ? "주별"
+                        : "월별"}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              {/* 간단한 바 차트 */}
-              <div className="flex items-end gap-1 h-32">
-                {data.daily.map((day) => {
-                  const maxVisitors = Math.max(
-                    ...data.daily.map((d) => d.visitors),
+            {/* 테이블 형태 추이 */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-2 font-medium">기간</th>
+                    <th className="pb-2 font-medium text-right">방문자</th>
+                    <th className="pb-2 font-medium text-right">세션</th>
+                    <th className="pb-2 font-medium text-right">전환</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aggregated.map((row, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-2 font-medium">{row.label}</td>
+                      <td className="py-2 text-right">
+                        {row.visitors.toLocaleString()}
+                      </td>
+                      <td className="py-2 text-right">
+                        {row.sessions.toLocaleString()}
+                      </td>
+                      <td className="py-2 text-right">
+                        {row.conversions > 0 ? (
+                          <span className="text-green-600 font-medium">
+                            {row.conversions}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t font-semibold">
+                    <td className="py-2">합계</td>
+                    <td className="py-2 text-right">
+                      {aggregated
+                        .reduce((s, r) => s + r.visitors, 0)
+                        .toLocaleString()}
+                    </td>
+                    <td className="py-2 text-right">
+                      {aggregated
+                        .reduce((s, r) => s + r.sessions, 0)
+                        .toLocaleString()}
+                    </td>
+                    <td className="py-2 text-right text-green-600">
+                      {aggregated
+                        .reduce((s, r) => s + r.conversions, 0)
+                        .toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* 바 차트 */}
+            <div className="mt-4">
+              <div className="flex items-end gap-1 h-28">
+                {aggregated.map((row, i) => {
+                  const maxV = Math.max(
+                    ...aggregated.map((r) => r.visitors),
                     1,
                   );
-                  const height = (day.visitors / maxVisitors) * 100;
+                  const height = (row.visitors / maxV) * 100;
                   return (
-                    <div
-                      key={day.date}
-                      className="flex-1 flex flex-col items-center gap-1 group"
-                    >
-                      <div className="relative w-full flex justify-center">
-                        <div
-                          className="w-full max-w-[20px] bg-blue-500 rounded-t-sm transition-all hover:bg-blue-600 cursor-default"
-                          style={{ height: `${Math.max(height, 2)}%` }}
-                          title={`${formatShortDate(day.date)}: ${day.visitors}명 방문, ${day.conversions}건 전환`}
-                        />
-                      </div>
+                    <div key={i} className="flex-1 flex justify-center">
+                      <div
+                        className="w-full max-w-[24px] bg-blue-500 rounded-t-sm transition-all hover:bg-blue-600 cursor-default"
+                        style={{ height: `${Math.max(height, 2)}%` }}
+                        title={`${row.label}: ${row.visitors}명 방문, ${row.conversions}건 전환`}
+                      />
                     </div>
                   );
                 })}
               </div>
-              <div className="flex gap-1 text-[10px] text-muted-foreground">
-                {data.daily.map((day, i) => (
-                  <div key={day.date} className="flex-1 text-center truncate">
-                    {i % Math.ceil(data.daily.length / 10) === 0
-                      ? formatShortDate(day.date)
-                      : ""}
-                  </div>
-                ))}
-              </div>
-              {/* 합계 표시 */}
-              <div className="flex items-center gap-4 pt-2 text-sm text-muted-foreground">
-                <span>
-                  총 방문:{" "}
-                  <strong className="text-foreground">
-                    {data.daily
-                      .reduce((s, d) => s + d.visitors, 0)
-                      .toLocaleString()}
-                  </strong>
-                  명
-                </span>
-                <span>
-                  총 전환:{" "}
-                  <strong className="text-foreground">
-                    {data.daily
-                      .reduce((s, d) => s + d.conversions, 0)
-                      .toLocaleString()}
-                  </strong>
-                  건
-                </span>
-                <span>
-                  일평균:{" "}
-                  <strong className="text-foreground">
-                    {Math.round(
-                      data.daily.reduce((s, d) => s + d.visitors, 0) /
-                        data.daily.length,
-                    ).toLocaleString()}
-                  </strong>
-                  명/일
-                </span>
+              <div className="flex gap-1 text-[10px] text-muted-foreground mt-1">
+                {aggregated.map((row, i) => {
+                  const showLabel =
+                    aggregated.length <= 15 ||
+                    i % Math.ceil(aggregated.length / 10) === 0;
+                  return (
+                    <div key={i} className="flex-1 text-center truncate">
+                      {showLabel ? row.label.split(" ")[0] : ""}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </CardContent>
@@ -415,7 +680,7 @@ export default function GoogleAdsPage() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            최근 30일간 구글광고(source=google, medium=cpc) 유입 데이터가
+            선택한 기간에 구글광고(source=google, medium=cpc) 유입 데이터가
             없습니다. Google Ads에서 캠페인이 활성화되어 있는지 확인해주세요.
           </AlertDescription>
         </Alert>
