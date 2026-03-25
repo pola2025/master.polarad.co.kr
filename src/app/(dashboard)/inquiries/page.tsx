@@ -66,7 +66,7 @@ import {
 
 interface Inquiry {
   id: string;
-  source: "website" | "meta";
+  source: "website" | "meta" | "google_ads";
   no: number;
   name: string;
   company: string;
@@ -89,6 +89,7 @@ interface InquiryStats {
   thisMonth: number;
   website: number;
   meta: number;
+  googleAds: number;
   smsReplyCount: number;
 }
 
@@ -236,12 +237,13 @@ export default function InquiriesPage() {
     thisMonth: 0,
     website: 0,
     meta: 0,
+    googleAds: 0,
     smsReplyCount: 0,
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "website" | "meta">(
-    "all",
-  );
+  const [sourceFilter, setSourceFilter] = useState<
+    "all" | "website" | "meta" | "google_ads"
+  >("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -510,6 +512,15 @@ export default function InquiriesPage() {
             filterKey: "meta" as const,
             filterType: "source" as const,
           },
+          {
+            label: "구글광고",
+            value: stats.googleAds,
+            sub: "검색광고 접수",
+            icon: Search,
+            color: "text-green-500",
+            filterKey: "google_ads" as const,
+            filterType: "source" as const,
+          },
         ].map((stat) => {
           const isActive =
             stat.filterType === "source" &&
@@ -521,7 +532,9 @@ export default function InquiriesPage() {
               className={`cursor-pointer transition-all hover:shadow-md ${isActive ? "ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
               onClick={() => {
                 if (stat.filterType === "source") {
-                  setSourceFilter(stat.filterKey as "all" | "website" | "meta");
+                  setSourceFilter(
+                    stat.filterKey as "all" | "website" | "meta" | "google_ads",
+                  );
                   setStatusFilter("all");
                 }
               }}
@@ -561,6 +574,11 @@ export default function InquiriesPage() {
                 { value: "all" as const, label: "전체" },
                 { value: "website" as const, label: "홈페이지", icon: Globe },
                 { value: "meta" as const, label: "Meta", icon: Megaphone },
+                {
+                  value: "google_ads" as const,
+                  label: "구글광고",
+                  icon: Search,
+                },
               ].map((tab) => (
                 <button
                   key={tab.value}
@@ -640,16 +658,20 @@ export default function InquiriesPage() {
             const isMetaActive = inquiry.source === "meta" && inquiry.smsReply;
             const isWebActive =
               inquiry.source === "website" && inquiry.status !== "계약완료";
-            const isActive = isMetaActive || isWebActive;
+            const isGoogleActive =
+              inquiry.source === "google_ads" && inquiry.status !== "계약완료";
+            const isActive = isMetaActive || isWebActive || isGoogleActive;
             return (
               <Card
                 key={inquiry.id}
                 className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
                   isMetaActive
                     ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
-                    : isWebActive
-                      ? "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
-                      : ""
+                    : isGoogleActive
+                      ? "ring-1 ring-green-400 bg-green-50/60 dark:bg-green-950/20 border-l-2 border-l-green-500"
+                      : isWebActive
+                        ? "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
+                        : ""
                 }`}
                 onClick={() => setSelectedInquiry(inquiry)}
               >
@@ -688,6 +710,10 @@ export default function InquiriesPage() {
                             style={{ background: "#0668E1" }}
                           >
                             Meta
+                          </span>
+                        ) : inquiry.source === "google_ads" ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0 bg-green-600">
+                            구글
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0 bg-orange-500">
