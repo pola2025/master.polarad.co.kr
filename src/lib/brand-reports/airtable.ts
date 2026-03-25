@@ -31,6 +31,7 @@ export const FIELDS = {
   sentAt: "sentAt",
   pdfUrl: "pdfUrl",
   inquiryDate: "inquiryDate",
+  emailOpenedAt: "emailOpenedAt",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -59,6 +60,7 @@ export interface BrandReport {
   pdfUrl: string | null;
   inquiryDate: string | null;
   analysisType: string | null;
+  emailOpenedAt: string | null;
   createdAt: string;
 }
 
@@ -268,6 +270,7 @@ export function normalizeRecord(record: AirtableRecord): BrandReport {
     pdfUrl: (f[FIELDS.pdfUrl] as string) ?? null,
     inquiryDate: (f[FIELDS.inquiryDate] as string) ?? null,
     analysisType: (f["analysisType"] as string) ?? null,
+    emailOpenedAt: (f[FIELDS.emailOpenedAt] as string) ?? null,
   };
 }
 
