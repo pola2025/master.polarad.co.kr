@@ -746,6 +746,26 @@ export default function InquiriesPage() {
                     )}
                   </div>
 
+                  {/* 메모 미리보기 */}
+                  {memoCount > 0 && (
+                    <div className="mb-3 px-2.5 py-2 rounded-md bg-muted/50 space-y-1">
+                      <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                        <StickyNote className="h-3 w-3" />
+                        메모 ({memoCount})
+                      </div>
+                      {parseMemos(inquiry.memo)
+                        .slice(-2)
+                        .map((entry) => (
+                          <p
+                            key={entry.id}
+                            className="text-xs text-muted-foreground line-clamp-1"
+                          >
+                            {entry.text}
+                          </p>
+                        ))}
+                    </div>
+                  )}
+
                   {/* 하단: 시간 + 메모 + SMS + 액션 */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
                     <div className="flex items-center gap-3">
