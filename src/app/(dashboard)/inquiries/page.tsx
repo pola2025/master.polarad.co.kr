@@ -636,11 +636,22 @@ export default function InquiriesPage() {
             const wizard = parseWizardMessage(inquiry.message);
             const memoCount = parseMemos(inquiry.memo).length;
             const isNew = isNewInquiry(inquiry.status);
+            // 활성/비활성 판단
+            const isMetaActive = inquiry.source === "meta" && inquiry.smsReply;
+            const isWebActive =
+              inquiry.source === "website" && inquiry.status !== "계약완료";
+            const isActive = isMetaActive || isWebActive;
             return (
               <Card
                 key={inquiry.id}
                 className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
-                  isNew ? "border-l-2 border-l-blue-500" : ""
+                  isMetaActive
+                    ? "ring-1 ring-violet-400 bg-violet-50/50 dark:bg-violet-950/20 border-l-2 border-l-violet-500"
+                    : isWebActive
+                      ? "ring-1 ring-orange-400 bg-orange-50/50 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
+                      : isNew
+                        ? "border-l-2 border-l-blue-500"
+                        : "opacity-60"
                 }`}
                 onClick={() => setSelectedInquiry(inquiry)}
               >
