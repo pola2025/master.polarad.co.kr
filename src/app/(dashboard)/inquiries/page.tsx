@@ -8,14 +8,12 @@ import {
   Mail,
   Phone,
   Building,
-  ChevronRight,
   Loader2,
   RefreshCw,
   Trash2,
   StickyNote,
   Globe,
   Megaphone,
-  MessageCircle,
   CheckCircle2,
   XCircle,
   Reply,
@@ -24,6 +22,8 @@ import {
   X,
   Check,
   BarChart3,
+  Clock,
+  Eye,
 } from "lucide-react";
 import {
   Card,
@@ -36,14 +36,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -194,6 +186,48 @@ function formatDate(iso: string) {
   });
 }
 
+function formatRelativeTime(iso: string) {
+  const now = new Date();
+  const d = new Date(iso);
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay === 1) return "어제";
+  if (diffDay < 30) return `${diffDay}일 전`;
+  return formatDate(iso);
+}
+
+const AVATAR_COLORS = [
+  "bg-indigo-500",
+  "bg-cyan-600",
+  "bg-fuchsia-500",
+  "bg-emerald-600",
+  "bg-red-500",
+  "bg-orange-600",
+  "bg-violet-500",
+  "bg-teal-500",
+];
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++)
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getStripeColor(status: string) {
+  if (status === "" || status === "신규") return "bg-red-500";
+  if (status === "상담중") return "bg-yellow-400";
+  return "bg-transparent";
+}
+
+function isNewInquiry(status: string) {
+  return status === "" || status === "신규";
+}
+
 export default function InquiriesPage() {
   const router = useRouter();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -208,6 +242,7 @@ export default function InquiriesPage() {
   const [sourceFilter, setSourceFilter] = useState<"all" | "website" | "meta">(
     "all",
   );
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -400,6 +435,10 @@ export default function InquiriesPage() {
 
   const filteredInquiries = inquiries.filter((inquiry) => {
     if (sourceFilter !== "all" && inquiry.source !== sourceFilter) return false;
+    if (statusFilter !== "all") {
+      if (statusFilter === "" && inquiry.status !== "") return false;
+      if (statusFilter !== "" && inquiry.status !== statusFilter) return false;
+    }
     const q = searchQuery.toLowerCase();
     return (
       inquiry.name.toLowerCase().includes(q) ||
@@ -432,59 +471,78 @@ export default function InquiriesPage() {
         </Button>
       </div>
 
-      {/* 통계 카드 */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">전체 문의</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">누적 접수</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">이번 달</CardTitle>
-            <MessageSquare className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.thisMonth}
-            </div>
-            <p className="text-xs text-muted-foreground">이번 달 접수</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">문자 회신</CardTitle>
-            <Reply className="h-4 w-4 text-violet-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-violet-600">
-              {stats.smsReplyCount}
-              <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {stats.meta}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.meta > 0
-                ? `회신률 ${Math.round((stats.smsReplyCount / stats.meta) * 100)}%`
-                : "회신 없음"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Meta 광고</CardTitle>
-            <Megaphone className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-500">{stats.meta}</div>
-            <p className="text-xs text-muted-foreground">리드 광고</p>
-          </CardContent>
-        </Card>
+      {/* 통계 카드 (클릭 필터) */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        {[
+          {
+            label: "전체 문의",
+            value: stats.total,
+            sub: "누적 접수",
+            icon: MessageSquare,
+            color: "",
+            filterKey: "all" as const,
+            filterType: "source" as const,
+          },
+          {
+            label: "이번 달",
+            value: stats.thisMonth,
+            sub: "이번 달 접수",
+            icon: MessageSquare,
+            color: "text-blue-600",
+            filterKey: "all" as const,
+            filterType: "none" as const,
+          },
+          {
+            label: "홈페이지",
+            value: stats.website,
+            sub: "웹사이트 접수",
+            icon: Globe,
+            color: "text-orange-500",
+            filterKey: "website" as const,
+            filterType: "source" as const,
+          },
+          {
+            label: "Meta 광고",
+            value: stats.meta,
+            sub: "리드 광고",
+            icon: Megaphone,
+            color: "text-blue-500",
+            filterKey: "meta" as const,
+            filterType: "source" as const,
+          },
+        ].map((stat) => {
+          const isActive =
+            stat.filterType === "source" &&
+            sourceFilter === stat.filterKey &&
+            statusFilter === "all";
+          return (
+            <Card
+              key={stat.label}
+              className={`cursor-pointer transition-all hover:shadow-md ${isActive ? "ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
+              onClick={() => {
+                if (stat.filterType === "source") {
+                  setSourceFilter(stat.filterKey as "all" | "website" | "meta");
+                  setStatusFilter("all");
+                }
+              }}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.label}
+                </CardTitle>
+                <stat.icon
+                  className={`h-4 w-4 ${stat.color || "text-muted-foreground"}`}
+                />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${stat.color}`}>
+                  {stat.value}
+                </div>
+                <p className="text-xs text-muted-foreground">{stat.sub}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {error && (
@@ -493,221 +551,243 @@ export default function InquiriesPage() {
         </Alert>
       )}
 
-      {/* 목록 */}
-      <div className="space-y-4">
-        <div className="flex gap-2 items-center">
-          <div className="flex gap-1">
-            {[
-              { value: "all" as const, label: "전체" },
-              { value: "website" as const, label: "홈페이지", icon: Globe },
-              { value: "meta" as const, label: "Meta 광고", icon: Megaphone },
-            ].map((tab) => (
-              <Button
-                key={tab.value}
-                variant={sourceFilter === tab.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSourceFilter(tab.value)}
-              >
-                {tab.icon && <tab.icon className="h-3.5 w-3.5 mr-1" />}
-                {tab.label}
-              </Button>
-            ))}
-          </div>
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="이름, 회사, 연락처, 문의내용 검색..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      {/* 필터 + 검색 */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            {/* 소스 필터 */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 shrink-0">
+              {[
+                { value: "all" as const, label: "전체" },
+                { value: "website" as const, label: "홈페이지", icon: Globe },
+                { value: "meta" as const, label: "Meta", icon: Megaphone },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    sourceFilter === tab.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setSourceFilter(tab.value)}
+                >
+                  {tab.icon && <tab.icon className="h-3.5 w-3.5" />}
+                  {tab.label}
+                </button>
+              ))}
+              <span className="w-px h-5 bg-border self-center mx-1 hidden sm:block" />
+              {/* 상태 필터 */}
+              {[
+                { value: "all", label: "상태 전체" },
+                { value: "", label: "미분류" },
+                { value: "신규", label: "신규" },
+                { value: "상담중", label: "상담중" },
+                { value: "계약완료", label: "계약완료" },
+                { value: "보류", label: "보류" },
+              ].map((tab) => (
+                <button
+                  key={`status-${tab.value}-${tab.label}`}
+                  type="button"
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    statusFilter === tab.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => setStatusFilter(tab.value)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="이름, 회사, 연락처 검색..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
         </div>
+      </div>
 
-        <Card>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredInquiries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-1">
-                  {searchQuery ? "검색 결과가 없습니다" : "문의가 없습니다"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  새로운 문의가 들어오면 여기에 표시됩니다.
-                </p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]">No</TableHead>
-                    <TableHead className="w-[70px]">날짜</TableHead>
-                    <TableHead className="w-[60px]">접수처</TableHead>
-                    <TableHead className="w-[90px]">문의자</TableHead>
-                    <TableHead className="w-[100px]">연락처</TableHead>
-                    <TableHead>문의내용</TableHead>
-                    <TableHead className="w-[50px]">회신</TableHead>
-                    <TableHead className="w-[60px]">상태</TableHead>
-                    <TableHead className="w-[36px]">SMS</TableHead>
-                    <TableHead className="w-[30px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInquiries.map((inquiry) => (
-                    <TableRow
-                      key={inquiry.id}
-                      className={`cursor-pointer ${selectedInquiry?.id === inquiry.id ? "bg-muted" : ""}`}
-                      onClick={() => setSelectedInquiry(inquiry)}
-                    >
-                      {/* No */}
-                      <TableCell className="text-muted-foreground text-sm">
-                        {filteredInquiries.length -
-                          filteredInquiries.indexOf(inquiry)}
-                      </TableCell>
-                      {/* 날짜 */}
-                      <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                        {formatDate(inquiry.createdAt)}
-                      </TableCell>
-                      {/* 접수처 */}
-                      <TableCell>
+      {/* 카드 그리드 */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : filteredInquiries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="font-semibold mb-1">
+            {searchQuery || statusFilter !== "all"
+              ? "검색 결과가 없습니다"
+              : "문의가 없습니다"}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            새로운 문의가 들어오면 여기에 표시됩니다.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          {filteredInquiries.map((inquiry) => {
+            const wizard = parseWizardMessage(inquiry.message);
+            const memoCount = parseMemos(inquiry.memo).length;
+            const isNew = isNewInquiry(inquiry.status);
+            return (
+              <Card
+                key={inquiry.id}
+                className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
+                  isNew ? "border-l-2 border-l-blue-500" : ""
+                }`}
+                onClick={() => setSelectedInquiry(inquiry)}
+              >
+                {/* 우선순위 스트라이프 */}
+                <div
+                  className={`h-[3px] w-full ${getStripeColor(inquiry.status)}`}
+                />
+
+                <CardContent className="p-4">
+                  {/* 상단: 아바타 + 이름 + 뱃지 */}
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="relative shrink-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback
+                          className={`${getAvatarColor(inquiry.name)} text-white text-sm font-semibold`}
+                        >
+                          {inquiry.name.slice(0, 1)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isNew && (
+                        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm truncate">
+                          {inquiry.name}
+                        </p>
                         {inquiry.source === "meta" ? (
                           <span
-                            className="inline-flex items-center justify-center px-2.5 py-0.5 rounded text-[11px] font-semibold text-white whitespace-nowrap"
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0"
                             style={{ background: "#0668E1" }}
                           >
                             Meta
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded text-[11px] font-semibold text-white whitespace-nowrap bg-orange-500">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0 bg-orange-500">
                             홈페이지
                           </span>
                         )}
-                      </TableCell>
-                      {/* 문의자 */}
-                      <TableCell>
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm truncate max-w-[80px]">
-                            {inquiry.name}
-                          </p>
-                          {inquiry.company && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[80px]">
-                              {inquiry.company}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      {/* 연락처 */}
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {inquiry.phone}
-                      </TableCell>
-                      {/* 문의내용 */}
-                      <TableCell>
-                        {inquiry.message.startsWith("[위저드]") ? (
-                          <div className="flex items-center gap-1.5">
-                            <Badge
-                              variant="outline"
-                              className="text-xs shrink-0"
-                            >
-                              진단
-                            </Badge>
-                            <span className="text-sm text-muted-foreground line-clamp-1">
-                              {parseWizardMessage(inquiry.message)?.업종}
-                            </span>
-                          </div>
-                        ) : (
-                          <p className="text-sm line-clamp-1">
-                            {inquiry.message}
-                          </p>
-                        )}
-                      </TableCell>
-                      {/* 회신 */}
-                      <TableCell>
-                        {inquiry.source === "meta" ? (
-                          <button
-                            type="button"
-                            title={
-                              inquiry.smsReply ? "고객 회신 받음" : "회신 체크"
-                            }
-                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
-                              inquiry.smsReply
-                                ? "bg-violet-100 text-violet-700 hover:bg-violet-200"
-                                : "bg-muted text-muted-foreground hover:bg-muted/80"
-                            }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleReply(inquiry.id);
-                            }}
-                          >
-                            <Reply className="h-3 w-3" />
-                            {inquiry.smsReply ? "회신" : "-"}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            -
-                          </span>
-                        )}
-                      </TableCell>
-                      {/* 상태 */}
-                      <TableCell>
-                        {inquiry.status ? (
+                      </div>
+                      {inquiry.company && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {inquiry.company}
+                        </p>
+                      )}
+                    </div>
+                    <div className="shrink-0">
+                      {inquiry.status ? (
+                        <Badge
+                          variant={
+                            (STATUS_COLORS[inquiry.status] as
+                              | "default"
+                              | "secondary"
+                              | "outline") || "secondary"
+                          }
+                          className={`text-xs ${
+                            inquiry.status === "계약완료"
+                              ? "bg-green-100 text-green-700 hover:bg-green-100"
+                              : inquiry.status === "상담중"
+                                ? "border-blue-300 text-blue-700"
+                                : ""
+                          }`}
+                        >
+                          {inquiry.status}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs text-muted-foreground"
+                        >
+                          미분류
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 본문: 메시지 미리보기 */}
+                  <div className="mb-3">
+                    {wizard ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
                           <Badge
-                            variant={
-                              (STATUS_COLORS[inquiry.status] as
-                                | "default"
-                                | "secondary"
-                                | "outline") || "secondary"
-                            }
-                            className={
-                              inquiry.status === "계약완료"
-                                ? "bg-green-100 text-green-700 hover:bg-green-100"
-                                : inquiry.status === "상담중"
-                                  ? "border-blue-300 text-blue-700"
-                                  : ""
-                            }
+                            variant="outline"
+                            className="text-[10px] shrink-0"
                           >
-                            {inquiry.status}
+                            진단
                           </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            -
+                          <span className="text-sm text-muted-foreground truncate">
+                            {wizard.업종}
+                          </span>
+                        </div>
+                        {wizard.고민 !== "-" && (
+                          <p className="text-xs text-muted-foreground line-clamp-1">
+                            고민: {wizard.고민}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {inquiry.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 하단: 시간 + 메모 + SMS + 액션 */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatRelativeTime(inquiry.createdAt)}
+                      </span>
+                      {memoCount > 0 && (
+                        <span className="flex items-center gap-1">
+                          <StickyNote className="h-3 w-3" />
+                          {memoCount}
+                        </span>
+                      )}
+                      {inquiry.source === "meta" &&
+                        inquiry.smsStatus === "발송완료" && (
+                          <span className="flex items-center gap-1 text-emerald-600">
+                            <CheckCircle2 className="h-3 w-3" />
+                            SMS
                           </span>
                         )}
-                      </TableCell>
-                      {/* SMS */}
-                      <TableCell>
-                        {inquiry.smsStatus === "발송완료" ? (
-                          <span title="SMS 발송완료">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          </span>
-                        ) : inquiry.smsStatus === "발송실패" ? (
-                          <span title="SMS 발송실패">
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          </span>
-                        ) : inquiry.source === "meta" ? (
-                          <span title="SMS 대기">
-                            <MessageCircle className="h-4 w-4 text-muted-foreground/40" />
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            -
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                      {inquiry.source === "meta" && inquiry.smsReply && (
+                        <span className="flex items-center gap-1 text-violet-600">
+                          <Reply className="h-3 w-3" />
+                          회신
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      상세
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* 상세 모달 */}
       <Dialog
