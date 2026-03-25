@@ -661,202 +661,234 @@ export default function InquiriesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {filteredInquiries.map((inquiry) => {
-            const wizard = parseWizardMessage(inquiry.message);
-            const memoCount = parseMemos(inquiry.memo).length;
-            const isNew = isNewInquiry(inquiry.status);
-            // 활성/비활성 판단
-            const isMetaActive = inquiry.source === "meta" && inquiry.smsReply;
-            const isWebActive =
-              inquiry.source === "website" && inquiry.status !== "계약완료";
-            const isGoogleActive =
-              inquiry.source === "google_ads" && inquiry.status !== "계약완료";
-            const isActive = isMetaActive || isWebActive || isGoogleActive;
-            return (
-              <Card
-                key={inquiry.id}
-                className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
-                  isMetaActive
-                    ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
-                    : isGoogleActive
-                      ? "ring-1 ring-green-400 bg-green-50/60 dark:bg-green-950/20 border-l-2 border-l-green-500"
-                      : isWebActive
-                        ? "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
-                        : ""
-                }`}
-                onClick={() => setSelectedInquiry(inquiry)}
-              >
-                {/* 비활성 검정 오버레이 */}
-                {!isActive && (
-                  <div className="absolute inset-0 bg-black/50 pointer-events-none z-10 rounded-[inherit]" />
-                )}
-                {/* 우선순위 스트라이프 */}
-                <div
-                  className={`h-[3px] w-full ${getStripeColor(inquiry.status)}`}
-                />
-
-                <CardContent className="p-4">
-                  {/* 상단: 아바타 + 이름 + 뱃지 */}
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="relative shrink-0">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback
-                          className={`${getAvatarColor(inquiry.name)} text-white text-sm font-semibold`}
-                        >
-                          {inquiry.name.slice(0, 1)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {isNew && (
-                        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm truncate">
-                          {inquiry.name}
-                        </p>
-                        {inquiry.source === "meta" ? (
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0"
-                            style={{ background: "#0668E1" }}
-                          >
-                            Meta
-                          </span>
-                        ) : inquiry.source === "google_ads" ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0 bg-green-600">
-                            구글
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0 bg-orange-500">
-                            홈페이지
-                          </span>
-                        )}
-                      </div>
-                      {inquiry.company && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {inquiry.company}
-                        </p>
-                      )}
-                    </div>
-                    <div className="shrink-0">
-                      {inquiry.status ? (
-                        <Badge
-                          variant={
-                            (STATUS_COLORS[inquiry.status] as
-                              | "default"
-                              | "secondary"
-                              | "outline") || "secondary"
-                          }
-                          className={`text-xs ${
-                            inquiry.status === "계약완료"
-                              ? "bg-green-100 text-green-700 hover:bg-green-100"
-                              : inquiry.status === "상담중"
-                                ? "border-blue-300 text-blue-700"
+        <div className="space-y-6">
+          {(() => {
+            // 날짜별 그룹핑
+            const grouped: { date: string; items: typeof filteredInquiries }[] =
+              [];
+            let currentDate = "";
+            for (const inquiry of filteredInquiries) {
+              const d = new Date(inquiry.createdAt);
+              const dateStr = `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, "0")}. ${String(d.getDate()).padStart(2, "0")}`;
+              if (dateStr !== currentDate) {
+                currentDate = dateStr;
+                grouped.push({ date: dateStr, items: [] });
+              }
+              grouped[grouped.length - 1].items.push(inquiry);
+            }
+            return grouped.map((group) => (
+              <div key={group.date}>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-sm font-semibold text-muted-foreground whitespace-nowrap">
+                    {group.date} ({group.items.length}건)
+                  </span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                  {group.items.map((inquiry) => {
+                    const wizard = parseWizardMessage(inquiry.message);
+                    const memoCount = parseMemos(inquiry.memo).length;
+                    const isNew = isNewInquiry(inquiry.status);
+                    // 활성/비활성 판단
+                    const isMetaActive =
+                      inquiry.source === "meta" && inquiry.smsReply;
+                    const isWebActive =
+                      inquiry.source === "website" &&
+                      inquiry.status !== "계약완료";
+                    const isGoogleActive =
+                      inquiry.source === "google_ads" &&
+                      inquiry.status !== "계약완료";
+                    const isActive =
+                      isMetaActive || isWebActive || isGoogleActive;
+                    return (
+                      <Card
+                        key={inquiry.id}
+                        className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
+                          isMetaActive
+                            ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
+                            : isGoogleActive
+                              ? "ring-1 ring-green-400 bg-green-50/60 dark:bg-green-950/20 border-l-2 border-l-green-500"
+                              : isWebActive
+                                ? "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
                                 : ""
-                          }`}
-                        >
-                          {inquiry.status}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="secondary"
-                          className="text-xs text-muted-foreground"
-                        >
-                          미분류
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 본문: 메시지 미리보기 */}
-                  <div className="mb-3">
-                    {wizard ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] shrink-0"
-                          >
-                            진단
-                          </Badge>
-                          <span className="text-sm text-muted-foreground truncate">
-                            {wizard.업종}
-                          </span>
-                        </div>
-                        {wizard.고민 !== "-" && (
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            고민: {wizard.고민}
-                          </p>
+                        }`}
+                        onClick={() => setSelectedInquiry(inquiry)}
+                      >
+                        {/* 비활성 검정 오버레이 */}
+                        {!isActive && (
+                          <div className="absolute inset-0 bg-black/50 pointer-events-none z-10 rounded-[inherit]" />
                         )}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {inquiry.message}
-                      </p>
-                    )}
-                  </div>
+                        {/* 우선순위 스트라이프 */}
+                        <div
+                          className={`h-[3px] w-full ${getStripeColor(inquiry.status)}`}
+                        />
 
-                  {/* 메모 미리보기 */}
-                  {memoCount > 0 && (
-                    <div className="mb-3 px-2.5 py-2 rounded-md bg-muted/50 space-y-1">
-                      <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                        <StickyNote className="h-3 w-3" />
-                        메모 ({memoCount})
-                      </div>
-                      {parseMemos(inquiry.memo)
-                        .slice(-2)
-                        .map((entry) => (
-                          <p
-                            key={entry.id}
-                            className="text-xs text-muted-foreground line-clamp-1"
-                          >
-                            {entry.text}
-                          </p>
-                        ))}
-                    </div>
-                  )}
+                        <CardContent className="p-4">
+                          {/* 상단: 아바타 + 이름 + 뱃지 */}
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="relative shrink-0">
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback
+                                  className={`${getAvatarColor(inquiry.name)} text-white text-sm font-semibold`}
+                                >
+                                  {inquiry.name.slice(0, 1)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {isNew && (
+                                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-sm truncate">
+                                  {inquiry.name}
+                                </p>
+                                {inquiry.source === "meta" ? (
+                                  <span
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0"
+                                    style={{ background: "#0668E1" }}
+                                  >
+                                    Meta
+                                  </span>
+                                ) : inquiry.source === "google_ads" ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0 bg-green-600">
+                                    구글
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white shrink-0 bg-orange-500">
+                                    홈페이지
+                                  </span>
+                                )}
+                              </div>
+                              {inquiry.company && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {inquiry.company}
+                                </p>
+                              )}
+                            </div>
+                            <div className="shrink-0">
+                              {inquiry.status ? (
+                                <Badge
+                                  variant={
+                                    (STATUS_COLORS[inquiry.status] as
+                                      | "default"
+                                      | "secondary"
+                                      | "outline") || "secondary"
+                                  }
+                                  className={`text-xs ${
+                                    inquiry.status === "계약완료"
+                                      ? "bg-green-100 text-green-700 hover:bg-green-100"
+                                      : inquiry.status === "상담중"
+                                        ? "border-blue-300 text-blue-700"
+                                        : ""
+                                  }`}
+                                >
+                                  {inquiry.status}
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-xs text-muted-foreground"
+                                >
+                                  미분류
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
 
-                  {/* 하단: 시간 + 메모 + SMS + 액션 */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatRelativeTime(inquiry.createdAt)}
-                      </span>
-                      {memoCount > 0 && (
-                        <span className="flex items-center gap-1">
-                          <StickyNote className="h-3 w-3" />
-                          {memoCount}
-                        </span>
-                      )}
-                      {inquiry.source === "meta" &&
-                        inquiry.smsStatus === "발송완료" && (
-                          <span className="flex items-center gap-1 text-emerald-600">
-                            <CheckCircle2 className="h-3 w-3" />
-                            SMS
-                          </span>
-                        )}
-                      {inquiry.source === "meta" && inquiry.smsReply && (
-                        <span className="flex items-center gap-1 text-[#0668E1]">
-                          <Reply className="h-3 w-3" />
-                          회신
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Eye className="h-3.5 w-3.5 mr-1" />
-                      상세
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                          {/* 본문: 메시지 미리보기 */}
+                          <div className="mb-3">
+                            {wizard ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] shrink-0"
+                                  >
+                                    진단
+                                  </Badge>
+                                  <span className="text-sm text-muted-foreground truncate">
+                                    {wizard.업종}
+                                  </span>
+                                </div>
+                                {wizard.고민 !== "-" && (
+                                  <p className="text-xs text-muted-foreground line-clamp-1">
+                                    고민: {wizard.고민}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {inquiry.message}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* 메모 미리보기 */}
+                          {memoCount > 0 && (
+                            <div className="mb-3 px-2.5 py-2 rounded-md bg-muted/50 space-y-1">
+                              <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                <StickyNote className="h-3 w-3" />
+                                메모 ({memoCount})
+                              </div>
+                              {parseMemos(inquiry.memo)
+                                .slice(-2)
+                                .map((entry) => (
+                                  <p
+                                    key={entry.id}
+                                    className="text-xs text-muted-foreground line-clamp-1"
+                                  >
+                                    {entry.text}
+                                  </p>
+                                ))}
+                            </div>
+                          )}
+
+                          {/* 하단: 시간 + 메모 + SMS + 액션 */}
+                          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatRelativeTime(inquiry.createdAt)}
+                              </span>
+                              {memoCount > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <StickyNote className="h-3 w-3" />
+                                  {memoCount}
+                                </span>
+                              )}
+                              {inquiry.source === "meta" &&
+                                inquiry.smsStatus === "발송완료" && (
+                                  <span className="flex items-center gap-1 text-emerald-600">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    SMS
+                                  </span>
+                                )}
+                              {inquiry.source === "meta" &&
+                                inquiry.smsReply && (
+                                  <span className="flex items-center gap-1 text-[#0668E1]">
+                                    <Reply className="h-3 w-3" />
+                                    회신
+                                  </span>
+                                )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              상세
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
       )}
 
