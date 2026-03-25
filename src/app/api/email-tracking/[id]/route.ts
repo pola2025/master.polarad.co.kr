@@ -64,29 +64,33 @@ async function recordOpen(id: string, type: string) {
     const fields = record.fields as Record<string, string>;
     const alreadyOpened = !!fields.emailOpenedAt;
 
-    // 2. Airtable에 열람 시각 기록 (매번 갱신)
-    await fetch(`https://api.airtable.com/v0/${baseId}/${tableId}/${id}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        fields: { emailOpenedAt: now },
-      }),
-    });
-
-    console.log(`[email-tracking] Report ${id} opened at ${now}`);
-
-    // 3. 첫 열람일 때만 텔레그램 알림
+    // 2. 최초 열람 시에만 Airtable 기록 (재열람 시 덮어쓰지 않음)
     if (!alreadyOpened) {
-      await notifyTelegram({
-        businessName: fields.businessName || "알 수 없음",
-        contactName: fields.contactName || "",
-        industry: fields.industry || "",
-        sentAt: fields.sentAt || "",
-        openedAt: now,
+      await fetch(`https://api.airtable.com/v0/${baseId}/${tableId}/${id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fields: { emailOpenedAt: now },
+        }),
       });
+
+      console.log(`[email-tracking] Report ${id} first opened at ${now}`);
+
+      // 3. 발송 완료된 건만 텔레그램 알림 (미발송 건 오알림 방지)
+      if (fields.sentAt) {
+        await notifyTelegram({
+          businessName: fields.businessName || "알 수 없음",
+          contactName: fields.contactName || "",
+          industry: fields.industry || "",
+          sentAt: fields.sentAt,
+          openedAt: now,
+        });
+      }
+    } else {
+      console.log(`[email-tracking] Report ${id} re-opened (skipped)`);
     }
   }
 }

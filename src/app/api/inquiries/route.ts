@@ -219,7 +219,7 @@ export async function GET() {
         const realId = inquiry.id.startsWith("meta_")
           ? inquiry.id.replace("meta_", "")
           : inquiry.id;
-        const report = reportMap.get(realId);
+        const report = reportMap.get(realId) || reportMap.get(inquiry.id);
         return {
           ...inquiry,
           reportStatus: report?.reportStatus || "",
