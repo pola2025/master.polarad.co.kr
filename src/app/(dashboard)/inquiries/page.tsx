@@ -246,6 +246,8 @@ export default function InquiriesPage() {
     meta: 0,
     googleAds: 0,
     smsReplyCount: 0,
+    contractCount: 0,
+    totalRevenue: 0,
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<
