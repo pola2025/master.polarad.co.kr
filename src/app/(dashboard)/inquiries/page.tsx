@@ -407,7 +407,6 @@ export default function InquiriesPage() {
   }
 
   async function handleDeleteById(id: string) {
-    if (!confirm("이 문의를 삭제하시겠습니까?")) return;
     try {
       const res = await fetch("/api/inquiries", {
         method: "DELETE",
@@ -922,17 +921,41 @@ export default function InquiriesPage() {
                                 )}
                             </div>
                             <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteById(inquiry.id);
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      문의를 삭제하시겠습니까?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      이 작업은 되돌릴 수 없습니다.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>취소</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() =>
+                                        handleDeleteById(inquiry.id)
+                                      }
+                                    >
+                                      삭제
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                               <Button
                                 variant="ghost"
                                 size="sm"
