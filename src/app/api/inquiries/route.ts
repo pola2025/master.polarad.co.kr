@@ -20,6 +20,7 @@ interface AirtableRecord {
     문의내용?: string;
     메모?: string;
     상태?: string;
+    계약금액?: number;
     "개인정보 수집 및 이용동의"?: boolean;
   };
 }
@@ -147,6 +148,7 @@ export async function GET() {
           message: record.fields["문의내용"] ?? "",
           memo: record.fields["메모"] ?? "",
           status: record.fields["상태"] ?? "",
+          contractAmount: record.fields["계약금액"] ?? 0,
           adName: "",
           industry: "",
           smsStatus: "",
@@ -189,6 +191,7 @@ export async function GET() {
           smsSentAt: record.fields.smsSentAt ?? "",
           smsError: record.fields.smsError ?? "",
           smsReply: record.fields.smsReply ?? false,
+          contractAmount: 0,
           createdAt: record.createdTime,
         });
       }
@@ -245,6 +248,8 @@ export async function GET() {
       (i) => i.source === "website",
     );
 
+    const contractInquiries = inquiries.filter((i) => i.status === "계약완료");
+
     const stats = {
       total: inquiries.length,
       thisMonth: inquiries.filter((i) => new Date(i.createdAt) >= thisMonth)
@@ -253,6 +258,11 @@ export async function GET() {
       meta: metaInquiries.length,
       googleAds: googleAdsInquiries.length,
       smsReplyCount: metaInquiries.filter((i) => i.smsReply).length,
+      contractCount: contractInquiries.length,
+      totalRevenue: contractInquiries.reduce(
+        (sum, i) => sum + (i.contractAmount || 0),
+        0,
+      ),
     };
 
     return NextResponse.json({ inquiries, stats });
@@ -272,7 +282,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id, memo, status, smsReply } = await request.json();
+    const { id, memo, status, smsReply, contractAmount } = await request.json();
     if (!id) {
       return NextResponse.json({ error: "ID가 필요합니다." }, { status: 400 });
     }
@@ -283,7 +293,7 @@ export async function PATCH(request: NextRequest) {
     const baseId = isMeta ? META_BASE_ID : INQUIRIES_BASE_ID;
     const tableId = isMeta ? META_TABLE_ID : encodeURIComponent(TABLE_NAME);
 
-    const fields: Record<string, string | boolean> = {};
+    const fields: Record<string, string | boolean | number> = {};
     if (isMeta) {
       if (memo !== undefined) fields["memo"] = memo;
       if (status !== undefined)
@@ -292,6 +302,7 @@ export async function PATCH(request: NextRequest) {
     } else {
       if (memo !== undefined) fields["메모"] = memo;
       if (status !== undefined) fields["상태"] = status;
+      if (contractAmount !== undefined) fields["계약금액"] = contractAmount;
     }
 
     const res = await fetch(

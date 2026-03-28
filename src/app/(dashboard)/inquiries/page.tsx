@@ -24,6 +24,7 @@ import {
   BarChart3,
   Clock,
   Eye,
+  Banknote,
 } from "lucide-react";
 import {
   Card,
@@ -75,6 +76,7 @@ interface Inquiry {
   message: string;
   memo: string;
   status: string;
+  contractAmount: number;
   adName: string;
   industry: string;
   smsStatus: string;
@@ -94,6 +96,8 @@ interface InquiryStats {
   meta: number;
   googleAds: number;
   smsReplyCount: number;
+  contractCount: number;
+  totalRevenue: number;
 }
 
 const STATUS_OPTIONS = [
@@ -342,8 +346,18 @@ export default function InquiriesPage() {
     setEditingMemoText("");
   }
 
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [contractAmountInput, setContractAmountInput] = useState("");
+  const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
+
   async function handleStatusChange(status: string) {
     if (!selectedInquiry) return;
+    if (status === "계약완료") {
+      setPendingStatusId(selectedInquiry.id);
+      setContractAmountInput("");
+      setContractDialogOpen(true);
+      return;
+    }
     try {
       const res = await fetch("/api/inquiries", {
         method: "PATCH",
@@ -355,6 +369,37 @@ export default function InquiriesPage() {
         prev.map((i) => (i.id === selectedInquiry.id ? { ...i, status } : i)),
       );
       setSelectedInquiry((prev) => (prev ? { ...prev, status } : prev));
+    } catch {
+      setError("상태 변경에 실패했습니다.");
+    }
+  }
+
+  async function handleContractConfirm() {
+    if (!pendingStatusId) return;
+    const amount = parseInt(contractAmountInput.replace(/,/g, ""), 10) || 0;
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: pendingStatusId,
+          status: "계약완료",
+          contractAmount: amount,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setInquiries((prev) =>
+        prev.map((i) =>
+          i.id === pendingStatusId
+            ? { ...i, status: "계약완료", contractAmount: amount }
+            : i,
+        ),
+      );
+      setSelectedInquiry((prev) =>
+        prev ? { ...prev, status: "계약완료", contractAmount: amount } : prev,
+      );
+      setContractDialogOpen(false);
+      setPendingStatusId(null);
     } catch {
       setError("상태 변경에 실패했습니다.");
     }
@@ -549,6 +594,18 @@ export default function InquiriesPage() {
                 : "Meta 접수 없음",
             icon: Reply,
             color: "text-[#0668E1]",
+            filterKey: "all" as const,
+            filterType: "none" as const,
+          },
+          {
+            label: "계약",
+            value: stats.contractCount,
+            sub:
+              stats.totalRevenue > 0
+                ? `매출 ${(stats.totalRevenue / 10000).toLocaleString()}만원`
+                : "매출 없음",
+            icon: Banknote,
+            color: "text-emerald-600",
             filterKey: "all" as const,
             filterType: "none" as const,
           },
@@ -1384,6 +1441,55 @@ export default function InquiriesPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 계약금액 입력 다이얼로그 */}
+      <AlertDialog
+        open={contractDialogOpen}
+        onOpenChange={setContractDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>계약 완료 처리</AlertDialogTitle>
+            <AlertDialogDescription>
+              계약 금액을 입력하면 매출로 집계됩니다. (선택)
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              계약 금액 (원)
+            </label>
+            <input
+              type="text"
+              value={contractAmountInput}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^\d]/g, "");
+                setContractAmountInput(
+                  v ? parseInt(v, 10).toLocaleString() : "",
+                );
+              }}
+              placeholder="예: 1,000,000"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              autoFocus
+            />
+            {contractAmountInput && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {(
+                  parseInt(contractAmountInput.replace(/,/g, ""), 10) / 10000
+                ).toLocaleString()}
+                만원
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingStatusId(null)}>
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleContractConfirm}>
+              계약 완료
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
