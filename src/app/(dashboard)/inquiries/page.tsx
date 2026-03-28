@@ -713,10 +713,12 @@ export default function InquiriesPage() {
                       inquiry.source === "meta" && inquiry.smsReply;
                     const isWebActive =
                       inquiry.source === "website" &&
-                      inquiry.status !== "계약완료";
+                      inquiry.status !== "계약완료" &&
+                      inquiry.status !== "보류";
                     const isGoogleActive =
                       inquiry.source === "google_ads" &&
-                      inquiry.status !== "계약완료";
+                      inquiry.status !== "계약완료" &&
+                      inquiry.status !== "보류";
                     const isActive =
                       isMetaActive || isWebActive || isGoogleActive;
                     return (
