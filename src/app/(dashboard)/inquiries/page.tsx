@@ -708,32 +708,21 @@ export default function InquiriesPage() {
                     const wizard = parseWizardMessage(inquiry.message);
                     const memoCount = parseMemos(inquiry.memo).length;
                     const isNew = isNewInquiry(inquiry.status);
-                    // 활성/비활성 판단
-                    const isMetaActive =
-                      inquiry.source === "meta" &&
-                      inquiry.smsReply &&
-                      inquiry.status !== "보류";
-                    const isWebActive =
-                      inquiry.source === "website" &&
-                      inquiry.status !== "계약완료" &&
-                      inquiry.status !== "보류";
-                    const isGoogleActive =
-                      inquiry.source === "google_ads" &&
-                      inquiry.status !== "계약완료" &&
-                      inquiry.status !== "보류";
+                    // 활성/비활성 판단 (보류/계약완료 → 비활성)
                     const isActive =
-                      isMetaActive || isWebActive || isGoogleActive;
+                      inquiry.status !== "계약완료" &&
+                      inquiry.status !== "보류";
                     return (
                       <Card
                         key={inquiry.id}
                         className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
-                          isMetaActive
-                            ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
-                            : isGoogleActive
-                              ? "ring-1 ring-green-400 bg-green-50/60 dark:bg-green-950/20 border-l-2 border-l-green-500"
-                              : isWebActive
-                                ? "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
-                                : ""
+                          isActive
+                            ? inquiry.source === "meta"
+                              ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
+                              : inquiry.source === "google_ads"
+                                ? "ring-1 ring-green-400 bg-green-50/60 dark:bg-green-950/20 border-l-2 border-l-green-500"
+                                : "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
+                            : ""
                         }`}
                         onClick={() => setSelectedInquiry(inquiry)}
                       >
