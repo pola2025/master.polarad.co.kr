@@ -996,10 +996,18 @@ export default function InquiriesPage() {
                       <Megaphone className="h-3 w-3 mr-1" />
                       Meta 광고
                     </Badge>
+                  ) : selectedInquiry.source === "google_ads" ? (
+                    <Badge
+                      variant="outline"
+                      className="text-xs border-green-600 text-green-700"
+                    >
+                      <Search className="h-3 w-3 mr-1" />
+                      구글 접수
+                    </Badge>
                   ) : (
                     <Badge
                       variant="outline"
-                      className="text-xs border-green-300 text-green-600"
+                      className="text-xs border-orange-300 text-orange-600"
                     >
                       <Globe className="h-3 w-3 mr-1" />
                       홈페이지

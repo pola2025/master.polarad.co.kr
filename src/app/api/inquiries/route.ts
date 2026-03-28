@@ -134,9 +134,11 @@ export async function GET() {
       const data = await websiteRes.json();
       const records: AirtableRecord[] = data.records || [];
       for (const record of records) {
+        const msg = record.fields["문의내용"] ?? "";
+        const isGoogleAds = msg.includes("[구글광고");
         websiteInquiries.push({
           id: record.id,
-          source: "website" as const,
+          source: isGoogleAds ? ("google_ads" as const) : ("website" as const),
           no: record.fields.no ?? 0,
           name: record.fields["이름"] ?? "-",
           company: record.fields["회사명"] ?? "",
@@ -236,12 +238,20 @@ export async function GET() {
     thisMonth.setDate(1);
     thisMonth.setHours(0, 0, 0, 0);
 
+    const googleAdsInquiries = websiteInquiries.filter(
+      (i) => i.source === "google_ads",
+    );
+    const pureWebsiteInquiries = websiteInquiries.filter(
+      (i) => i.source === "website",
+    );
+
     const stats = {
       total: inquiries.length,
       thisMonth: inquiries.filter((i) => new Date(i.createdAt) >= thisMonth)
         .length,
-      website: websiteInquiries.length,
+      website: pureWebsiteInquiries.length,
       meta: metaInquiries.length,
+      googleAds: googleAdsInquiries.length,
       smsReplyCount: metaInquiries.filter((i) => i.smsReply).length,
     };
 
