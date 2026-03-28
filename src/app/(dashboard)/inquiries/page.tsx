@@ -406,6 +406,23 @@ export default function InquiriesPage() {
     }
   }
 
+  async function handleDeleteById(id: string) {
+    if (!confirm("이 문의를 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error();
+      setInquiries((prev) => prev.filter((i) => i.id !== id));
+      setStats((prev) => ({ ...prev, total: prev.total - 1 }));
+      if (selectedInquiry?.id === id) setSelectedInquiry(null);
+    } catch {
+      setError("삭제에 실패했습니다.");
+    }
+  }
+
   async function handleGenerateBrandReport() {
     if (!selectedInquiry) return;
     setGeneratingReport(true);
@@ -904,14 +921,27 @@ export default function InquiriesPage() {
                                   </span>
                                 )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Eye className="h-3.5 w-3.5 mr-1" />
-                              상세
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteById(inquiry.id);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                상세
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
