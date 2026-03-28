@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   "/api/cron/",
   "/api/brand-reports/",
   "/api/analytics/bot-stats",
+  "/api/send-email",
   "/report/",
   "/api/report/",
 ];
