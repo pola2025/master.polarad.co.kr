@@ -710,7 +710,9 @@ export default function InquiriesPage() {
                     const isNew = isNewInquiry(inquiry.status);
                     // 활성/비활성 판단
                     const isMetaActive =
-                      inquiry.source === "meta" && inquiry.smsReply;
+                      inquiry.source === "meta" &&
+                      inquiry.smsReply &&
+                      inquiry.status !== "보류";
                     const isWebActive =
                       inquiry.source === "website" &&
                       inquiry.status !== "계약완료" &&
