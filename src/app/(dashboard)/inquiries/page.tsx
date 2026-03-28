@@ -254,6 +254,9 @@ export default function InquiriesPage() {
     "all" | "website" | "meta" | "google_ads"
   >("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [datePreset, setDatePreset] = useState(0);
+  const [customDateStart, setCustomDateStart] = useState("");
+  const [customDateEnd, setCustomDateEnd] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -352,8 +355,9 @@ export default function InquiriesPage() {
   const [contractAmountInput, setContractAmountInput] = useState("");
   const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
 
-  async function handleStatusChange(status: string) {
+  async function handleStatusChange(rawStatus: string) {
     if (!selectedInquiry) return;
+    const status = rawStatus === "__empty" ? "" : rawStatus;
     if (status === "계약완료") {
       setPendingStatusId(selectedInquiry.id);
       setContractAmountInput("");
@@ -469,6 +473,60 @@ export default function InquiriesPage() {
     }
   }
 
+  // 마케팅계약 다이얼로그
+  const [marketingDialogOpen, setMarketingDialogOpen] = useState(false);
+  const [marketingAmountInput, setMarketingAmountInput] = useState("");
+  const [marketingContractInquiry, setMarketingContractInquiry] =
+    useState<Inquiry | null>(null);
+
+  async function handleMarketingContract() {
+    if (!marketingContractInquiry) return;
+    const amount = parseInt(marketingAmountInput.replace(/,/g, ""), 10) || 0;
+    try {
+      // 1. Clients 테이블에 거래처 생성
+      const wizard = parseWizardMessage(marketingContractInquiry.message);
+      await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company: marketingContractInquiry.company,
+          contactName: marketingContractInquiry.name,
+          phone: marketingContractInquiry.phone,
+          email: marketingContractInquiry.email,
+          industry: wizard?.업종 || "",
+          contractAmount: amount,
+          inquiryId: marketingContractInquiry.id,
+        }),
+      });
+      // 2. 접수 상태를 계약완료로 + 금액 저장
+      await fetch("/api/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: marketingContractInquiry.id,
+          status: "계약완료",
+          contractAmount: amount,
+        }),
+      });
+      setInquiries((prev) =>
+        prev.map((i) =>
+          i.id === marketingContractInquiry.id
+            ? { ...i, status: "계약완료", contractAmount: amount }
+            : i,
+        ),
+      );
+      if (selectedInquiry?.id === marketingContractInquiry.id) {
+        setSelectedInquiry((prev) =>
+          prev ? { ...prev, status: "계약완료", contractAmount: amount } : prev,
+        );
+      }
+      setMarketingDialogOpen(false);
+      setMarketingContractInquiry(null);
+    } catch {
+      setError("마케팅계약 생성에 실패했습니다.");
+    }
+  }
+
   async function handleGenerateBrandReport() {
     if (!selectedInquiry) return;
     setGeneratingReport(true);
@@ -506,6 +564,27 @@ export default function InquiriesPage() {
     if (statusFilter !== "all") {
       if (statusFilter === "" && inquiry.status !== "") return false;
       if (statusFilter !== "" && inquiry.status !== statusFilter) return false;
+    }
+    // 기간 필터
+    if (datePreset > 0) {
+      const cutoff = new Date();
+      if (datePreset === 1) {
+        cutoff.setHours(0, 0, 0, 0);
+      } else {
+        cutoff.setDate(cutoff.getDate() - datePreset);
+        cutoff.setHours(0, 0, 0, 0);
+      }
+      if (new Date(inquiry.createdAt) < cutoff) return false;
+    }
+    if (
+      customDateStart &&
+      new Date(inquiry.createdAt) < new Date(customDateStart)
+    )
+      return false;
+    if (customDateEnd) {
+      const end = new Date(customDateEnd);
+      end.setHours(23, 59, 59, 999);
+      if (new Date(inquiry.createdAt) > end) return false;
     }
     const q = searchQuery.toLowerCase();
     return (
@@ -707,6 +786,53 @@ export default function InquiriesPage() {
                   {tab.label}
                 </button>
               ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {/* 기간 필터 */}
+              {[
+                { label: "전체", days: 0 },
+                { label: "오늘", days: 1 },
+                { label: "7일", days: 7 },
+                { label: "30일", days: 30 },
+                { label: "60일", days: 60 },
+                { label: "90일", days: 90 },
+              ].map((p) => (
+                <button
+                  key={p.days}
+                  type="button"
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    datePreset === p.days && !customDateStart
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => {
+                    setDatePreset(p.days);
+                    setCustomDateStart("");
+                    setCustomDateEnd("");
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+              <input
+                type="date"
+                value={customDateStart}
+                onChange={(e) => {
+                  setCustomDateStart(e.target.value);
+                  setDatePreset(0);
+                }}
+                className="h-7 px-1.5 text-xs border rounded-md w-[110px]"
+              />
+              <span className="text-xs text-muted-foreground">~</span>
+              <input
+                type="date"
+                value={customDateEnd}
+                onChange={(e) => {
+                  setCustomDateEnd(e.target.value);
+                  setDatePreset(0);
+                }}
+                className="h-7 px-1.5 text-xs border rounded-md w-[110px]"
+              />
             </div>
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -980,6 +1106,22 @@ export default function InquiriesPage() {
                                 )}
                             </div>
                             <div className="flex items-center gap-1">
+                              {isActive && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMarketingContractInquiry(inquiry);
+                                    setMarketingAmountInput("");
+                                    setMarketingDialogOpen(true);
+                                  }}
+                                >
+                                  <Banknote className="h-3.5 w-3.5 mr-1" />
+                                  마케팅계약
+                                </Button>
+                              )}
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
@@ -1041,7 +1183,11 @@ export default function InquiriesPage() {
         open={!!selectedInquiry}
         onOpenChange={(open) => !open && setSelectedInquiry(null)}
       >
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-lg max-h-[85vh] overflow-y-auto"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           {selectedInquiry && (
             <>
               <DialogHeader>
@@ -1203,7 +1349,7 @@ export default function InquiriesPage() {
                     상태
                   </h4>
                   <Select
-                    value={selectedInquiry.status || ""}
+                    value={selectedInquiry.status || "__empty"}
                     onValueChange={handleStatusChange}
                   >
                     <SelectTrigger className="w-full">
@@ -1495,6 +1641,61 @@ export default function InquiriesPage() {
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleContractConfirm}>
               계약 완료
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 마케팅계약 다이얼로그 */}
+      <AlertDialog
+        open={marketingDialogOpen}
+        onOpenChange={setMarketingDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>마케팅 계약 생성</AlertDialogTitle>
+            <AlertDialogDescription>
+              {marketingContractInquiry?.company} — 월정액 금액을 입력하세요
+              (VAT포함). 거래처관리에 등록됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              월 계약 금액 (원)
+            </label>
+            <input
+              type="text"
+              value={marketingAmountInput}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^\d]/g, "");
+                setMarketingAmountInput(
+                  v ? parseInt(v, 10).toLocaleString() : "",
+                );
+              }}
+              placeholder="예: 1,000,000"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              autoFocus
+            />
+            {marketingAmountInput && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {(
+                  parseInt(marketingAmountInput.replace(/,/g, ""), 10) / 10000
+                ).toLocaleString()}
+                만원/월
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setMarketingContractInquiry(null)}
+            >
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={handleMarketingContract}
+            >
+              마케팅계약 생성
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
