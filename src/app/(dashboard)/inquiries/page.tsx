@@ -767,10 +767,13 @@ export default function InquiriesPage() {
                     const wizard = parseWizardMessage(inquiry.message);
                     const memoCount = parseMemos(inquiry.memo).length;
                     const isNew = isNewInquiry(inquiry.status);
-                    // 활성/비활성 판단 (보류/계약완료 → 비활성)
+                    // 활성 조건: 홈페이지/구글=항상, Meta=문자회신 체크된 것만
                     const isActive =
                       inquiry.status !== "계약완료" &&
-                      inquiry.status !== "보류";
+                      inquiry.status !== "보류" &&
+                      (inquiry.source !== "meta" || inquiry.smsReply);
+                    const isContract = inquiry.status === "계약완료";
+                    const isHold = inquiry.status === "보류";
                     return (
                       <Card
                         key={inquiry.id}
@@ -785,8 +788,12 @@ export default function InquiriesPage() {
                         }`}
                         onClick={() => setSelectedInquiry(inquiry)}
                       >
-                        {/* 비활성 검정 오버레이 */}
-                        {!isActive && (
+                        {/* 계약완료: 초록 오버레이 */}
+                        {isContract && (
+                          <div className="absolute inset-0 bg-emerald-900/40 pointer-events-none z-10 rounded-[inherit]" />
+                        )}
+                        {/* 보류/Meta미회신: 검정 오버레이 */}
+                        {!isActive && !isContract && (
                           <div className="absolute inset-0 bg-black/50 pointer-events-none z-10 rounded-[inherit]" />
                         )}
                         {/* 우선순위 스트라이프 */}
