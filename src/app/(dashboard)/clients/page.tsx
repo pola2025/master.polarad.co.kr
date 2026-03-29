@@ -279,10 +279,10 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">거래처 관리</h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             마케팅 계약 거래처를 관리합니다.
           </p>
         </div>
@@ -291,6 +291,7 @@ export default function ClientsPage() {
           size="sm"
           onClick={fetchClients}
           disabled={loading}
+          className="self-end sm:self-auto"
         >
           <RefreshCw
             className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
@@ -330,8 +331,11 @@ export default function ClientsPage() {
             icon: Banknote,
             color: "text-emerald-600",
           },
-        ].map((stat) => (
-          <Card key={stat.label}>
+        ].map((stat, idx, arr) => (
+          <Card
+            key={stat.label}
+            className={idx === arr.length - 1 ? "col-span-2 md:col-span-1" : ""}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 {stat.label}
@@ -350,44 +354,46 @@ export default function ClientsPage() {
       </div>
 
       {/* 필터 */}
-      <div className="flex flex-wrap gap-3 items-center">
-        {/* 상태 필터 */}
-        <div className="flex gap-1">
-          {[{ value: "all", label: "전체" }, ...STATUS_OPTIONS].map((opt) => (
-            <Button
-              key={opt.value}
-              variant={statusFilter === opt.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter(opt.value)}
-            >
-              {opt.label}
-            </Button>
-          ))}
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {/* 상태 필터 */}
+          <div className="flex gap-1 overflow-x-auto pb-1 sm:pb-0">
+            {[{ value: "all", label: "전체" }, ...STATUS_OPTIONS].map((opt) => (
+              <Button
+                key={opt.value}
+                variant={statusFilter === opt.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <Separator orientation="vertical" className="h-8" />
-
-        {/* 기간 필터 */}
-        <div className="flex gap-1">
-          {DATE_PRESETS.map((preset) => (
-            <Button
-              key={preset.days}
-              variant={
-                datePreset === preset.days && !customDateStart
-                  ? "default"
-                  : "outline"
-              }
-              size="sm"
-              onClick={() => {
-                setDatePreset(preset.days);
-                setCustomDateStart("");
-                setCustomDateEnd("");
-              }}
-            >
-              {preset.label}
-            </Button>
-          ))}
-          <div className="flex items-center gap-1 ml-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 기간 필터 */}
+          <div className="flex gap-1">
+            {DATE_PRESETS.map((preset) => (
+              <Button
+                key={preset.days}
+                variant={
+                  datePreset === preset.days && !customDateStart
+                    ? "default"
+                    : "outline"
+                }
+                size="sm"
+                onClick={() => {
+                  setDatePreset(preset.days);
+                  setCustomDateStart("");
+                  setCustomDateEnd("");
+                }}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
             <input
               type="date"
               value={customDateStart}
@@ -410,10 +416,8 @@ export default function ClientsPage() {
           </div>
         </div>
 
-        <Separator orientation="vertical" className="h-8" />
-
         {/* 검색 */}
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="업체명, 담당자, 연락처 검색..."

@@ -25,6 +25,8 @@ import {
   Clock,
   Eye,
   Banknote,
+  Handshake,
+  FileSignature,
 } from "lucide-react";
 import {
   Card,
@@ -98,6 +100,24 @@ interface InquiryStats {
   smsReplyCount: number;
   contractCount: number;
   totalRevenue: number;
+}
+
+interface MonthlyStats {
+  month: string;
+  inquiries: number;
+  website: number;
+  meta: number;
+  googleAds: number;
+  contractCount: number;
+  totalRevenue: number;
+}
+
+interface AdSpendRecord {
+  id: string;
+  month: string;
+  metaAmount: number;
+  googleAmount: number;
+  memo: string;
 }
 
 const STATUS_OPTIONS = [
@@ -249,6 +269,15 @@ export default function InquiriesPage() {
     contractCount: 0,
     totalRevenue: 0,
   });
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [adSpend, setAdSpend] = useState<AdSpendRecord | null>(null);
+  const [adSpendDialogOpen, setAdSpendDialogOpen] = useState(false);
+  const [adSpendMetaInput, setAdSpendMetaInput] = useState("");
+  const [adSpendGoogleInput, setAdSpendGoogleInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<
     "all" | "website" | "meta" | "google_ads"
@@ -269,11 +298,12 @@ export default function InquiriesPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/inquiries");
+      const res = await fetch(`/api/inquiries?month=${selectedMonth}`);
       if (!res.ok) throw new Error("조회 실패");
       const data = await res.json();
       setInquiries(data.inquiries || []);
       setStats(data.stats || { total: 0, thisMonth: 0 });
+      if (data.monthlyStats) setMonthlyStats(data.monthlyStats);
     } catch {
       setError("문의 데이터를 불러오지 못했습니다.");
     } finally {
@@ -281,9 +311,53 @@ export default function InquiriesPage() {
     }
   }
 
+  async function fetchAdSpend(month: string) {
+    try {
+      const res = await fetch(`/api/ad-spend?month=${month}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setAdSpend(data.records?.[0] || null);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function saveAdSpend() {
+    const meta = parseInt(adSpendMetaInput.replace(/,/g, ""), 10) || 0;
+    const google = parseInt(adSpendGoogleInput.replace(/,/g, ""), 10) || 0;
+    try {
+      if (adSpend) {
+        await fetch("/api/ad-spend", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: adSpend.id,
+            metaAmount: meta,
+            googleAmount: google,
+          }),
+        });
+      } else {
+        await fetch("/api/ad-spend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            month: selectedMonth,
+            metaAmount: meta,
+            googleAmount: google,
+          }),
+        });
+      }
+      setAdSpendDialogOpen(false);
+      fetchAdSpend(selectedMonth);
+    } catch {
+      /* ignore */
+    }
+  }
+
   useEffect(() => {
     fetchInquiries();
-  }, []);
+    fetchAdSpend(selectedMonth);
+  }, [selectedMonth]);
 
   // 문의 선택 시 메모 입력 초기화
   useEffect(() => {
@@ -598,10 +672,10 @@ export default function InquiriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">리드 관리</h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             홈페이지 접수 및 Meta 광고 리드를 통합 관리합니다.
           </p>
         </div>
@@ -610,6 +684,7 @@ export default function InquiriesPage() {
           size="sm"
           onClick={fetchInquiries}
           disabled={loading}
+          className="self-end sm:self-auto"
         >
           <RefreshCw
             className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
@@ -618,114 +693,166 @@ export default function InquiriesPage() {
         </Button>
       </div>
 
-      {/* 통계 카드 (클릭 필터) */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      {/* 1행: 접수 통계 (소스별 필터) */}
+      <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
         {[
           {
-            label: "전체 문의",
+            label: "전체",
             value: stats.total,
-            sub: "누적 접수",
-            icon: MessageSquare,
             color: "",
             filterKey: "all" as const,
-            filterType: "source" as const,
           },
           {
             label: "이번 달",
             value: stats.thisMonth,
-            sub: "이번 달 접수",
-            icon: MessageSquare,
             color: "text-blue-600",
             filterKey: "all" as const,
-            filterType: "none" as const,
           },
           {
             label: "홈페이지",
             value: stats.website,
-            sub: "웹사이트 접수",
-            icon: Globe,
             color: "text-orange-500",
             filterKey: "website" as const,
-            filterType: "source" as const,
           },
           {
-            label: "Meta 광고",
+            label: "Meta",
             value: stats.meta,
-            sub: "리드 광고",
-            icon: Megaphone,
             color: "text-blue-500",
             filterKey: "meta" as const,
-            filterType: "source" as const,
           },
           {
-            label: "구글광고",
+            label: "구글",
             value: stats.googleAds,
-            sub: "검색광고 접수",
-            icon: Search,
             color: "text-green-500",
             filterKey: "google_ads" as const,
-            filterType: "source" as const,
           },
           {
-            label: "문자 회신",
+            label: "회신",
             value: stats.smsReplyCount,
-            sub:
-              stats.meta > 0
-                ? `${stats.meta}건 중 ${stats.smsReplyCount}건 (${Math.round((stats.smsReplyCount / stats.meta) * 100)}%)`
-                : "Meta 접수 없음",
-            icon: Reply,
             color: "text-[#0668E1]",
             filterKey: "all" as const,
-            filterType: "none" as const,
           },
-          {
-            label: "계약",
-            value: stats.contractCount,
-            sub:
-              stats.totalRevenue > 0
-                ? `매출 ${(stats.totalRevenue / 10000).toLocaleString()}만원`
-                : "매출 없음",
-            icon: Banknote,
-            color: "text-emerald-600",
-            filterKey: "all" as const,
-            filterType: "none" as const,
-          },
-        ].map((stat) => {
-          const isActive =
-            stat.filterType === "source" &&
-            sourceFilter === stat.filterKey &&
+        ].map((s) => {
+          const active =
+            sourceFilter === s.filterKey &&
+            s.filterKey !== "all" &&
             statusFilter === "all";
           return (
-            <Card
-              key={stat.label}
-              className={`cursor-pointer transition-all hover:shadow-md ${isActive ? "ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
+            <div
+              key={s.label}
+              className={`rounded-lg border p-3 cursor-pointer transition-all hover:shadow-sm ${active ? "ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : "bg-card"}`}
               onClick={() => {
-                if (stat.filterType === "source") {
+                if (s.filterKey !== "all" || s.label === "전체") {
                   setSourceFilter(
-                    stat.filterKey as "all" | "website" | "meta" | "google_ads",
+                    s.filterKey as "all" | "website" | "meta" | "google_ads",
                   );
                   setStatusFilter("all");
                 }
               }}
             >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {stat.label}
-                </CardTitle>
-                <stat.icon
-                  className={`h-4 w-4 ${stat.color || "text-muted-foreground"}`}
-                />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${stat.color}`}>
-                  {stat.value}
-                </div>
-                <p className="text-xs text-muted-foreground">{stat.sub}</p>
-              </CardContent>
-            </Card>
+              <p className="text-xs text-muted-foreground mb-0.5">{s.label}</p>
+              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+            </div>
           );
         })}
       </div>
+
+      {/* 2행: 성과 통계 (월별) */}
+      {(() => {
+        const ms = monthlyStats;
+        const totalAdSpend =
+          (adSpend?.metaAmount || 0) + (adSpend?.googleAmount || 0);
+        const contractRate =
+          ms && ms.inquiries > 0
+            ? ((ms.contractCount / ms.inquiries) * 100).toFixed(1)
+            : "0";
+        const roas =
+          totalAdSpend > 0 && ms
+            ? (ms.totalRevenue / totalAdSpend).toFixed(2)
+            : "-";
+
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">
+                성과 통계
+              </h3>
+              <select
+                className="text-sm border rounded px-2 py-0.5 bg-background"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+              >
+                {Array.from({ length: 12 }, (_, i) => {
+                  const d = new Date(2026, 2 + i); // 3월부터
+                  if (d > new Date()) return null;
+                  const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                  return (
+                    <option key={v} value={v}>
+                      {d.getMonth() + 1}월
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+              {/* 광고비 */}
+              <div
+                className="rounded-lg border p-3 cursor-pointer hover:shadow-sm bg-card transition-all"
+                onClick={() => {
+                  setAdSpendMetaInput(
+                    adSpend?.metaAmount ? String(adSpend.metaAmount) : "",
+                  );
+                  setAdSpendGoogleInput(
+                    adSpend?.googleAmount ? String(adSpend.googleAmount) : "",
+                  );
+                  setAdSpendDialogOpen(true);
+                }}
+              >
+                <p className="text-xs text-muted-foreground mb-0.5">광고비</p>
+                <p className="text-xl font-bold text-rose-600">
+                  {totalAdSpend > 0
+                    ? `${(totalAdSpend / 10000).toLocaleString()}만`
+                    : "미입력"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {totalAdSpend > 0
+                    ? `M${((adSpend?.metaAmount || 0) / 10000).toFixed(0)} / G${((adSpend?.googleAmount || 0) / 10000).toFixed(0)}`
+                    : "클릭하여 입력"}
+                </p>
+              </div>
+              {/* 접수 */}
+              <div className="rounded-lg border p-3 bg-card">
+                <p className="text-xs text-muted-foreground mb-0.5">접수</p>
+                <p className="text-xl font-bold">{ms?.inquiries ?? 0}건</p>
+                <p className="text-[10px] text-muted-foreground">
+                  홈{ms?.website ?? 0} / M{ms?.meta ?? 0} / G
+                  {ms?.googleAds ?? 0}
+                </p>
+              </div>
+              {/* 계약 */}
+              <div className="rounded-lg border p-3 bg-card">
+                <p className="text-xs text-muted-foreground mb-0.5">계약</p>
+                <p className="text-xl font-bold text-emerald-600">
+                  {ms?.contractCount ?? 0}건
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  계약률 {contractRate}%
+                </p>
+              </div>
+              {/* 매출 */}
+              <div className="rounded-lg border p-3 bg-card">
+                <p className="text-xs text-muted-foreground mb-0.5">매출</p>
+                <p className="text-xl font-bold text-amber-600">
+                  {ms && ms.totalRevenue > 0
+                    ? `${(ms.totalRevenue / 10000).toLocaleString()}만`
+                    : "0원"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">ROAS {roas}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {error && (
         <Alert variant="destructive">
@@ -737,6 +864,7 @@ export default function InquiriesPage() {
       <div className="space-y-3">
         <div className="flex flex-col gap-2">
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            {/* 소스 필터 */}
             {/* 소스 필터 */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 shrink-0">
               {[
@@ -763,8 +891,9 @@ export default function InquiriesPage() {
                   {tab.label}
                 </button>
               ))}
-              <span className="w-px h-5 bg-border self-center mx-1 hidden sm:block" />
-              {/* 상태 필터 */}
+            </div>
+            {/* 상태 필터 */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 shrink-0">
               {[
                 { value: "all", label: "상태 전체" },
                 { value: "", label: "미분류" },
@@ -787,7 +916,7 @@ export default function InquiriesPage() {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {/* 기간 필터 */}
               {[
                 { label: "전체", days: 0 },
@@ -814,25 +943,27 @@ export default function InquiriesPage() {
                   {p.label}
                 </button>
               ))}
-              <input
-                type="date"
-                value={customDateStart}
-                onChange={(e) => {
-                  setCustomDateStart(e.target.value);
-                  setDatePreset(0);
-                }}
-                className="h-7 px-1.5 text-xs border rounded-md w-[110px]"
-              />
-              <span className="text-xs text-muted-foreground">~</span>
-              <input
-                type="date"
-                value={customDateEnd}
-                onChange={(e) => {
-                  setCustomDateEnd(e.target.value);
-                  setDatePreset(0);
-                }}
-                className="h-7 px-1.5 text-xs border rounded-md w-[110px]"
-              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="date"
+                  value={customDateStart}
+                  onChange={(e) => {
+                    setCustomDateStart(e.target.value);
+                    setDatePreset(0);
+                  }}
+                  className="h-7 px-1.5 text-xs border rounded-md w-[110px]"
+                />
+                <span className="text-xs text-muted-foreground">~</span>
+                <input
+                  type="date"
+                  value={customDateEnd}
+                  onChange={(e) => {
+                    setCustomDateEnd(e.target.value);
+                    setDatePreset(0);
+                  }}
+                  className="h-7 px-1.5 text-xs border rounded-md w-[110px]"
+                />
+              </div>
             </div>
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -963,6 +1094,18 @@ export default function InquiriesPage() {
                                     홈페이지
                                   </span>
                                 )}
+                                <span
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 cursor-pointer relative z-20 opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMarketingContractInquiry(inquiry);
+                                    setMarketingAmountInput("");
+                                    setMarketingDialogOpen(true);
+                                  }}
+                                >
+                                  <FileSignature className="h-2.5 w-2.5" />
+                                  마케팅계약
+                                </span>
                               </div>
                               {inquiry.company && (
                                 <p className="text-xs text-muted-foreground truncate">
@@ -1105,23 +1248,7 @@ export default function InquiriesPage() {
                                   </span>
                                 )}
                             </div>
-                            <div className="flex items-center gap-1">
-                              {isActive && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-600"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMarketingContractInquiry(inquiry);
-                                    setMarketingAmountInput("");
-                                    setMarketingDialogOpen(true);
-                                  }}
-                                >
-                                  <Banknote className="h-3.5 w-3.5 mr-1" />
-                                  마케팅계약
-                                </Button>
-                              )}
+                            <div className="flex items-center gap-1 relative z-20">
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
@@ -1209,38 +1336,6 @@ export default function InquiriesPage() {
                       )}
                     </div>
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          문의를 삭제하시겠습니까?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {selectedInquiry.name}님의 문의가 영구적으로
-                          삭제됩니다. 이 작업은 되돌릴 수 없습니다.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>취소</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleDelete}
-                          disabled={deleting}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          {deleting ? "삭제 중..." : "삭제"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               </DialogHeader>
 
@@ -1576,6 +1671,19 @@ export default function InquiriesPage() {
                     </Button>
                   )}
 
+                <Button
+                  variant="outline"
+                  className="w-full text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                  onClick={() => {
+                    setMarketingContractInquiry(selectedInquiry);
+                    setMarketingAmountInput("");
+                    setMarketingDialogOpen(true);
+                  }}
+                >
+                  <Banknote className="mr-2 h-4 w-4" />
+                  마케팅계약 생성
+                </Button>
+
                 <div className="flex gap-2">
                   {selectedInquiry.email && (
                     <Button className="flex-1" asChild>
@@ -1590,6 +1698,38 @@ export default function InquiriesPage() {
                       <Phone className="h-4 w-4" />
                     </a>
                   </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive hover:border-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          문의를 삭제하시겠습니까?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {selectedInquiry.name}님의 문의가 영구적으로
+                          삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {deleting ? "삭제 중..." : "삭제"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </>
@@ -1697,6 +1837,62 @@ export default function InquiriesPage() {
             >
               마케팅계약 생성
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 광고비 입력 다이얼로그 */}
+      <AlertDialog open={adSpendDialogOpen} onOpenChange={setAdSpendDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedMonth.split("-")[1]}월 광고비 입력
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Meta 광고와 구글 광고비를 각각 입력하세요 (VAT포함).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                Meta 광고비 (원)
+              </label>
+              <input
+                type="text"
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="0"
+                value={adSpendMetaInput}
+                onChange={(e) =>
+                  setAdSpendMetaInput(
+                    e.target.value
+                      .replace(/[^0-9]/g, "")
+                      .replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+                  )
+                }
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                구글 광고비 (원)
+              </label>
+              <input
+                type="text"
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="0"
+                value={adSpendGoogleInput}
+                onChange={(e) =>
+                  setAdSpendGoogleInput(
+                    e.target.value
+                      .replace(/[^0-9]/g, "")
+                      .replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+                  )
+                }
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={saveAdSpend}>저장</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

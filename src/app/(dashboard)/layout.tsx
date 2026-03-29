@@ -1,26 +1,31 @@
-import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/dashboard/app-sidebar"
-import { Separator } from "@/components/ui/separator"
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
+} from "@/components/ui/breadcrumb";
 
 export default async function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   // 서버 사이드 인증 확인
-  const cookieStore = await cookies()
-  const session = cookieStore.get("admin_token")
+  const cookieStore = await cookies();
+  const session = cookieStore.get("admin_token");
 
   if (!session?.value) {
-    redirect("/login")
+    redirect("/login");
   }
 
   return (
@@ -38,10 +43,11 @@ export default async function DashboardLayout({
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-4 pb-18 md:p-6 md:pb-6">
           {children}
         </main>
       </SidebarInset>
+      <BottomNav />
     </SidebarProvider>
-  )
+  );
 }
