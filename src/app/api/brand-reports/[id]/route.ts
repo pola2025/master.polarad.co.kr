@@ -83,10 +83,7 @@ export async function PATCH(
   }
 }
 
-/**
- * Soft delete: sets status to "discarded".
- * Does NOT permanently remove the Airtable record.
- */
+/** Hard delete: permanently removes the Airtable record. */
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

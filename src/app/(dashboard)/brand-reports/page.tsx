@@ -9,6 +9,7 @@ import {
   RefreshCw,
   ChevronRight,
   FileText,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface BrandReport {
   id: string;
@@ -157,6 +169,7 @@ export default function BrandReportsPage() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function fetchReports() {
     setLoading(true);
@@ -183,6 +196,20 @@ export default function BrandReportsPage() {
   useEffect(() => {
     fetchReports();
   }, []);
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/brand-reports/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setReports((prev) => prev.filter((r) => r.id !== id));
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const filteredReports = reports.filter((report) => {
     if (statusFilter !== "all" && report.status !== statusFilter) return false;
@@ -351,6 +378,7 @@ export default function BrandReportsPage() {
                     <TableHead>상태</TableHead>
                     <TableHead>접수일</TableHead>
                     <TableHead className="w-[30px]"></TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -386,6 +414,46 @@ export default function BrandReportsPage() {
                       </TableCell>
                       <TableCell>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600"
+                              onClick={(e) => e.stopPropagation()}
+                              disabled={deletingId === report.id}
+                            >
+                              {deletingId === report.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>리포트 삭제</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                &ldquo;{report.businessName}&rdquo; 리포트를
+                                영구 삭제하시겠습니까? 이 작업은 되돌릴 수
+                                없습니다.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>취소</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(report.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                삭제
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}

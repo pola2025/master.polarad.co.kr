@@ -17,6 +17,7 @@ import {
   LogOut,
   SearchCheck,
   Building2,
+  Presentation,
 } from "lucide-react";
 
 import {
@@ -78,6 +79,11 @@ const menuItems = [
     title: "문의 관리",
     url: "/inquiries",
     icon: MessageSquare,
+  },
+  {
+    title: "제안 관리",
+    url: "/proposals",
+    icon: Presentation,
   },
   {
     title: "거래처 관리",

@@ -220,7 +220,21 @@ export async function listRecords(
  * Does NOT call Airtable DELETE — preserves audit trail.
  */
 export async function deleteRecord(id: string): Promise<void> {
-  await updateRecord(id, { [FIELDS.status]: "discarded" });
+  assertConfig();
+
+  const res = await fetch(tableUrl(id), {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new NotFoundError("리포트를 찾을 수 없습니다.");
+    }
+    const err = await res.json();
+    console.error("[airtable] deleteRecord 실패:", err);
+    throw new Error("Airtable 레코드 삭제에 실패했습니다.");
+  }
 }
 
 /** Normalize a raw Airtable record into a BrandReport. */
