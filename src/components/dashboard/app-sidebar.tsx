@@ -18,6 +18,7 @@ import {
   SearchCheck,
   Building2,
   Presentation,
+  Banknote,
 } from "lucide-react";
 
 import {
@@ -89,6 +90,11 @@ const menuItems = [
     title: "거래처 관리",
     url: "/clients",
     icon: Building2,
+  },
+  {
+    title: "매출 관리",
+    url: "/revenue",
+    icon: Banknote,
   },
   {
     title: "브랜드 분석",

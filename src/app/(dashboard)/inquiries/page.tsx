@@ -27,6 +27,7 @@ import {
   Banknote,
   Handshake,
   FileSignature,
+  Package,
 } from "lucide-react";
 import {
   Card,
@@ -506,6 +507,23 @@ export default function InquiriesPage() {
       setSelectedInquiry((prev) =>
         prev ? { ...prev, status: "계약완료", contractAmount: amount } : prev,
       );
+      // Revenue 테이블에 홈페이지 매출 기록
+      if (amount > 0) {
+        const inq = inquiries.find((i) => i.id === pendingStatusId);
+        await fetch("/api/revenue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientName: inq?.company || inq?.name || "",
+            type: "홈페이지",
+            amount,
+            productName: extraAmount > 0 ? `홈페이지 + 추가비용` : "홈페이지",
+            inquiryId: pendingStatusId,
+            date: new Date().toISOString().split("T")[0],
+          }),
+        }).catch(() => {});
+      }
+
       setContractDialogOpen(false);
       setPendingStatusId(null);
     } catch {
@@ -626,10 +644,101 @@ export default function InquiriesPage() {
             : prev,
         );
       }
+      // 3. Revenue 테이블에 매출 기록
+      await fetch("/api/revenue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName:
+            marketingContractInquiry.company || marketingContractInquiry.name,
+          type: "마케팅계약",
+          amount: revenueAmount,
+          productName: `마케팅 월정액 ${(monthlyAmount / 10000).toLocaleString()}만×6개월`,
+          inquiryId: marketingContractInquiry.id,
+          date: new Date().toISOString().split("T")[0],
+        }),
+      });
+
       setMarketingDialogOpen(false);
       setMarketingContractInquiry(null);
     } catch {
       setError("마케팅계약 생성에 실패했습니다.");
+    }
+  }
+
+  // 추가상품 다이얼로그
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [productNameInput, setProductNameInput] = useState("");
+  const [productAmountInput, setProductAmountInput] = useState("");
+  const [productInquiry, setProductInquiry] = useState<Inquiry | null>(null);
+
+  async function handleProductContract() {
+    if (!productInquiry) return;
+    const amount = parseInt(productAmountInput.replace(/,/g, ""), 10) || 0;
+    if (!amount || !productNameInput.trim()) return;
+    try {
+      // 1. Clients 테이블에 거래처 생성
+      const wizard = parseWizardMessage(productInquiry.message);
+      const clientRes = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company: productInquiry.company || productInquiry.name,
+          contactName: productInquiry.name,
+          phone: productInquiry.phone,
+          email: productInquiry.email,
+          industry: wizard?.업종 || productInquiry.industry || "",
+          contractAmount: amount,
+          inquiryId: productInquiry.id,
+        }),
+      });
+      const clientData = await clientRes.json();
+
+      // 2. Revenue 테이블에 매출 기록
+      await fetch("/api/revenue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: productInquiry.company || productInquiry.name,
+          type: "추가상품",
+          amount,
+          productName: productNameInput.trim(),
+          inquiryId: productInquiry.id,
+          clientId: clientData?.id || "",
+          date: new Date().toISOString().split("T")[0],
+        }),
+      });
+
+      // 3. 접수 상태를 계약완료로 + 금액 합산
+      const newAmount = (productInquiry.contractAmount || 0) + amount;
+      await fetch("/api/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: productInquiry.id,
+          status: "계약완료",
+          contractAmount: newAmount,
+        }),
+      });
+
+      setInquiries((prev) =>
+        prev.map((i) =>
+          i.id === productInquiry.id
+            ? { ...i, status: "계약완료", contractAmount: newAmount }
+            : i,
+        ),
+      );
+      if (selectedInquiry?.id === productInquiry.id) {
+        setSelectedInquiry((prev) =>
+          prev
+            ? { ...prev, status: "계약완료", contractAmount: newAmount }
+            : prev,
+        );
+      }
+      setProductDialogOpen(false);
+      setProductInquiry(null);
+    } catch {
+      setError("추가상품 등록에 실패했습니다.");
     }
   }
 
@@ -1207,6 +1316,19 @@ export default function InquiriesPage() {
                                 >
                                   <FileSignature className="h-2.5 w-2.5" />
                                   마케팅계약
+                                </span>
+                                <span
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 cursor-pointer relative z-20 opacity-0 group-hover:opacity-100 transition-opacity bg-amber-100 text-amber-700 hover:bg-amber-200"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setProductInquiry(inquiry);
+                                    setProductNameInput("");
+                                    setProductAmountInput("");
+                                    setProductDialogOpen(true);
+                                  }}
+                                >
+                                  <Package className="h-2.5 w-2.5" />
+                                  추가상품
                                 </span>
                               </div>
                               {inquiry.company && (
@@ -2003,6 +2125,69 @@ export default function InquiriesPage() {
               onClick={handleMarketingContract}
             >
               마케팅계약 생성
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 추가상품 다이얼로그 */}
+      <AlertDialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>추가상품 등록</AlertDialogTitle>
+            <AlertDialogDescription>
+              {productInquiry?.company || productInquiry?.name} — 상품명과
+              금액을 입력하세요. 거래처와 매출에 반영됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">상품명</label>
+              <input
+                type="text"
+                value={productNameInput}
+                onChange={(e) => setProductNameInput(e.target.value)}
+                placeholder="예: 홈페이지 제작, 로고 디자인"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                금액 (원)
+              </label>
+              <input
+                type="text"
+                value={productAmountInput}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setProductAmountInput(
+                    v ? parseInt(v, 10).toLocaleString() : "",
+                  );
+                }}
+                placeholder="예: 1,000,000"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {productAmountInput && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(
+                    parseInt(productAmountInput.replace(/,/g, ""), 10) / 10000
+                  ).toLocaleString()}
+                  만원
+                </p>
+              )}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProductInquiry(null)}>
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handleProductContract}
+              disabled={!productNameInput.trim() || !productAmountInput}
+            >
+              추가상품 등록
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
