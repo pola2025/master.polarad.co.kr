@@ -136,6 +136,53 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  if (!AIRTABLE_API_TOKEN) {
+    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
+  }
+
+  try {
+    const body = await request.json();
+    const { id, ...updates } = body;
+    if (!id) {
+      return NextResponse.json({ error: "ID 필요" }, { status: 400 });
+    }
+
+    const fields: Record<string, string | number> = {};
+    if (updates.clientName !== undefined)
+      fields.clientName = updates.clientName;
+    if (updates.type !== undefined) fields.type = updates.type;
+    if (updates.amount !== undefined) fields.amount = updates.amount;
+    if (updates.productName !== undefined)
+      fields.productName = updates.productName;
+    if (updates.memo !== undefined) fields.memo = updates.memo;
+    if (updates.date !== undefined) fields.date = updates.date;
+
+    const res = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fields, typecast: true }),
+      },
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      console.error("Revenue 수정 실패:", err);
+      return NextResponse.json({ error: "수정 실패" }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Revenue 수정 오류:", error);
+    return NextResponse.json({ error: "서버 오류" }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   if (!AIRTABLE_API_TOKEN) {
     return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });

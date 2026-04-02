@@ -10,6 +10,9 @@ import {
   Globe,
   Megaphone,
   Package,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +64,14 @@ export default function RevenuePage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFields, setEditFields] = useState({
+    clientName: "",
+    type: "",
+    amount: "",
+    productName: "",
+  });
+  const [saving, setSaving] = useState(false);
 
   const fetchRevenue = async () => {
     setLoading(true);
@@ -107,6 +118,76 @@ export default function RevenuePage() {
       console.error("Delete failed:", error);
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const startEditing = (record: RevenueRecord) => {
+    setEditingId(record.id);
+    setEditFields({
+      clientName: record.clientName,
+      type: record.type,
+      amount: record.amount ? record.amount.toLocaleString() : "",
+      productName: record.productName,
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    setSaving(true);
+    const newAmount = parseInt(editFields.amount.replace(/,/g, ""), 10) || 0;
+    try {
+      const res = await fetch("/api/revenue", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          clientName: editFields.clientName,
+          type: editFields.type,
+          amount: newAmount,
+          productName: editFields.productName,
+        }),
+      });
+      if (res.ok) {
+        setRecords((prev) =>
+          prev.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  clientName: editFields.clientName,
+                  type: editFields.type,
+                  amount: newAmount,
+                  productName: editFields.productName,
+                }
+              : r,
+          ),
+        );
+        // stats 재계산
+        const updated = records.map((r) =>
+          r.id === id ? { ...r, amount: newAmount, type: editFields.type } : r,
+        );
+        const totalRevenue = updated.reduce((s, r) => s + r.amount, 0);
+        const byType = updated.reduce(
+          (acc, r) => {
+            const t = r.type || "기타";
+            acc[t] = (acc[t] || 0) + r.amount;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
+        setStats((prev) => ({
+          ...prev,
+          totalRevenue,
+          byType,
+        }));
+        setEditingId(null);
+      }
+    } catch (error) {
+      console.error("Save failed:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -252,6 +333,117 @@ export default function RevenuePage() {
                 <div className="space-y-2">
                   {items.map((record) => {
                     const config = TYPE_CONFIG[record.type];
+                    const isEditing = editingId === record.id;
+
+                    if (isEditing) {
+                      return (
+                        <div
+                          key={record.id}
+                          className="rounded-lg border p-4 bg-card space-y-3 ring-1 ring-blue-300"
+                        >
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-[11px] text-muted-foreground mb-1 block">
+                                거래처명
+                              </label>
+                              <input
+                                type="text"
+                                value={editFields.clientName}
+                                onChange={(e) =>
+                                  setEditFields((p) => ({
+                                    ...p,
+                                    clientName: e.target.value,
+                                  }))
+                                }
+                                className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] text-muted-foreground mb-1 block">
+                                유형
+                              </label>
+                              <select
+                                value={editFields.type}
+                                onChange={(e) =>
+                                  setEditFields((p) => ({
+                                    ...p,
+                                    type: e.target.value,
+                                  }))
+                                }
+                                className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                              >
+                                <option value="마케팅계약">마케팅계약</option>
+                                <option value="홈페이지">홈페이지</option>
+                                <option value="추가상품">추가상품</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[11px] text-muted-foreground mb-1 block">
+                                금액 (원)
+                              </label>
+                              <input
+                                type="text"
+                                value={editFields.amount}
+                                onChange={(e) => {
+                                  const v = e.target.value.replace(
+                                    /[^\d]/g,
+                                    "",
+                                  );
+                                  setEditFields((p) => ({
+                                    ...p,
+                                    amount: v
+                                      ? parseInt(v, 10).toLocaleString()
+                                      : "",
+                                  }));
+                                }}
+                                className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] text-muted-foreground mb-1 block">
+                                상품명
+                              </label>
+                              <input
+                                type="text"
+                                value={editFields.productName}
+                                onChange={(e) =>
+                                  setEditFields((p) => ({
+                                    ...p,
+                                    productName: e.target.value,
+                                  }))
+                                }
+                                className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => handleSaveEdit(record.id)}
+                              disabled={saving}
+                            >
+                              {saving ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="mr-1 h-3 w-3" />
+                              )}
+                              저장
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={cancelEditing}
+                            >
+                              <X className="mr-1 h-3 w-3" />
+                              취소
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={record.id}
@@ -284,6 +476,14 @@ export default function RevenuePage() {
                               : "0원"}
                           </p>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600 shrink-0"
+                          onClick={() => startEditing(record)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
