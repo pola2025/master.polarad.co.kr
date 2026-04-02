@@ -274,6 +274,7 @@ export default function InquiriesPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [showCumulative, setShowCumulative] = useState(false);
   const [adSpend, setAdSpend] = useState<AdSpendRecord | null>(null);
   const [adSpendDialogOpen, setAdSpendDialogOpen] = useState(false);
   const [adSpendMetaInput, setAdSpendMetaInput] = useState("");
@@ -427,6 +428,7 @@ export default function InquiriesPage() {
 
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [contractAmountInput, setContractAmountInput] = useState("");
+  const [contractExtraInput, setContractExtraInput] = useState("");
   const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
 
   async function handleStatusChange(rawStatus: string) {
@@ -435,6 +437,7 @@ export default function InquiriesPage() {
     if (status === "계약완료") {
       setPendingStatusId(selectedInquiry.id);
       setContractAmountInput("");
+      setContractExtraInput("");
       setContractDialogOpen(true);
       return;
     }
@@ -456,7 +459,9 @@ export default function InquiriesPage() {
 
   async function handleContractConfirm() {
     if (!pendingStatusId) return;
-    const amount = parseInt(contractAmountInput.replace(/,/g, ""), 10) || 0;
+    const baseAmount = parseInt(contractAmountInput.replace(/,/g, ""), 10) || 0;
+    const extraAmount = parseInt(contractExtraInput.replace(/,/g, ""), 10) || 0;
+    const amount = baseAmount + extraAmount;
     try {
       const res = await fetch("/api/inquiries", {
         method: "PATCH",
@@ -555,9 +560,11 @@ export default function InquiriesPage() {
 
   async function handleMarketingContract() {
     if (!marketingContractInquiry) return;
-    const amount = parseInt(marketingAmountInput.replace(/,/g, ""), 10) || 0;
+    const monthlyAmount =
+      parseInt(marketingAmountInput.replace(/,/g, ""), 10) || 0;
+    const revenueAmount = monthlyAmount * 6; // 6개월분 일시 결제
     try {
-      // 1. Clients 테이블에 거래처 생성
+      // 1. Clients 테이블에 거래처 생성 (월 계약금액)
       const wizard = parseWizardMessage(marketingContractInquiry.message);
       await fetch("/api/clients", {
         method: "POST",
@@ -568,30 +575,32 @@ export default function InquiriesPage() {
           phone: marketingContractInquiry.phone,
           email: marketingContractInquiry.email,
           industry: wizard?.업종 || "",
-          contractAmount: amount,
+          contractAmount: monthlyAmount,
           inquiryId: marketingContractInquiry.id,
         }),
       });
-      // 2. 접수 상태를 계약완료로 + 금액 저장
+      // 2. 접수 상태를 계약완료로 + 매출(6개월분) 저장
       await fetch("/api/inquiries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: marketingContractInquiry.id,
           status: "계약완료",
-          contractAmount: amount,
+          contractAmount: revenueAmount,
         }),
       });
       setInquiries((prev) =>
         prev.map((i) =>
           i.id === marketingContractInquiry.id
-            ? { ...i, status: "계약완료", contractAmount: amount }
+            ? { ...i, status: "계약완료", contractAmount: revenueAmount }
             : i,
         ),
       );
       if (selectedInquiry?.id === marketingContractInquiry.id) {
         setSelectedInquiry((prev) =>
-          prev ? { ...prev, status: "계약완료", contractAmount: amount } : prev,
+          prev
+            ? { ...prev, status: "계약완료", contractAmount: revenueAmount }
+            : prev,
         );
       }
       setMarketingDialogOpen(false);
@@ -757,17 +766,34 @@ export default function InquiriesPage() {
         })}
       </div>
 
-      {/* 2행: 성과 통계 (월별) */}
+      {/* 2행: 성과 통계 (월별/누적) */}
       {(() => {
         const ms = monthlyStats;
         const totalAdSpend =
           (adSpend?.metaAmount || 0) + (adSpend?.googleAmount || 0);
+
+        // 누적 데이터
+        const cumInquiries = showCumulative
+          ? stats.total
+          : (ms?.inquiries ?? 0);
+        const cumContracts = showCumulative
+          ? stats.contractCount
+          : (ms?.contractCount ?? 0);
+        const cumRevenue = showCumulative
+          ? stats.totalRevenue
+          : (ms?.totalRevenue ?? 0);
+        const cumWebsite = showCumulative ? stats.website : (ms?.website ?? 0);
+        const cumMeta = showCumulative ? stats.meta : (ms?.meta ?? 0);
+        const cumGoogle = showCumulative
+          ? stats.googleAds
+          : (ms?.googleAds ?? 0);
+
         const contractRate =
-          ms && ms.inquiries > 0
-            ? ((ms.contractCount / ms.inquiries) * 100).toFixed(1)
+          cumInquiries > 0
+            ? ((cumContracts / cumInquiries) * 100).toFixed(1)
             : "0";
         const roas =
-          totalAdSpend > 0 && ms
+          !showCumulative && totalAdSpend > 0 && ms
             ? (ms.totalRevenue / totalAdSpend).toFixed(2)
             : "-";
 
@@ -777,28 +803,45 @@ export default function InquiriesPage() {
               <h3 className="text-sm font-semibold text-muted-foreground">
                 성과 통계
               </h3>
-              <select
-                className="text-sm border rounded px-2 py-0.5 bg-background"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+              {!showCumulative && (
+                <select
+                  className="text-sm border rounded px-2 py-0.5 bg-background"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const d = new Date(2026, 2 + i); // 3월부터
+                    if (d > new Date()) return null;
+                    const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                    return (
+                      <option key={v} value={v}>
+                        {d.getMonth() + 1}월
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+              <button
+                className={`text-xs px-2 py-0.5 rounded-full border transition-all ${
+                  showCumulative
+                    ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-700"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+                onClick={() => setShowCumulative(!showCumulative)}
               >
-                {Array.from({ length: 12 }, (_, i) => {
-                  const d = new Date(2026, 2 + i); // 3월부터
-                  if (d > new Date()) return null;
-                  const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                  return (
-                    <option key={v} value={v}>
-                      {d.getMonth() + 1}월
-                    </option>
-                  );
-                })}
-              </select>
+                {showCumulative ? "누적" : "누적"}
+              </button>
             </div>
             <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
               {/* 광고비 */}
               <div
-                className="rounded-lg border p-3 cursor-pointer hover:shadow-sm bg-card transition-all"
+                className={`rounded-lg border p-3 bg-card transition-all ${
+                  showCumulative
+                    ? "opacity-50 pointer-events-none"
+                    : "cursor-pointer hover:shadow-sm"
+                }`}
                 onClick={() => {
+                  if (showCumulative) return;
                   setAdSpendMetaInput(
                     adSpend?.metaAmount ? String(adSpend.metaAmount) : "",
                   );
@@ -810,30 +853,33 @@ export default function InquiriesPage() {
               >
                 <p className="text-xs text-muted-foreground mb-0.5">광고비</p>
                 <p className="text-xl font-bold text-rose-600">
-                  {totalAdSpend > 0
-                    ? `${(totalAdSpend / 10000).toLocaleString()}만`
-                    : "미입력"}
+                  {showCumulative
+                    ? "-"
+                    : totalAdSpend > 0
+                      ? `${(totalAdSpend / 10000).toLocaleString()}만`
+                      : "미입력"}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {totalAdSpend > 0
-                    ? `M${((adSpend?.metaAmount || 0) / 10000).toFixed(0)} / G${((adSpend?.googleAmount || 0) / 10000).toFixed(0)}`
-                    : "클릭하여 입력"}
+                  {showCumulative
+                    ? "월별만 지원"
+                    : totalAdSpend > 0
+                      ? `M${((adSpend?.metaAmount || 0) / 10000).toFixed(0)} / G${((adSpend?.googleAmount || 0) / 10000).toFixed(0)}`
+                      : "클릭하여 입력"}
                 </p>
               </div>
               {/* 접수 */}
               <div className="rounded-lg border p-3 bg-card">
                 <p className="text-xs text-muted-foreground mb-0.5">접수</p>
-                <p className="text-xl font-bold">{ms?.inquiries ?? 0}건</p>
+                <p className="text-xl font-bold">{cumInquiries}건</p>
                 <p className="text-[10px] text-muted-foreground">
-                  홈{ms?.website ?? 0} / M{ms?.meta ?? 0} / G
-                  {ms?.googleAds ?? 0}
+                  홈{cumWebsite} / M{cumMeta} / G{cumGoogle}
                 </p>
               </div>
               {/* 계약 */}
               <div className="rounded-lg border p-3 bg-card">
                 <p className="text-xs text-muted-foreground mb-0.5">계약</p>
                 <p className="text-xl font-bold text-emerald-600">
-                  {ms?.contractCount ?? 0}건
+                  {cumContracts}건
                 </p>
                 <p className="text-[10px] text-muted-foreground">
                   계약률 {contractRate}%
@@ -843,11 +889,13 @@ export default function InquiriesPage() {
               <div className="rounded-lg border p-3 bg-card">
                 <p className="text-xs text-muted-foreground mb-0.5">매출</p>
                 <p className="text-xl font-bold text-amber-600">
-                  {ms && ms.totalRevenue > 0
-                    ? `${(ms.totalRevenue / 10000).toLocaleString()}만`
+                  {cumRevenue > 0
+                    ? `${(cumRevenue / 10000).toLocaleString()}만`
                     : "0원"}
                 </p>
-                <p className="text-[10px] text-muted-foreground">ROAS {roas}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {showCumulative ? "전체 누적" : `ROAS ${roas}`}
+                </p>
               </div>
             </div>
           </div>
@@ -1111,6 +1159,16 @@ export default function InquiriesPage() {
                                 <p className="text-xs text-muted-foreground truncate">
                                   {inquiry.company}
                                 </p>
+                              )}
+                              {inquiry.phone && (
+                                <a
+                                  href={`tel:${inquiry.phone}`}
+                                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Phone className="h-3 w-3" />
+                                  {inquiry.phone}
+                                </a>
                               )}
                             </div>
                             <div className="shrink-0">
@@ -1749,30 +1807,75 @@ export default function InquiriesPage() {
               계약 금액을 입력하면 매출로 집계됩니다. (선택)
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <label className="text-sm font-medium mb-2 block">
-              계약 금액 (원)
-            </label>
-            <input
-              type="text"
-              value={contractAmountInput}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^\d]/g, "");
-                setContractAmountInput(
-                  v ? parseInt(v, 10).toLocaleString() : "",
-                );
-              }}
-              placeholder="예: 1,000,000"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              autoFocus
-            />
-            {contractAmountInput && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {(
-                  parseInt(contractAmountInput.replace(/,/g, ""), 10) / 10000
-                ).toLocaleString()}
-                만원
-              </p>
+          <div className="py-4 space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                계약 금액 (원)
+              </label>
+              <input
+                type="text"
+                value={contractAmountInput}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setContractAmountInput(
+                    v ? parseInt(v, 10).toLocaleString() : "",
+                  );
+                }}
+                placeholder="예: 1,000,000"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                autoFocus
+              />
+              {contractAmountInput && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(
+                    parseInt(contractAmountInput.replace(/,/g, ""), 10) / 10000
+                  ).toLocaleString()}
+                  만원
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                추가 비용 (원){" "}
+                <span className="text-muted-foreground font-normal">
+                  — 홈페이지 등
+                </span>
+              </label>
+              <input
+                type="text"
+                value={contractExtraInput}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setContractExtraInput(
+                    v ? parseInt(v, 10).toLocaleString() : "",
+                  );
+                }}
+                placeholder="추가 결제 금액 (선택)"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {contractExtraInput && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(
+                    parseInt(contractExtraInput.replace(/,/g, ""), 10) / 10000
+                  ).toLocaleString()}
+                  만원
+                </p>
+              )}
+            </div>
+            {(contractAmountInput || contractExtraInput) && (
+              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-2.5 border border-amber-200 dark:border-amber-800">
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                  매출 합계:{" "}
+                  {(
+                    ((parseInt(contractAmountInput.replace(/,/g, ""), 10) ||
+                      0) +
+                      (parseInt(contractExtraInput.replace(/,/g, ""), 10) ||
+                        0)) /
+                    10000
+                  ).toLocaleString()}
+                  만원
+                </p>
+              </div>
             )}
           </div>
           <AlertDialogFooter>
@@ -1817,12 +1920,22 @@ export default function InquiriesPage() {
               autoFocus
             />
             {marketingAmountInput && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {(
-                  parseInt(marketingAmountInput.replace(/,/g, ""), 10) / 10000
-                ).toLocaleString()}
-                만원/월
-              </p>
+              <div className="mt-1 space-y-0.5">
+                <p className="text-xs text-muted-foreground">
+                  {(
+                    parseInt(marketingAmountInput.replace(/,/g, ""), 10) / 10000
+                  ).toLocaleString()}
+                  만원/월
+                </p>
+                <p className="text-xs font-medium text-amber-600">
+                  매출 반영: ×6개월 ={" "}
+                  {(
+                    (parseInt(marketingAmountInput.replace(/,/g, ""), 10) * 6) /
+                    10000
+                  ).toLocaleString()}
+                  만원
+                </p>
+              </div>
             )}
           </div>
           <AlertDialogFooter>
