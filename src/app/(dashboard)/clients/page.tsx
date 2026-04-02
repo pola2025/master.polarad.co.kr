@@ -138,6 +138,34 @@ export default function ClientsPage() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Client>>({});
   const [saving, setSaving] = useState(false);
+  const [clientRevenue, setClientRevenue] = useState<
+    {
+      id: string;
+      type: string;
+      amount: number;
+      productName: string;
+      date: string;
+    }[]
+  >([]);
+  const [revenueLoading, setRevenueLoading] = useState(false);
+
+  async function fetchClientRevenue(clientName: string) {
+    setRevenueLoading(true);
+    setClientRevenue([]);
+    try {
+      const res = await fetch("/api/revenue");
+      if (!res.ok) return;
+      const data = await res.json();
+      const matched = (data.records || []).filter(
+        (r: { clientName: string }) => r.clientName === clientName,
+      );
+      setClientRevenue(matched);
+    } catch {
+      /* ignore */
+    } finally {
+      setRevenueLoading(false);
+    }
+  }
 
   async function fetchClients() {
     setLoading(true);
@@ -467,6 +495,7 @@ export default function ClientsPage() {
                   setSelectedClient(client);
                   setEditing(false);
                   setEditData({});
+                  fetchClientRevenue(client.company);
                 }}
               >
                 {(client.status === "만료" || client.status === "해지") && (
@@ -725,6 +754,66 @@ export default function ClientsPage() {
                     )}
                   </div>
                 )}
+
+                {/* 매출 내역 (Revenue) */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Banknote className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-semibold">매출 내역</span>
+                    {clientRevenue.length > 0 && (
+                      <span className="text-xs font-medium text-amber-600">
+                        총{" "}
+                        {(
+                          clientRevenue.reduce(
+                            (s, r) => s + (r.amount || 0),
+                            0,
+                          ) / 10000
+                        ).toLocaleString()}
+                        만원
+                      </span>
+                    )}
+                  </div>
+                  {revenueLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      로딩 중...
+                    </div>
+                  ) : clientRevenue.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic py-1">
+                      등록된 매출 없음
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {clientRevenue.map((rev) => (
+                        <div
+                          key={rev.id}
+                          className="flex items-center gap-2 rounded border px-3 py-2 text-sm"
+                        >
+                          <span
+                            className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              rev.type === "마케팅계약"
+                                ? "bg-blue-100 text-blue-700"
+                                : rev.type === "홈페이지"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {rev.type}
+                          </span>
+                          <span className="flex-1 truncate text-xs">
+                            {rev.productName || "-"}
+                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {rev.date || ""}
+                          </span>
+                          <span className="font-bold text-xs shrink-0">
+                            {(rev.amount / 10000).toLocaleString()}만
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <Separator />
 
