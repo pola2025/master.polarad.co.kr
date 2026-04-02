@@ -3,6 +3,56 @@ import { NextRequest, NextResponse } from "next/server";
 const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
 const BASE_ID = "appSGHxitRzYPE43H";
 const TABLE_ID = "tblah736yhUWmW40E";
+const META_BASE_ID = "appyUK6euzEJ5yrGX";
+const META_TABLE_ID = "tblxTgGtVkLpniFbb";
+const LEAD_TABLE_NAME = "Lead";
+
+// Revenue 변경 시 해당 접수(inquiry)의 contractAmount를 동기화
+async function syncInquiryAmount(inquiryId: string) {
+  if (!inquiryId || !AIRTABLE_API_TOKEN) return;
+
+  try {
+    // 해당 inquiryId의 모든 Revenue 합산
+    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`);
+    url.searchParams.set("returnFieldsByFieldId", "true");
+    url.searchParams.set("maxRecords", "100");
+    url.searchParams.set("filterByFormula", `{inquiryId}="${inquiryId}"`);
+
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const totalAmount = (data.records || []).reduce(
+      (sum: number, r: { fields: Record<string, number | undefined> }) =>
+        sum + ((r.fields["fldTKcF6XkcbHwpXH"] as number) ?? 0),
+      0,
+    );
+
+    // inquiry 업데이트 (Meta vs Lead 구분)
+    const isMeta = inquiryId.startsWith("meta_");
+    const realId = isMeta ? inquiryId.replace("meta_", "") : inquiryId;
+    const baseId = isMeta ? META_BASE_ID : BASE_ID;
+    const tableId = isMeta
+      ? META_TABLE_ID
+      : encodeURIComponent(LEAD_TABLE_NAME);
+
+    await fetch(`https://api.airtable.com/v0/${baseId}/${tableId}/${realId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fields: { contractAmount: totalAmount },
+        typecast: true,
+      }),
+    });
+  } catch {
+    // 동기화 실패해도 매출 수정 자체는 성공으로 처리
+  }
+}
 
 const FIELD = {
   clientName: "fldREus4uqEzNiqoT",
@@ -176,6 +226,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "수정 실패" }, { status: 500 });
     }
 
+    // 수정된 레코드의 inquiryId를 가져와서 접수 금액 동기화
+    const updated = await res.json();
+    const inquiryId =
+      updated.fields?.inquiryId || updated.fields?.[FIELD.inquiryId] || "";
+    if (inquiryId) {
+      await syncInquiryAmount(inquiryId);
+    }
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Revenue 수정 오류:", error);
@@ -194,6 +252,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
+    // 삭제 전 inquiryId 조회
+    const getRes = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}?returnFieldsByFieldId=true`,
+      { headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` } },
+    );
+    const record = getRes.ok ? await getRes.json() : null;
+    const inquiryId = record?.fields?.[FIELD.inquiryId] || "";
+
     const res = await fetch(
       `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
       {
@@ -204,6 +270,11 @@ export async function DELETE(request: NextRequest) {
 
     if (!res.ok) {
       return NextResponse.json({ error: "삭제 실패" }, { status: 500 });
+    }
+
+    // 삭제 후 접수 금액 동기화
+    if (inquiryId) {
+      await syncInquiryAmount(inquiryId);
     }
 
     return NextResponse.json({ ok: true });
