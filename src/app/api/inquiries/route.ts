@@ -258,6 +258,38 @@ export async function GET(request: NextRequest) {
 
     const contractInquiries = inquiries.filter((i) => i.status === "계약완료");
 
+    // Revenue 테이블에서 매출 데이터 (Single Source of Truth)
+    let revenueRecords: { amount: number; date: string }[] = [];
+    try {
+      const revUrl = new URL(
+        `https://api.airtable.com/v0/appSGHxitRzYPE43H/tblah736yhUWmW40E`,
+      );
+      revUrl.searchParams.set("returnFieldsByFieldId", "true");
+      revUrl.searchParams.set("maxRecords", "500");
+      const revRes = await fetch(revUrl.toString(), {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
+      });
+      if (revRes.ok) {
+        const revData = await revRes.json();
+        revenueRecords = (revData.records || []).map(
+          (r: { fields: Record<string, number | string | undefined> }) => ({
+            amount: (r.fields["fldTKcF6XkcbHwpXH"] as number) ?? 0,
+            date: String(r.fields["fldZqGnvLCbBDKNSp"] ?? ""),
+          }),
+        );
+      }
+    } catch {
+      // Revenue 조회 실패 시 기존 contractAmount 합산으로 폴백
+    }
+
+    const revenueTotalRevenue =
+      revenueRecords.length > 0
+        ? revenueRecords.reduce((sum, r) => sum + r.amount, 0)
+        : contractInquiries.reduce(
+            (sum, i) => sum + (i.contractAmount || 0),
+            0,
+          );
+
     const stats = {
       total: inquiries.length,
       thisMonth: inquiries.filter((i) => new Date(i.createdAt) >= thisMonth)
@@ -267,10 +299,7 @@ export async function GET(request: NextRequest) {
       googleAds: googleAdsInquiries.length,
       smsReplyCount: metaInquiries.filter((i) => i.smsReply).length,
       contractCount: contractInquiries.length,
-      totalRevenue: contractInquiries.reduce(
-        (sum, i) => sum + (i.contractAmount || 0),
-        0,
-      ),
+      totalRevenue: revenueTotalRevenue,
     };
 
     // 월별 성과 통계
@@ -291,6 +320,14 @@ export async function GET(request: NextRequest) {
     const monthMeta = monthInquiries.filter((i) => i.source === "meta");
     const monthGoogle = monthInquiries.filter((i) => i.source === "google_ads");
 
+    // 월별 매출도 Revenue 기준
+    const monthRevenue =
+      revenueRecords.length > 0
+        ? revenueRecords
+            .filter((r) => r.date && r.date.startsWith(targetMonth))
+            .reduce((sum, r) => sum + r.amount, 0)
+        : monthContracts.reduce((sum, i) => sum + (i.contractAmount || 0), 0);
+
     const monthlyStats = {
       month: targetMonth,
       inquiries: monthInquiries.length,
@@ -298,10 +335,7 @@ export async function GET(request: NextRequest) {
       meta: monthMeta.length,
       googleAds: monthGoogle.length,
       contractCount: monthContracts.length,
-      totalRevenue: monthContracts.reduce(
-        (sum, i) => sum + (i.contractAmount || 0),
-        0,
-      ),
+      totalRevenue: monthRevenue,
     };
 
     return NextResponse.json({ inquiries, stats, monthlyStats });
