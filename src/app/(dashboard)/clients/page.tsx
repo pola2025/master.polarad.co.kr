@@ -138,33 +138,32 @@ export default function ClientsPage() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Client>>({});
   const [saving, setSaving] = useState(false);
-  const [clientRevenue, setClientRevenue] = useState<
-    {
-      id: string;
-      type: string;
-      amount: number;
-      productName: string;
-      date: string;
-    }[]
-  >([]);
+  interface RevenueItem {
+    id: string;
+    clientName: string;
+    type: string;
+    amount: number;
+    productName: string;
+    date: string;
+  }
+
+  const [allRevenue, setAllRevenue] = useState<RevenueItem[]>([]);
+  const [clientRevenue, setClientRevenue] = useState<RevenueItem[]>([]);
   const [revenueLoading, setRevenueLoading] = useState(false);
 
-  async function fetchClientRevenue(clientName: string) {
-    setRevenueLoading(true);
-    setClientRevenue([]);
+  async function fetchAllRevenue() {
     try {
       const res = await fetch("/api/revenue");
       if (!res.ok) return;
       const data = await res.json();
-      const matched = (data.records || []).filter(
-        (r: { clientName: string }) => r.clientName === clientName,
-      );
-      setClientRevenue(matched);
+      setAllRevenue(data.records || []);
     } catch {
       /* ignore */
-    } finally {
-      setRevenueLoading(false);
     }
+  }
+
+  function selectClientRevenue(clientName: string) {
+    setClientRevenue(allRevenue.filter((r) => r.clientName === clientName));
   }
 
   async function fetchClients() {
@@ -193,6 +192,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchClients();
+    fetchAllRevenue();
   }, []);
 
   async function handleStartMarketing(client: Client) {
@@ -495,7 +495,7 @@ export default function ClientsPage() {
                   setSelectedClient(client);
                   setEditing(false);
                   setEditData({});
-                  fetchClientRevenue(client.company);
+                  selectClientRevenue(client.company);
                 }}
               >
                 {(client.status === "만료" || client.status === "해지") && (
@@ -520,11 +520,47 @@ export default function ClientsPage() {
                   </div>
 
                   {client.contractAmount > 0 && (
-                    <div className="flex items-center gap-1 text-sm font-semibold text-emerald-700 mb-2">
+                    <div className="flex items-center gap-1 text-sm font-semibold text-emerald-700 mb-1">
                       <Banknote className="h-3.5 w-3.5" />
                       {(client.contractAmount / 10000).toLocaleString()}만원/월
                     </div>
                   )}
+
+                  {/* 단발성 매출 (Revenue에서 해당 거래처) */}
+                  {(() => {
+                    const oneTimeRevs = allRevenue.filter(
+                      (r) =>
+                        r.clientName === client.company &&
+                        r.type !== "마케팅계약",
+                    );
+                    if (oneTimeRevs.length === 0) return null;
+                    return (
+                      <div className="space-y-0.5 mb-2">
+                        {oneTimeRevs.map((rev) => (
+                          <div
+                            key={rev.id}
+                            className="flex items-center gap-1.5 text-xs"
+                          >
+                            <span
+                              className={`px-1 py-0.5 rounded text-[9px] font-medium ${
+                                rev.type === "홈페이지"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {rev.type}
+                            </span>
+                            <span className="text-muted-foreground truncate">
+                              {rev.productName}
+                            </span>
+                            <span className="font-semibold text-amber-700 shrink-0 ml-auto">
+                              {(rev.amount / 10000).toLocaleString()}만
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   {client.contractStart && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
@@ -773,12 +809,7 @@ export default function ClientsPage() {
                       </span>
                     )}
                   </div>
-                  {revenueLoading ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      로딩 중...
-                    </div>
-                  ) : clientRevenue.length === 0 ? (
+                  {clientRevenue.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic py-1">
                       등록된 매출 없음
                     </p>
