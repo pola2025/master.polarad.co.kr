@@ -64,6 +64,7 @@ export default function RevenuePage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"monthly" | "client">("monthly");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState({
     clientName: "",
@@ -211,6 +212,23 @@ export default function RevenuePage() {
     b.localeCompare(a),
   );
 
+  // 거래처별 그룹핑
+  const clientGroups = filtered.reduce(
+    (acc, r) => {
+      const name = r.clientName || "미지정";
+      if (!acc[name]) acc[name] = [];
+      acc[name].push(r);
+      return acc;
+    },
+    {} as Record<string, RevenueRecord[]>,
+  );
+
+  const sortedClients = Object.entries(clientGroups).sort(
+    (a, b) =>
+      b[1].reduce((s, r) => s + r.amount, 0) -
+      a[1].reduce((s, r) => s + r.amount, 0),
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -275,8 +293,32 @@ export default function RevenuePage() {
         })}
       </div>
 
-      {/* 유형 필터 */}
-      <div className="flex gap-2">
+      {/* 보기 모드 + 유형 필터 */}
+      <div className="flex gap-2 items-center flex-wrap">
+        <div className="flex rounded-lg border overflow-hidden mr-2">
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              viewMode === "monthly"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+            onClick={() => setViewMode("monthly")}
+          >
+            월별
+          </button>
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              viewMode === "client"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+            onClick={() => setViewMode("client")}
+          >
+            거래처별
+          </button>
+        </div>
         {[
           { value: "all", label: "전체" },
           { value: "마케팅계약", label: "마케팅계약" },
@@ -309,6 +351,67 @@ export default function RevenuePage() {
             </p>
           </CardContent>
         </Card>
+      ) : viewMode === "client" ? (
+        <div className="space-y-4">
+          {sortedClients.map(([clientName, items]) => {
+            const clientTotal = items.reduce((sum, r) => sum + r.amount, 0);
+            return (
+              <Card key={clientName} className="overflow-hidden">
+                <CardHeader className="pb-3 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">{clientName}</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {items.length}건
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-amber-600">
+                        {(clientTotal / 10000).toLocaleString()}만원
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {items.map((record) => {
+                    const config = TYPE_CONFIG[record.type];
+                    return (
+                      <div
+                        key={record.id}
+                        className="flex items-center gap-4 px-4 py-3 border-t first:border-t-0"
+                      >
+                        <Badge
+                          className={`text-[10px] shrink-0 ${config?.color || "bg-gray-100 text-gray-700"}`}
+                        >
+                          {record.type || "기타"}
+                        </Badge>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm truncate">
+                            {record.productName || "-"}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {record.date || ""}
+                          </span>
+                        </div>
+                        <span className="font-bold text-sm shrink-0">
+                          {(record.amount / 10000).toLocaleString()}만원
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 shrink-0"
+                          onClick={() => startEditing(record)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       ) : (
         <div className="space-y-6">
           {sortedMonths.map((month) => {
