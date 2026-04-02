@@ -16,6 +16,9 @@ import {
   Loader2,
   Bot,
   ShieldAlert,
+  MessageSquare,
+  Handshake,
+  Banknote,
 } from "lucide-react";
 import {
   Card,
@@ -187,6 +190,28 @@ export default function AnalyticsPage() {
 
     fetchAggregatedData();
   }, [dateRange, customDays]);
+
+  // 문의/계약/매출 통계
+  const [inquiryStats, setInquiryStats] = useState<{
+    total: number;
+    contractCount: number;
+    totalRevenue: number;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/inquiries")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.stats) {
+          setInquiryStats({
+            total: data.stats.total,
+            contractCount: data.stats.contractCount,
+            totalRevenue: data.stats.totalRevenue,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // 봇 통계
   interface BotStats {
@@ -564,6 +589,62 @@ export default function AnalyticsPage() {
           </>
         )}
       </div>
+
+      {/* 전환 퍼널: 문의 → 계약 → 매출 */}
+      {inquiryStats && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">문의 접수</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {inquiryStats.total.toLocaleString()}건
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {visitorData.overview.totalVisitors > 0
+                  ? `전환율 ${((inquiryStats.total / visitorData.overview.totalVisitors) * 100).toFixed(1)}%`
+                  : "전체 문의 접수"}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">계약</CardTitle>
+              <Handshake className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {inquiryStats.contractCount}건
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {inquiryStats.total > 0
+                  ? `계약률 ${((inquiryStats.contractCount / inquiryStats.total) * 100).toFixed(1)}%`
+                  : "계약 완료"}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">매출</CardTitle>
+              <Banknote className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {inquiryStats.totalRevenue > 0
+                  ? `${(inquiryStats.totalRevenue / 10000).toLocaleString()}만원`
+                  : "0원"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {inquiryStats.contractCount > 0 && inquiryStats.totalRevenue > 0
+                  ? `건당 ${(inquiryStats.totalRevenue / inquiryStats.contractCount / 10000).toFixed(0)}만원`
+                  : "계약 매출 합계"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* 방문자 유형 */}
       <div className="grid gap-4 md:grid-cols-3">

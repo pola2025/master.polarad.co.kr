@@ -11,6 +11,12 @@ import {
   Percent,
   AlertCircle,
   Calendar,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Globe,
+  Search,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +41,11 @@ import type {
   GoogleAdsPerformanceData,
   GoogleAdsDailyData,
 } from "@/lib/google-analytics";
+import type {
+  GoogleAdsDevicePerformance,
+  GoogleAdsNetworkPerformance,
+  GoogleAdsCampaignDetail,
+} from "@/lib/google-ads";
 
 type ViewMode = "daily" | "weekly" | "monthly";
 
@@ -268,8 +279,8 @@ export default function GoogleAdsPage() {
             Google Ads를 통한 유입과 전환 기여도를 분석합니다. ({periodLabel})
           </p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            광고비는 GA4 경유 데이터로, Google Ads 대시보드와 최대 48시간 차이가
-            있을 수 있습니다.
+            광고비/CTR/게재위치는 Google Ads API 직접 데이터, 방문자/전환은 GA4
+            경유 데이터입니다.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -359,7 +370,7 @@ export default function GoogleAdsPage() {
           ))}
         </div>
       ) : overview ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <StatCard
             title="광고비 지출"
             value={
@@ -393,6 +404,30 @@ export default function GoogleAdsPage() {
                 ? { value: overview.ads_cvr, isPositive: true }
                 : undefined
             }
+          />
+          <StatCard
+            title="CTR (클릭률)"
+            value={overview.ctr !== null ? `${overview.ctr.toFixed(2)}%` : "-"}
+            description={
+              hasCostData
+                ? `${overview.ads_clicks?.toLocaleString()}클릭 / ${overview.ads_impressions?.toLocaleString()}노출`
+                : "클릭 / 노출"
+            }
+            icon={MousePointerClick}
+          />
+          <StatCard
+            title="노출 점유율"
+            value={
+              overview.searchImpressionShare !== null
+                ? `${(overview.searchImpressionShare * 100).toFixed(1)}%`
+                : "-"
+            }
+            description={
+              overview.rankLostImpressionShare !== null
+                ? `순위 손실 ${(overview.rankLostImpressionShare * 100).toFixed(1)}%`
+                : "검색 노출 점유율"
+            }
+            icon={Eye}
           />
           <StatCard
             title="전환 기여도"
@@ -594,7 +629,211 @@ export default function GoogleAdsPage() {
         </Card>
       )}
 
-      {/* 캠페인별 성과 테이블 */}
+      {/* 디바이스별 + 게재위치별 성과 (가로 2컬럼) */}
+      {!loading &&
+        data &&
+        (data.devices?.length > 0 || data.networks?.length > 0) && (
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* 디바이스별 성과 */}
+            {data.devices && data.devices.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="h-5 w-5" />
+                    디바이스별 성과
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data.devices.map((device, i) => {
+                      const totalCost = data.devices!.reduce(
+                        (s, d) => s + d.cost,
+                        0,
+                      );
+                      const costShare =
+                        totalCost > 0 ? (device.cost / totalCost) * 100 : 0;
+                      return (
+                        <div key={i} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium flex items-center gap-1.5">
+                              {device.deviceLabel === "모바일" && (
+                                <Smartphone className="h-3.5 w-3.5" />
+                              )}
+                              {device.deviceLabel === "PC" && (
+                                <Monitor className="h-3.5 w-3.5" />
+                              )}
+                              {device.deviceLabel === "태블릿" && (
+                                <Tablet className="h-3.5 w-3.5" />
+                              )}
+                              {!["모바일", "PC", "태블릿"].includes(
+                                device.deviceLabel,
+                              ) && <Globe className="h-3.5 w-3.5" />}
+                              {device.deviceLabel}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {formatCurrency(device.cost)} · {device.clicks}
+                              클릭 · CTR {(device.ctr * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full transition-all"
+                              style={{ width: `${Math.min(costShare, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 게재위치(네트워크)별 성과 */}
+            {data.networks && data.networks.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    게재위치별 성과
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-muted-foreground">
+                          <th className="pb-2 font-medium">게재위치</th>
+                          <th className="pb-2 font-medium text-right">노출</th>
+                          <th className="pb-2 font-medium text-right">클릭</th>
+                          <th className="pb-2 font-medium text-right">비용</th>
+                          <th className="pb-2 font-medium text-right">CTR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.networks.map((network, i) => (
+                          <tr key={i} className="border-b last:border-0">
+                            <td className="py-2 font-medium">
+                              {network.networkLabel}
+                            </td>
+                            <td className="py-2 text-right">
+                              {network.impressions.toLocaleString()}
+                            </td>
+                            <td className="py-2 text-right">
+                              {network.clicks.toLocaleString()}
+                            </td>
+                            <td className="py-2 text-right">
+                              {formatCurrency(network.cost)}
+                            </td>
+                            <td className="py-2 text-right">
+                              {(network.ctr * 100).toFixed(2)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+      {/* 캠페인별 성과 테이블 (상세) */}
+      {!loading && data?.campaignDetails && data.campaignDetails.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>캠페인별 상세 성과</CardTitle>
+            <CardDescription>CTR, 노출 점유율, 손실률 포함</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-2 font-medium">캠페인</th>
+                    <th className="pb-2 font-medium text-right">비용</th>
+                    <th className="pb-2 font-medium text-right">클릭</th>
+                    <th className="pb-2 font-medium text-right">노출</th>
+                    <th className="pb-2 font-medium text-right">CTR</th>
+                    <th className="pb-2 font-medium text-right">CPC</th>
+                    <th className="pb-2 font-medium text-right">노출 점유율</th>
+                    <th className="pb-2 font-medium text-right">순위 손실</th>
+                    <th className="pb-2 font-medium text-right">예산 손실</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.campaignDetails.map((campaign, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td
+                        className="py-2 font-medium max-w-[200px] truncate"
+                        title={campaign.campaignName}
+                      >
+                        {campaign.campaignName}
+                      </td>
+                      <td className="py-2 text-right">
+                        {formatCurrency(campaign.cost)}
+                      </td>
+                      <td className="py-2 text-right">
+                        {campaign.clicks.toLocaleString()}
+                      </td>
+                      <td className="py-2 text-right">
+                        {campaign.impressions.toLocaleString()}
+                      </td>
+                      <td className="py-2 text-right">
+                        {(campaign.ctr * 100).toFixed(2)}%
+                      </td>
+                      <td className="py-2 text-right">
+                        {campaign.cpc ? formatCurrency(campaign.cpc) : "-"}
+                      </td>
+                      <td className="py-2 text-right">
+                        {campaign.searchImpressionShare !== null ? (
+                          <span
+                            className={
+                              campaign.searchImpressionShare < 0.3
+                                ? "text-red-600 font-medium"
+                                : ""
+                            }
+                          >
+                            {(campaign.searchImpressionShare * 100).toFixed(1)}%
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="py-2 text-right">
+                        {campaign.rankLostImpressionShare !== null ? (
+                          <span
+                            className={
+                              campaign.rankLostImpressionShare > 0.5
+                                ? "text-red-600 font-medium"
+                                : ""
+                            }
+                          >
+                            {(campaign.rankLostImpressionShare * 100).toFixed(
+                              1,
+                            )}
+                            %
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="py-2 text-right">
+                        {campaign.budgetLostImpressionShare !== null
+                          ? `${(campaign.budgetLostImpressionShare * 100).toFixed(1)}%`
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* 캠페인별 성과 테이블 (GA4 기반) */}
       {!loading && data?.campaigns && data.campaigns.length > 0 && (
         <Card>
           <CardHeader>

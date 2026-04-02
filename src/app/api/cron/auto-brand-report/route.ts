@@ -15,6 +15,13 @@ const TABLE_NAME = "Lead";
  * Vercel Cron: 5분마다 실행
  */
 export async function GET(request: Request) {
+  if (!process.env.CRON_SECRET) {
+    console.error("[cron] CRON_SECRET 환경변수 미설정");
+    return NextResponse.json(
+      { error: "Server misconfigured" },
+      { status: 500 },
+    );
+  }
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

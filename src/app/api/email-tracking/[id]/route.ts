@@ -13,11 +13,26 @@ const TRANSPARENT_PIXEL = Buffer.from(
   "base64",
 );
 
+// Airtable record ID 포맷 검증
+const VALID_ID = /^rec[a-zA-Z0-9]{14}$/;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  // ID 포맷 검증 — 유효하지 않으면 픽셀만 반환 (기록 안함)
+  if (!VALID_ID.test(id)) {
+    return new NextResponse(TRANSPARENT_PIXEL, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
+  }
+
   const type = req.nextUrl.searchParams.get("t") || "report";
 
   // 비동기로 열람 기록 (응답 지연 없음)
@@ -135,7 +150,7 @@ async function notifyTelegram(info: {
   });
 
   const lines = [
-    `\u2709\uFE0F <b>\uC218\uC2E0\uD655\uC778</b>`,
+    `[email-tracking] \u2709\uFE0F <b>\uC218\uC2E0\uD655\uC778</b>`,
     `<b>${info.businessName}</b>${info.contactName ? ` (${info.contactName})` : ""}`,
     info.industry ? `\uC5C5\uC885: ${info.industry}` : "",
     `\uC5F4\uB78C: ${openedKST}`,

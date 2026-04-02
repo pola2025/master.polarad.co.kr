@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
+
+// 내부 API 키 (미들웨어 → bot-stats 통신)
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
 // 차단할 국가 코드
 const BLOCKED_COUNTRIES = ["CN"];
@@ -15,6 +19,8 @@ const PUBLIC_PATHS = [
   "/api/send-email",
   "/report/",
   "/api/report/",
+  "/api/webhook/",
+  "/api/email-tracking/",
 ];
 
 // 봇 탐지 패턴 (간소화 버전 - middleware에서 사용)
@@ -133,9 +139,56 @@ function detectBotFromUA(ua: string): {
   return { isBot: false, botName: "", category: "" };
 }
 
-export function middleware(request: NextRequest) {
+// 공격 패턴 차단 (NoSQL injection, path traversal 등)
+const ATTACK_PATTERNS = [
+  /\$ne/i,
+  /\$gt/i,
+  /\$lt/i,
+  /\$regex/i,
+  /\$where/i,
+  /\.\.\//,
+  /<script/i,
+  /union\s+select/i,
+  /eval\(/i,
+];
+
+function fullyDecode(str: string): string {
+  let prev = str;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const decoded = decodeURIComponent(prev);
+      if (decoded === prev) return decoded;
+      prev = decoded;
+    } catch {
+      return prev;
+    }
+  }
+  return prev;
+}
+
+function isAttackRequest(url: string): boolean {
+  const decoded = fullyDecode(url);
+  for (const pattern of ATTACK_PATTERNS) {
+    if (pattern.test(decoded)) return true;
+  }
+  return false;
+}
+
+export async function middleware(request: NextRequest) {
   const country = request.headers.get("x-vercel-ip-country") || "";
   const pathname = request.nextUrl.pathname;
+  const fullUrl = request.nextUrl.toString();
+
+  // 공격 패턴 차단 (쿼리스트링 포함)
+  if (isAttackRequest(fullUrl)) {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
+    console.warn(`[WAF] 공격 차단 (IP: ${ip}): ${pathname}`);
+    return new NextResponse("Forbidden", {
+      status: 403,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
 
   // 중국 IP 차단 (공개 경로 포함)
   if (BLOCKED_COUNTRIES.includes(country)) {
@@ -170,7 +223,10 @@ export function middleware(request: NextRequest) {
     const botStatsUrl = new URL("/api/analytics/bot-stats", request.url);
     fetch(botStatsUrl.toString(), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(INTERNAL_API_KEY ? { "x-internal-key": INTERNAL_API_KEY } : {}),
+      },
       body: JSON.stringify({
         isBot: botResult.isBot,
         botName: botResult.botName,
@@ -181,11 +237,28 @@ export function middleware(request: NextRequest) {
     }).catch(() => {}); // 실패해도 무시
   }
 
-  // 토큰 확인 → 없으면 로그인 페이지로
+  // JWT 토큰 검증 → 없거나 무효하면 로그인 페이지로
   const token = request.cookies.get("admin_token")?.value;
   if (!token) {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // JWT 유효성 검증 (서명 + 만료)
+  try {
+    const secret = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD;
+    if (!secret) {
+      console.error("[middleware] JWT_SECRET/ADMIN_PASSWORD 환경변수 미설정");
+      const loginUrl = new URL("/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+    const secretKey = new TextEncoder().encode(secret);
+    await jwtVerify(token, secretKey);
+  } catch {
+    // 만료되었거나 위조된 토큰
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("admin_token");
+    return response;
   }
 
   return NextResponse.next();

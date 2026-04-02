@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const result = verifyAdminOTP(code.trim());
+      const result = await verifyAdminOTP(code.trim());
       if (!result.valid) {
         return NextResponse.json(
           { error: result.error, lockedUntil: result.lockedUntil },

@@ -4,26 +4,38 @@ const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
 const BASE_ID = "appSGHxitRzYPE43H";
 const TABLE_ID = "tblU7SxW9gPYZe3go";
 
-interface ClientRecord {
-  id: string;
-  createdTime: string;
-  fields: {
-    업체명?: string;
-    담당자명?: string;
-    연락처?: string;
-    이메일?: string;
-    업종?: string;
-    홈페이지?: string;
-    주소?: string;
-    사업자번호?: string;
-    계약금액?: number;
-    계약시작일?: string;
-    계약종료일?: string;
-    계약상태?: string;
-    메모?: string;
-    inquiryId?: string;
-  };
-}
+// 필드 ID 매핑 (GET 조회 시 returnFieldsByFieldId 사용)
+const CLIENT_FIELD = {
+  company: "fld3Rrdc1UQlisuoh",
+  contactName: "fldOIUV6bdhadA8Dm",
+  phone: "fldLnI7WptoofefNS",
+  email: "fldddejh3NEAq8qqy",
+  industry: "fldZExtohzEeRyHaW",
+  website: "fld0ya6eOzBdg0DB7",
+  address: "fldZmKoQvroTts8HL",
+  businessNumber: "fld37JErzNdWy66oB",
+  contractAmount: "fldNgX0A7QGd4K35u",
+  contractStart: "fld3J13lSiUNbGCQm",
+  contractEnd: "fldnDqGD6456DP3an",
+  memo: "fldpbqF8p720pDjuO",
+  inquiryId: "fldbhUICqDITeYnVx",
+  status: "fldeyJ2Fa4GdXe6Q3",
+} as const;
+
+// 상태 매핑 (Airtable 영문 ↔ 프론트엔드 한글)
+const EN_CLIENT_STATUS_TO_KR: Record<string, string> = {
+  Waiting: "대기",
+  Active: "진행중",
+  Expired: "만료",
+  Cancelled: "해지",
+};
+
+const KR_CLIENT_STATUS_TO_EN: Record<string, string> = {
+  대기: "Waiting",
+  진행중: "Active",
+  만료: "Expired",
+  해지: "Cancelled",
+};
 
 export async function GET() {
   if (!AIRTABLE_API_TOKEN) {
@@ -33,6 +45,7 @@ export async function GET() {
   try {
     const headers = { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` };
     const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`);
+    url.searchParams.set("returnFieldsByFieldId", "true");
     url.searchParams.set("maxRecords", "200");
 
     const res = await fetch(url.toString(), { headers, cache: "no-store" });
@@ -42,26 +55,36 @@ export async function GET() {
     }
 
     const data = await res.json();
-    const records: ClientRecord[] = data.records || [];
+    const records = data.records || [];
 
-    const clients = records.map((r) => ({
-      id: r.id,
-      company: r.fields["업체명"] ?? "",
-      contactName: r.fields["담당자명"] ?? "",
-      phone: r.fields["연락처"] ?? "",
-      email: r.fields["이메일"] ?? "",
-      industry: r.fields["업종"] ?? "",
-      website: r.fields["홈페이지"] ?? "",
-      address: r.fields["주소"] ?? "",
-      businessNumber: r.fields["사업자번호"] ?? "",
-      contractAmount: r.fields["계약금액"] ?? 0,
-      contractStart: r.fields["계약시작일"] ?? "",
-      contractEnd: r.fields["계약종료일"] ?? "",
-      status: r.fields["계약상태"] ?? "대기",
-      memo: r.fields["메모"] ?? "",
-      inquiryId: r.fields["inquiryId"] ?? "",
-      createdAt: r.createdTime,
-    }));
+    const clients = records.map(
+      (r: {
+        id: string;
+        createdTime: string;
+        fields: Record<string, string | number | undefined>;
+      }) => {
+        const f = r.fields;
+        const rawStatus = String(f[CLIENT_FIELD.status] ?? "");
+        return {
+          id: r.id,
+          company: String(f[CLIENT_FIELD.company] ?? ""),
+          contactName: String(f[CLIENT_FIELD.contactName] ?? ""),
+          phone: String(f[CLIENT_FIELD.phone] ?? ""),
+          email: String(f[CLIENT_FIELD.email] ?? ""),
+          industry: String(f[CLIENT_FIELD.industry] ?? ""),
+          website: String(f[CLIENT_FIELD.website] ?? ""),
+          address: String(f[CLIENT_FIELD.address] ?? ""),
+          businessNumber: String(f[CLIENT_FIELD.businessNumber] ?? ""),
+          contractAmount: (f[CLIENT_FIELD.contractAmount] as number) ?? 0,
+          contractStart: String(f[CLIENT_FIELD.contractStart] ?? ""),
+          contractEnd: String(f[CLIENT_FIELD.contractEnd] ?? ""),
+          status: (EN_CLIENT_STATUS_TO_KR[rawStatus] ?? rawStatus) || "대기",
+          memo: String(f[CLIENT_FIELD.memo] ?? ""),
+          inquiryId: String(f[CLIENT_FIELD.inquiryId] ?? ""),
+          createdAt: r.createdTime,
+        };
+      },
+    );
 
     // 정렬: 진행중 우선, 그 다음 대기, 나머지
     const statusOrder: Record<string, number> = {
@@ -71,7 +94,10 @@ export async function GET() {
       해지: 3,
     };
     clients.sort(
-      (a, b) =>
+      (
+        a: { status: string; createdAt: string },
+        b: { status: string; createdAt: string },
+      ) =>
         (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) ||
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
@@ -82,15 +108,20 @@ export async function GET() {
 
     const stats = {
       total: clients.length,
-      active: clients.filter((c) => c.status === "진행중").length,
-      waiting: clients.filter((c) => c.status === "대기").length,
-      expiringSoon: clients.filter((c) => {
-        if (c.status !== "진행중" || !c.contractEnd) return false;
-        const end = new Date(c.contractEnd);
-        return end <= oneMonthLater && end >= now;
-      }).length,
+      active: clients.filter((c: { status: string }) => c.status === "진행중")
+        .length,
+      waiting: clients.filter((c: { status: string }) => c.status === "대기")
+        .length,
+      expiringSoon: clients.filter(
+        (c: { status: string; contractEnd: string }) => {
+          if (c.status !== "진행중" || !c.contractEnd) return false;
+          const end = new Date(c.contractEnd);
+          return end <= oneMonthLater && end >= now;
+        },
+      ).length,
       totalRevenue: clients.reduce(
-        (sum, c) => sum + (c.contractAmount || 0),
+        (sum: number, c: { contractAmount: number }) =>
+          sum + (c.contractAmount || 0),
         0,
       ),
     };
@@ -111,14 +142,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const fields: Record<string, string | number> = {};
 
-    if (body.company) fields["업체명"] = body.company;
-    if (body.contactName) fields["담당자명"] = body.contactName;
-    if (body.phone) fields["연락처"] = body.phone;
-    if (body.email) fields["이메일"] = body.email;
-    if (body.industry) fields["업종"] = body.industry;
-    if (body.contractAmount) fields["계약금액"] = body.contractAmount;
+    if (body.company) fields["company"] = body.company;
+    if (body.contactName) fields["contactName"] = body.contactName;
+    if (body.phone) fields["phone"] = body.phone;
+    if (body.email) fields["email"] = body.email;
+    if (body.industry) fields["industry"] = body.industry;
+    if (body.contractAmount) fields["contractAmount"] = body.contractAmount;
     if (body.inquiryId) fields["inquiryId"] = body.inquiryId;
-    fields["계약상태"] = "대기";
+    fields["status"] = "Waiting";
 
     const res = await fetch(
       `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`,
@@ -128,7 +159,7 @@ export async function POST(request: NextRequest) {
           Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ fields }),
+        body: JSON.stringify({ fields, typecast: true }),
       },
     );
 
@@ -158,27 +189,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
-    const fieldMap: Record<string, string> = {
-      company: "업체명",
-      contactName: "담당자명",
-      phone: "연락처",
-      email: "이메일",
-      industry: "업종",
-      website: "홈페이지",
-      address: "주소",
-      businessNumber: "사업자번호",
-      contractAmount: "계약금액",
-      contractStart: "계약시작일",
-      contractEnd: "계약종료일",
-      status: "계약상태",
-      memo: "메모",
-    };
-
     const fields: Record<string, string | number> = {};
     for (const [key, value] of Object.entries(updates)) {
-      const airtableField = fieldMap[key];
-      if (airtableField && value !== undefined) {
-        fields[airtableField] = value as string | number;
+      if (key === "status" && typeof value === "string") {
+        fields["status"] = KR_CLIENT_STATUS_TO_EN[value] ?? value;
+      } else if (value !== undefined) {
+        fields[key] = value as string | number;
       }
     }
 
@@ -190,7 +206,7 @@ export async function PATCH(request: NextRequest) {
           Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ fields }),
+        body: JSON.stringify({ fields, typecast: true }),
       },
     );
 

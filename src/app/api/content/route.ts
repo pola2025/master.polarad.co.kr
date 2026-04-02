@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from "next/server"
-import Airtable from "airtable"
+import { NextRequest, NextResponse } from "next/server";
+import Airtable from "airtable";
 
 // Airtable 설정 - 폴라애드 콘텐츠 Base
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN
-const POLARAD_BASE_ID = "appbqw2GAixv7vSBV"
-const TABLE_NAME = "뉴스레터"
+const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
+const POLARAD_BASE_ID = "appbqw2GAixv7vSBV";
+const TABLE_NAME = "뉴스레터";
 
 // 프론트엔드 캐시 무효화 설정
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://polarad.co.kr"
-const REVALIDATE_TOKEN = process.env.REVALIDATE_TOKEN || "polarad-revalidate-2025"
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://polarad.co.kr";
+const REVALIDATE_TOKEN = process.env.REVALIDATE_TOKEN;
 
 // 프론트엔드 캐시 무효화 함수
 async function revalidateFrontend(slug?: string) {
@@ -17,54 +17,57 @@ async function revalidateFrontend(slug?: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${REVALIDATE_TOKEN}`,
+        Authorization: `Bearer ${REVALIDATE_TOKEN}`,
       },
       body: JSON.stringify({
         type: "marketing-news",
         slug,
       }),
-    })
+    });
 
     if (response.ok) {
-      console.log("[Revalidate] Frontend cache cleared successfully")
-      return true
+      console.log("[Revalidate] Frontend cache cleared successfully");
+      return true;
     } else {
-      console.warn("[Revalidate] Failed to clear frontend cache:", response.status)
-      return false
+      console.warn(
+        "[Revalidate] Failed to clear frontend cache:",
+        response.status,
+      );
+      return false;
     }
   } catch (error) {
-    console.error("[Revalidate] Error calling frontend:", error)
-    return false
+    console.error("[Revalidate] Error calling frontend:", error);
+    return false;
   }
 }
 
 function getBase() {
   if (!AIRTABLE_API_TOKEN) {
-    throw new Error("AIRTABLE_API_TOKEN is not configured")
+    throw new Error("AIRTABLE_API_TOKEN is not configured");
   }
 
   Airtable.configure({
     apiKey: AIRTABLE_API_TOKEN,
-  })
+  });
 
-  return Airtable.base(POLARAD_BASE_ID)
+  return Airtable.base(POLARAD_BASE_ID);
 }
 
 export interface ContentItem {
-  id: string
-  date: string
-  title: string
-  category: string
-  content: string
-  tags: string
-  seoKeywords: string
-  publishedAt: string
-  status: string
-  slug: string
-  description: string
-  thumbnailUrl: string
-  views: number
-  instagramPosted: boolean
+  id: string;
+  date: string;
+  title: string;
+  category: string;
+  content: string;
+  tags: string;
+  seoKeywords: string;
+  publishedAt: string;
+  status: string;
+  slug: string;
+  description: string;
+  thumbnailUrl: string;
+  views: number;
+  instagramPosted: boolean;
 }
 
 export async function GET() {
@@ -72,16 +75,16 @@ export async function GET() {
     if (!AIRTABLE_API_TOKEN) {
       return NextResponse.json(
         { error: "AIRTABLE_API_TOKEN is not configured" },
-        { status: 500 }
-      )
+        { status: 500 },
+      );
     }
 
-    const base = getBase()
+    const base = getBase();
     const records = await base(TABLE_NAME)
       .select({
         sort: [{ field: "date", direction: "desc" }],
       })
-      .all()
+      .all();
 
     const contents: ContentItem[] = records.map((record) => ({
       id: record.id,
@@ -98,7 +101,7 @@ export async function GET() {
       thumbnailUrl: (record.get("thumbnailUrl") as string) || "",
       views: (record.get("views") as number) || 0,
       instagramPosted: (record.get("instagram_posted") as boolean) || false,
-    }))
+    }));
 
     // 통계 계산
     const stats = {
@@ -107,31 +110,33 @@ export async function GET() {
       draftPosts: contents.filter((c) => c.status === "draft").length,
       scheduledPosts: contents.filter((c) => c.status === "scheduled").length,
       totalViews: contents.reduce((sum, c) => sum + c.views, 0),
-    }
+    };
 
     // 카테고리별 집계
-    const categoryMap = new Map<string, number>()
+    const categoryMap = new Map<string, number>();
     contents.forEach((c) => {
       if (c.category) {
-        categoryMap.set(c.category, (categoryMap.get(c.category) || 0) + 1)
+        categoryMap.set(c.category, (categoryMap.get(c.category) || 0) + 1);
       }
-    })
-    const categories = Array.from(categoryMap.entries()).map(([name, count]) => ({
-      name,
-      count,
-    }))
+    });
+    const categories = Array.from(categoryMap.entries()).map(
+      ([name, count]) => ({
+        name,
+        count,
+      }),
+    );
 
     return NextResponse.json({
       contents,
       stats,
       categories,
-    })
+    });
   } catch (error) {
-    console.error("Content API Error:", error)
+    console.error("Content API Error:", error);
     return NextResponse.json(
       { error: "Failed to fetch content data" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }
 
@@ -141,55 +146,61 @@ export async function PUT(request: NextRequest) {
     if (!AIRTABLE_API_TOKEN) {
       return NextResponse.json(
         { error: "AIRTABLE_API_TOKEN is not configured" },
-        { status: 500 }
-      )
+        { status: 500 },
+      );
     }
 
-    const body = await request.json()
-    const { id, ...fields } = body
+    const body = await request.json();
+    const { id, ...fields } = body;
 
     if (!id) {
       return NextResponse.json(
         { error: "Record ID is required" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
-    const base = getBase()
+    const base = getBase();
 
     // Airtable 필드명 매핑
-    const airtableFields: Record<string, unknown> = {}
-    if (fields.title !== undefined) airtableFields.title = fields.title
-    if (fields.content !== undefined) airtableFields.content = fields.content
-    if (fields.category !== undefined) airtableFields.category = fields.category
-    if (fields.status !== undefined) airtableFields.status = fields.status
-    if (fields.slug !== undefined) airtableFields.slug = fields.slug
-    if (fields.description !== undefined) airtableFields.description = fields.description
-    if (fields.tags !== undefined) airtableFields.tags = fields.tags
-    if (fields.seoKeywords !== undefined) airtableFields.seoKeywords = fields.seoKeywords
-    if (fields.thumbnailUrl !== undefined) airtableFields.thumbnailUrl = fields.thumbnailUrl
-    if (fields.date !== undefined) airtableFields.date = fields.date
-    if (fields.publishedAt !== undefined) airtableFields.publishedAt = fields.publishedAt
-    if (fields.instagramPosted !== undefined) airtableFields.instagram_posted = fields.instagramPosted
+    const airtableFields: Record<string, unknown> = {};
+    if (fields.title !== undefined) airtableFields.title = fields.title;
+    if (fields.content !== undefined) airtableFields.content = fields.content;
+    if (fields.category !== undefined)
+      airtableFields.category = fields.category;
+    if (fields.status !== undefined) airtableFields.status = fields.status;
+    if (fields.slug !== undefined) airtableFields.slug = fields.slug;
+    if (fields.description !== undefined)
+      airtableFields.description = fields.description;
+    if (fields.tags !== undefined) airtableFields.tags = fields.tags;
+    if (fields.seoKeywords !== undefined)
+      airtableFields.seoKeywords = fields.seoKeywords;
+    if (fields.thumbnailUrl !== undefined)
+      airtableFields.thumbnailUrl = fields.thumbnailUrl;
+    if (fields.date !== undefined) airtableFields.date = fields.date;
+    if (fields.publishedAt !== undefined)
+      airtableFields.publishedAt = fields.publishedAt;
+    if (fields.instagramPosted !== undefined)
+      airtableFields.instagram_posted = fields.instagramPosted;
 
-    await base(TABLE_NAME).update(id, airtableFields)
+    await base(TABLE_NAME).update(id, airtableFields);
 
     // 프론트엔드 캐시 무효화 (백그라운드 실행)
-    const slug = fields.slug as string | undefined
-    revalidateFrontend(slug).catch(() => {})
+    const slug = fields.slug as string | undefined;
+    revalidateFrontend(slug).catch(() => {});
 
     return NextResponse.json({
       success: true,
       id,
       message: "Content updated successfully",
       revalidated: true,
-    })
+    });
   } catch (error) {
-    console.error("Content Update Error:", error)
+    console.error("Content Update Error:", error);
     return NextResponse.json(
       { error: "Failed to update content" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }
 
@@ -199,37 +210,37 @@ export async function DELETE(request: NextRequest) {
     if (!AIRTABLE_API_TOKEN) {
       return NextResponse.json(
         { error: "AIRTABLE_API_TOKEN is not configured" },
-        { status: 500 }
-      )
+        { status: 500 },
+      );
     }
 
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get("id")
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
 
     if (!id) {
       return NextResponse.json(
         { error: "Record ID is required" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
-    const base = getBase()
-    await base(TABLE_NAME).destroy(id)
+    const base = getBase();
+    await base(TABLE_NAME).destroy(id);
 
     // 프론트엔드 캐시 무효화 (백그라운드 실행)
-    revalidateFrontend().catch(() => {})
+    revalidateFrontend().catch(() => {});
 
     return NextResponse.json({
       success: true,
       id,
       message: "Content deleted successfully",
       revalidated: true,
-    })
+    });
   } catch (error) {
-    console.error("Content Delete Error:", error)
+    console.error("Content Delete Error:", error);
     return NextResponse.json(
       { error: "Failed to delete content" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }

@@ -1419,6 +1419,10 @@ export interface GoogleAdsOverview {
   ads_impressions: number | null;
   cpc: number | null; // Cost Per Click
   cpa: number | null; // Cost Per Acquisition
+  ctr: number | null; // Click Through Rate
+  searchImpressionShare: number | null; // 노출 점유율
+  budgetLostImpressionShare: number | null; // 예산 손실률
+  rankLostImpressionShare: number | null; // 순위 손실률
 }
 
 export interface GoogleAdsDailyData {
@@ -1445,6 +1449,10 @@ export interface GoogleAdsPerformanceData {
   overview: GoogleAdsOverview;
   daily: GoogleAdsDailyData[];
   campaigns: GoogleAdsCampaignData[];
+  devices: import("./google-ads").GoogleAdsDevicePerformance[];
+  networks: import("./google-ads").GoogleAdsNetworkPerformance[];
+  searchTerms: import("./google-ads").GoogleAdsSearchTerm[];
+  campaignDetails: import("./google-ads").GoogleAdsCampaignDetail[];
   period: { start: string; end: string };
 }
 
@@ -1541,50 +1549,78 @@ export async function getGoogleAdsPerformanceData(
     limit: 20,
   });
 
-  // 5) 광고비 데이터 시도 (GA4↔Ads 연결 필요)
+  // 5) 광고비 데이터 — Google Ads API 직접 호출
   let adsCostData: {
     cost: number;
     clicks: number;
     impressions: number;
+    conversions: number;
   } | null = null;
+  let adsCampaignCosts: import("./google-ads").GoogleAdsCampaignCost[] = [];
+  let adsDailyCosts: import("./google-ads").GoogleAdsDailyCost[] = [];
+  let adsDevices: import("./google-ads").GoogleAdsDevicePerformance[] = [];
+  let adsNetworks: import("./google-ads").GoogleAdsNetworkPerformance[] = [];
+  let adsSearchTerms: import("./google-ads").GoogleAdsSearchTerm[] = [];
+  let adsCampaignDetails: import("./google-ads").GoogleAdsCampaignDetail[] = [];
   try {
-    const [costResponse] = await client.runReport({
-      property: `properties/${GA4_PROPERTY_ID}`,
-      dateRanges: [{ startDate: start, endDate: end }],
-      dimensions: [{ name: "sessionSource" }],
-      metrics: [
-        { name: "advertiserAdCost" },
-        { name: "advertiserAdClicks" },
-        { name: "advertiserAdImpressions" },
-      ],
-      dimensionFilter: {
-        filter: {
-          fieldName: "sessionSource",
-          stringFilter: {
-            matchType: "EXACT" as const,
-            value: "google",
-            caseSensitive: false,
-          },
-        },
-      },
-    });
-    const cost = parseFloat(
-      costResponse.rows?.[0]?.metricValues?.[0]?.value || "0",
-    );
-    const clicks = parseInt(
-      costResponse.rows?.[0]?.metricValues?.[1]?.value || "0",
-    );
-    const impressions = parseInt(
-      costResponse.rows?.[0]?.metricValues?.[2]?.value || "0",
-    );
-    if (cost > 0 || clicks > 0) {
-      adsCostData = { cost, clicks, impressions };
+    const {
+      isGoogleAdsConfigured,
+      getAdsCostSummary,
+      getAdsCampaignCosts,
+      getAdsDailyCosts,
+      getAdsDevicePerformance,
+      getAdsNetworkPerformance,
+      getAdsSearchTerms,
+      getAdsCampaignDetails,
+    } = await import("./google-ads");
+    if (isGoogleAdsConfigured()) {
+      const [
+        summary,
+        campaignCosts,
+        dailyCosts,
+        devices,
+        networks,
+        searchTerms,
+        campaignDetails,
+      ] = await Promise.all([
+        getAdsCostSummary(start, end),
+        getAdsCampaignCosts(start, end),
+        getAdsDailyCosts(start, end),
+        getAdsDevicePerformance(start, end),
+        getAdsNetworkPerformance(start, end),
+        getAdsSearchTerms(start, end, 20).catch(
+          () => [] as import("./google-ads").GoogleAdsSearchTerm[],
+        ),
+        getAdsCampaignDetails(start, end),
+      ]);
+      if (summary.totalCost > 0 || summary.totalClicks > 0) {
+        adsCostData = {
+          cost: summary.totalCost,
+          clicks: summary.totalClicks,
+          impressions: summary.totalImpressions,
+          conversions: summary.totalConversions,
+        };
+      }
+      adsCampaignCosts = campaignCosts;
+      adsDailyCosts = dailyCosts;
+      adsDevices = devices;
+      adsNetworks = networks;
+      adsSearchTerms = searchTerms;
+      adsCampaignDetails = campaignDetails;
+      console.log(
+        `[GoogleAds] Direct API: cost=${summary.totalCost}, clicks=${summary.totalClicks}, devices=${devices.length}, networks=${networks.length}`,
+      );
     }
-  } catch {
-    // GA4↔Ads 미연결 시 무시
-    console.log(
-      "Google Ads cost data not available (Ads account not linked to GA4)",
-    );
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errDetail =
+      typeof error === "object" && error !== null && "errors" in error
+        ? JSON.stringify((error as Record<string, unknown>).errors).slice(
+            0,
+            200,
+          )
+        : "";
+    console.error(`[GoogleAds] Direct API error: ${errMsg} ${errDetail}`);
   }
 
   // 병렬 실행
@@ -1654,18 +1690,61 @@ export async function getGoogleAdsPerformanceData(
       adsCostData && adsConversions > 0
         ? adsCostData.cost / adsConversions
         : null,
+    ctr:
+      adsCostData && adsCostData.impressions > 0
+        ? (adsCostData.clicks / adsCostData.impressions) * 100
+        : null,
+    searchImpressionShare:
+      adsCampaignDetails.length > 0
+        ? adsCampaignDetails[0].searchImpressionShare
+        : null,
+    budgetLostImpressionShare:
+      adsCampaignDetails.length > 0
+        ? adsCampaignDetails[0].budgetLostImpressionShare
+        : null,
+    rankLostImpressionShare:
+      adsCampaignDetails.length > 0
+        ? adsCampaignDetails[0].rankLostImpressionShare
+        : null,
   };
 
-  // 일별 데이터
-  const daily: GoogleAdsDailyData[] = (dailyResponse.rows || []).map((row) => ({
-    date: row.dimensionValues?.[0]?.value || "",
-    visitors: parseInt(row.metricValues?.[0]?.value || "0"),
-    sessions: parseInt(row.metricValues?.[1]?.value || "0"),
-    conversions: parseInt(row.metricValues?.[2]?.value || "0"),
-    cost: null, // 일별 비용은 별도 쿼리 필요
-  }));
+  // 일별 비용 맵 (Google Ads API 직접 데이터)
+  const dailyCostMap = new Map<
+    string,
+    { cost: number; clicks: number; impressions: number; conversions: number }
+  >();
+  for (const dc of adsDailyCosts) {
+    const key = dc.date.replace(/-/g, "");
+    dailyCostMap.set(key, dc);
+  }
 
-  // 캠페인별 데이터
+  // 일별 데이터 (GA4 트래픽 + Ads API 비용)
+  const daily: GoogleAdsDailyData[] = (dailyResponse.rows || []).map((row) => {
+    const date = row.dimensionValues?.[0]?.value || "";
+    const costEntry = dailyCostMap.get(date);
+    return {
+      date,
+      visitors: parseInt(row.metricValues?.[0]?.value || "0"),
+      sessions: parseInt(row.metricValues?.[1]?.value || "0"),
+      conversions: parseInt(row.metricValues?.[2]?.value || "0"),
+      cost: costEntry?.cost ?? null,
+    };
+  });
+
+  // 캠페인별 비용 맵 (Google Ads API)
+  const campaignCostMap = new Map<
+    string,
+    { cost: number; clicks: number; cpc: number | null }
+  >();
+  for (const cc of adsCampaignCosts) {
+    campaignCostMap.set(cc.campaignName, {
+      cost: cc.cost,
+      clicks: cc.clicks,
+      cpc: cc.cpc,
+    });
+  }
+
+  // 캠페인별 데이터 (GA4 트래픽 + Ads API 비용)
   const campaigns: GoogleAdsCampaignData[] = (campaignResponse.rows || [])
     .filter((row) => {
       const name = row.dimensionValues?.[0]?.value || "(not set)";
@@ -1675,16 +1754,18 @@ export async function getGoogleAdsPerformanceData(
       const visitors = parseInt(row.metricValues?.[0]?.value || "0");
       const sessions = parseInt(row.metricValues?.[1]?.value || "0");
       const conversions = parseInt(row.metricValues?.[4]?.value || "0");
+      const campaignName = row.dimensionValues?.[0]?.value || "(not set)";
+      const costData = campaignCostMap.get(campaignName);
       return {
-        campaign: row.dimensionValues?.[0]?.value || "(not set)",
+        campaign: campaignName,
         visitors,
         sessions,
         conversions,
         cvr: sessions > 0 ? (conversions / sessions) * 100 : 0,
         bounceRate: parseFloat(row.metricValues?.[2]?.value || "0") * 100,
         avgDuration: parseFloat(row.metricValues?.[3]?.value || "0"),
-        cost: null,
-        cpc: null,
+        cost: costData?.cost ?? null,
+        cpc: costData?.cpc ?? null,
       };
     });
 
@@ -1692,6 +1773,10 @@ export async function getGoogleAdsPerformanceData(
     overview,
     daily,
     campaigns,
+    devices: adsDevices,
+    networks: adsNetworks,
+    searchTerms: adsSearchTerms,
+    campaignDetails: adsCampaignDetails,
     period: { start, end },
   };
 }

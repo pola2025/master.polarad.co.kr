@@ -41,11 +41,16 @@ function formatDuration(seconds: number): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (CRON_SECRET) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!CRON_SECRET) {
+    console.error("[cron] CRON_SECRET 환경변수 미설정");
+    return NextResponse.json(
+      { error: "Server misconfigured" },
+      { status: 500 },
+    );
+  }
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
       .join("\n");
 
     const message = [
-      `📊 <b>폴라애드 일별 접속 통계</b>`,
+      `[cron/daily-report] 📊 <b>폴라애드 일별 접속 통계</b>`,
       `📅 ${dateStr} (${dayName})`,
       ``,
       `👥 방문자: <b>${yesterday.totalUsers}명</b>`,

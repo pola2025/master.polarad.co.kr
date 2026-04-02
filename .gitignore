@@ -48,3 +48,5 @@ docs/vercel-env-vars.txt
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
 NEXT_SESSION_*.md
+
+.env*.local

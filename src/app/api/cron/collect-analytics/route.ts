@@ -27,12 +27,17 @@ const CRON_SECRET = process.env.CRON_SECRET;
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-  // Cron Secret 검증 (설정된 경우)
-  if (CRON_SECRET) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Cron Secret 검증 (필수)
+  if (!CRON_SECRET) {
+    console.error("[cron] CRON_SECRET 환경변수 미설정");
+    return NextResponse.json(
+      { error: "Server misconfigured" },
+      { status: 500 },
+    );
+  }
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const results: Record<string, unknown> = {

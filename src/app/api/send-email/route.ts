@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import nodemailer from "nodemailer";
 
-const INTERNAL_KEY = "pola-internal-2026";
+const INTERNAL_KEY = process.env.SEND_EMAIL_SECRET;
 
 const transporter = nodemailer.createTransport({
   host: "smtp.worksmobile.com",
@@ -15,8 +16,18 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request: NextRequest) {
   // 내부 호출만 허용
-  const key = request.headers.get("x-server-key");
-  if (key !== INTERNAL_KEY) {
+  if (!INTERNAL_KEY) {
+    console.error("[send-email] SEND_EMAIL_SECRET 환경변수 미설정");
+    return NextResponse.json(
+      { error: "Server misconfigured" },
+      { status: 500 },
+    );
+  }
+  const key = request.headers.get("x-server-key") || "";
+  if (
+    key.length !== INTERNAL_KEY.length ||
+    !timingSafeEqual(Buffer.from(key), Buffer.from(INTERNAL_KEY))
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

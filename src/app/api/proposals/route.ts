@@ -45,7 +45,7 @@ export async function GET() {
       status: r.fields.status || "공개",
       views: r.fields.views || 0,
       themeColor: r.fields.themeColor || "#1e3a5f",
-      password: r.fields.password || "",
+      hasPassword: !!r.fields.password,
       createdTime: r.createdTime,
     }));
 

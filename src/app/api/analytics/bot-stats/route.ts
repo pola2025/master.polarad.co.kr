@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import {
   saveBotDailyStats,
   getBotDailyStatsFromCache,
@@ -84,8 +85,25 @@ async function flushBotBuffer() {
   lastFlush = Date.now();
 }
 
-// POST: 방문 기록
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+
+// POST: 방문 기록 (미들웨어 내부 호출 전용)
 export async function POST(request: NextRequest) {
+  // 내부 호출 검증
+  if (!INTERNAL_API_KEY) {
+    return NextResponse.json(
+      { error: "Server misconfigured" },
+      { status: 500 },
+    );
+  }
+  const internalKey = request.headers.get("x-internal-key") || "";
+  if (
+    internalKey.length !== INTERNAL_API_KEY.length ||
+    !timingSafeEqual(Buffer.from(internalKey), Buffer.from(INTERNAL_API_KEY))
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { isBot, botName, category, path, ip } = body;

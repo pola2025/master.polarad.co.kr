@@ -49,7 +49,7 @@ interface Proposal {
   status: string;
   views: number;
   themeColor: string;
-  password: string;
+  hasPassword: boolean;
   createdTime: string;
 }
 
