@@ -677,24 +677,7 @@ export default function InquiriesPage() {
     const amount = parseInt(productAmountInput.replace(/,/g, ""), 10) || 0;
     if (!amount || !productNameInput.trim()) return;
     try {
-      // 1. Clients 테이블에 거래처 생성
-      const wizard = parseWizardMessage(productInquiry.message);
-      const clientRes = await fetch("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company: productInquiry.company || productInquiry.name,
-          contactName: productInquiry.name,
-          phone: productInquiry.phone,
-          email: productInquiry.email,
-          industry: wizard?.업종 || productInquiry.industry || "",
-          contractAmount: amount,
-          inquiryId: productInquiry.id,
-        }),
-      });
-      const clientData = await clientRes.json();
-
-      // 2. Revenue 테이블에 매출 기록
+      // 1. Revenue 테이블에 매출 기록 (거래처는 별도 생성하지 않음 - 단발성)
       await fetch("/api/revenue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -704,7 +687,6 @@ export default function InquiriesPage() {
           amount,
           productName: productNameInput.trim(),
           inquiryId: productInquiry.id,
-          clientId: clientData?.id || "",
           date: new Date().toISOString().split("T")[0],
         }),
       });
