@@ -274,7 +274,10 @@ export default function InquiriesPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [showCumulative, setShowCumulative] = useState(false);
+  const [cumulativeAdSpend, setCumulativeAdSpend] = useState<{
+    meta: number;
+    google: number;
+  } | null>(null);
   const [adSpend, setAdSpend] = useState<AdSpendRecord | null>(null);
   const [adSpendDialogOpen, setAdSpendDialogOpen] = useState(false);
   const [adSpendMetaInput, setAdSpendMetaInput] = useState("");
@@ -309,6 +312,25 @@ export default function InquiriesPage() {
       setError("문의 데이터를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchAllAdSpend() {
+    try {
+      const res = await fetch("/api/ad-spend");
+      if (!res.ok) return;
+      const data = await res.json();
+      const records: AdSpendRecord[] = data.records || [];
+      const totals = records.reduce(
+        (acc, r) => ({
+          meta: acc.meta + (r.metaAmount || 0),
+          google: acc.google + (r.googleAmount || 0),
+        }),
+        { meta: 0, google: 0 },
+      );
+      setCumulativeAdSpend(totals);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -358,6 +380,7 @@ export default function InquiriesPage() {
   useEffect(() => {
     fetchInquiries();
     fetchAdSpend(selectedMonth);
+    fetchAllAdSpend();
   }, [selectedMonth]);
 
   // 문의 선택 시 메모 입력 초기화
@@ -766,34 +789,18 @@ export default function InquiriesPage() {
         })}
       </div>
 
-      {/* 2행: 성과 통계 (월별/누적) */}
+      {/* 2행: 성과 통계 (월별) */}
       {(() => {
         const ms = monthlyStats;
         const totalAdSpend =
           (adSpend?.metaAmount || 0) + (adSpend?.googleAmount || 0);
 
-        // 누적 데이터
-        const cumInquiries = showCumulative
-          ? stats.total
-          : (ms?.inquiries ?? 0);
-        const cumContracts = showCumulative
-          ? stats.contractCount
-          : (ms?.contractCount ?? 0);
-        const cumRevenue = showCumulative
-          ? stats.totalRevenue
-          : (ms?.totalRevenue ?? 0);
-        const cumWebsite = showCumulative ? stats.website : (ms?.website ?? 0);
-        const cumMeta = showCumulative ? stats.meta : (ms?.meta ?? 0);
-        const cumGoogle = showCumulative
-          ? stats.googleAds
-          : (ms?.googleAds ?? 0);
-
         const contractRate =
-          cumInquiries > 0
-            ? ((cumContracts / cumInquiries) * 100).toFixed(1)
+          ms && ms.inquiries > 0
+            ? ((ms.contractCount / ms.inquiries) * 100).toFixed(1)
             : "0";
         const roas =
-          !showCumulative && totalAdSpend > 0 && ms
+          totalAdSpend > 0 && ms
             ? (ms.totalRevenue / totalAdSpend).toFixed(2)
             : "-";
 
@@ -803,45 +810,28 @@ export default function InquiriesPage() {
               <h3 className="text-sm font-semibold text-muted-foreground">
                 성과 통계
               </h3>
-              {!showCumulative && (
-                <select
-                  className="text-sm border rounded px-2 py-0.5 bg-background"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                >
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const d = new Date(2026, 2 + i); // 3월부터
-                    if (d > new Date()) return null;
-                    const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                    return (
-                      <option key={v} value={v}>
-                        {d.getMonth() + 1}월
-                      </option>
-                    );
-                  })}
-                </select>
-              )}
-              <button
-                className={`text-xs px-2 py-0.5 rounded-full border transition-all ${
-                  showCumulative
-                    ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-700"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-                onClick={() => setShowCumulative(!showCumulative)}
+              <select
+                className="text-sm border rounded px-2 py-0.5 bg-background"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
               >
-                {showCumulative ? "누적" : "누적"}
-              </button>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const d = new Date(2026, 2 + i); // 3월부터
+                  if (d > new Date()) return null;
+                  const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                  return (
+                    <option key={v} value={v}>
+                      {d.getMonth() + 1}월
+                    </option>
+                  );
+                })}
+              </select>
             </div>
             <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
               {/* 광고비 */}
               <div
-                className={`rounded-lg border p-3 bg-card transition-all ${
-                  showCumulative
-                    ? "opacity-50 pointer-events-none"
-                    : "cursor-pointer hover:shadow-sm"
-                }`}
+                className="rounded-lg border p-3 cursor-pointer hover:shadow-sm bg-card transition-all"
                 onClick={() => {
-                  if (showCumulative) return;
                   setAdSpendMetaInput(
                     adSpend?.metaAmount ? String(adSpend.metaAmount) : "",
                   );
@@ -853,33 +843,30 @@ export default function InquiriesPage() {
               >
                 <p className="text-xs text-muted-foreground mb-0.5">광고비</p>
                 <p className="text-xl font-bold text-rose-600">
-                  {showCumulative
-                    ? "-"
-                    : totalAdSpend > 0
-                      ? `${(totalAdSpend / 10000).toLocaleString()}만`
-                      : "미입력"}
+                  {totalAdSpend > 0
+                    ? `${(totalAdSpend / 10000).toLocaleString()}만`
+                    : "미입력"}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {showCumulative
-                    ? "월별만 지원"
-                    : totalAdSpend > 0
-                      ? `M${((adSpend?.metaAmount || 0) / 10000).toFixed(0)} / G${((adSpend?.googleAmount || 0) / 10000).toFixed(0)}`
-                      : "클릭하여 입력"}
+                  {totalAdSpend > 0
+                    ? `M${((adSpend?.metaAmount || 0) / 10000).toFixed(0)} / G${((adSpend?.googleAmount || 0) / 10000).toFixed(0)}`
+                    : "클릭하여 입력"}
                 </p>
               </div>
               {/* 접수 */}
               <div className="rounded-lg border p-3 bg-card">
                 <p className="text-xs text-muted-foreground mb-0.5">접수</p>
-                <p className="text-xl font-bold">{cumInquiries}건</p>
+                <p className="text-xl font-bold">{ms?.inquiries ?? 0}건</p>
                 <p className="text-[10px] text-muted-foreground">
-                  홈{cumWebsite} / M{cumMeta} / G{cumGoogle}
+                  홈{ms?.website ?? 0} / M{ms?.meta ?? 0} / G
+                  {ms?.googleAds ?? 0}
                 </p>
               </div>
               {/* 계약 */}
               <div className="rounded-lg border p-3 bg-card">
                 <p className="text-xs text-muted-foreground mb-0.5">계약</p>
                 <p className="text-xl font-bold text-emerald-600">
-                  {cumContracts}건
+                  {ms?.contractCount ?? 0}건
                 </p>
                 <p className="text-[10px] text-muted-foreground">
                   계약률 {contractRate}%
@@ -889,12 +876,79 @@ export default function InquiriesPage() {
               <div className="rounded-lg border p-3 bg-card">
                 <p className="text-xs text-muted-foreground mb-0.5">매출</p>
                 <p className="text-xl font-bold text-amber-600">
-                  {cumRevenue > 0
-                    ? `${(cumRevenue / 10000).toLocaleString()}만`
+                  {ms && ms.totalRevenue > 0
+                    ? `${(ms.totalRevenue / 10000).toLocaleString()}만`
+                    : "0원"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">ROAS {roas}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 3행: 누적 통계 */}
+      {(() => {
+        const cumAdSpend =
+          (cumulativeAdSpend?.meta || 0) + (cumulativeAdSpend?.google || 0);
+        const cumContractRate =
+          stats.total > 0
+            ? ((stats.contractCount / stats.total) * 100).toFixed(1)
+            : "0";
+        const cumRoas =
+          cumAdSpend > 0 ? (stats.totalRevenue / cumAdSpend).toFixed(2) : "-";
+
+        return (
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              누적 성과
+            </h3>
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-0.5">
+                  누적 광고비
+                </p>
+                <p className="text-xl font-bold text-rose-600">
+                  {cumAdSpend > 0
+                    ? `${(cumAdSpend / 10000).toLocaleString()}만`
                     : "0원"}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {showCumulative ? "전체 누적" : `ROAS ${roas}`}
+                  M{((cumulativeAdSpend?.meta || 0) / 10000).toFixed(0)} / G
+                  {((cumulativeAdSpend?.google || 0) / 10000).toFixed(0)}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-0.5">
+                  누적 접수
+                </p>
+                <p className="text-xl font-bold">{stats.total}건</p>
+                <p className="text-[10px] text-muted-foreground">
+                  홈{stats.website} / M{stats.meta} / G{stats.googleAds}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-0.5">
+                  누적 계약
+                </p>
+                <p className="text-xl font-bold text-emerald-600">
+                  {stats.contractCount}건
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  계약률 {cumContractRate}%
+                </p>
+              </div>
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-0.5">
+                  누적 매출
+                </p>
+                <p className="text-xl font-bold text-amber-600">
+                  {stats.totalRevenue > 0
+                    ? `${(stats.totalRevenue / 10000).toLocaleString()}만`
+                    : "0원"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  ROAS {cumRoas}
                 </p>
               </div>
             </div>
