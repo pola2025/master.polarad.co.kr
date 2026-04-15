@@ -77,6 +77,27 @@ async function sendTelegram(
   }
 }
 
+async function sendTelegramSpam(keyword: string, name: string, phone: string) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_LEAD_CHAT_ID) return;
+  try {
+    const msg = `⚠️ [webhook/meta-lead] 진행불가업종 접수 (보류)\n${keyword} ${name} ${phone}`;
+    await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_LEAD_CHAT_ID,
+          text: msg,
+          disable_web_page_preview: true,
+        }),
+      },
+    );
+  } catch (e) {
+    console.error("텔레그램 스팸알림 실패:", e);
+  }
+}
+
 /**
  * Make(Integromat)에서 호출하는 Meta Lead 접수 webhook
  * POST body: { name, phone, company?, industry?, adName?, secret? }
@@ -161,6 +182,18 @@ export async function POST(request: NextRequest) {
     const cleanPhone = formatPhone(phone);
     console.log(`[webhook] Meta 리드 접수: ${name} | ${cleanPhone}`);
 
+    // ── 스팸 키워드 판별 (보험/렌트/분양 → SMS 스킵 + Airtable 보류) ──
+    const SPAM_KEYWORDS = ["보험", "렌트카", "렌트", "분양", "아파트분양"];
+    const allText = [name, company, industry, adName].join(" ");
+    const isSpamInquiry = SPAM_KEYWORDS.some((kw) => allText.includes(kw));
+    const matchedKeyword = SPAM_KEYWORDS.find((kw) => allText.includes(kw));
+
+    if (isSpamInquiry) {
+      console.log(
+        `[webhook] 스팸 업종 감지: ${matchedKeyword} | ${name} ${cleanPhone}`,
+      );
+    }
+
     // 1. Airtable 저장
     const airtableRes = await fetch(
       `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}`,
@@ -177,6 +210,7 @@ export async function POST(request: NextRequest) {
             company: company || "",
             industry: industry || "",
             Adname: adName || "",
+            ...(isSpamInquiry ? { Status: "Hold" } : {}),
           },
           typecast: true,
         }),
@@ -191,11 +225,17 @@ export async function POST(request: NextRequest) {
       console.error("Airtable 저장 실패:", await airtableRes.text());
     }
 
-    // 2. SMS 발송
-    const smsResult = await sendLMS(cleanPhone, SMS_MESSAGE);
-    console.log(
-      `[webhook] SMS 결과: ${smsResult.success ? "성공" : "실패"} ${smsResult.error || ""}`,
-    );
+    // 2. SMS 발송 (스팸 업종은 스킵)
+    let smsResult = { success: false, error: "" };
+    if (isSpamInquiry) {
+      console.log(`[webhook] SMS 스킵 (스팸 업종): ${matchedKeyword}`);
+      smsResult = { success: false, error: "스팸업종 스킵" };
+    } else {
+      smsResult = await sendLMS(cleanPhone, SMS_MESSAGE);
+      console.log(
+        `[webhook] SMS 결과: ${smsResult.success ? "성공" : "실패"} ${smsResult.error || ""}`,
+      );
+    }
 
     // 3. Airtable SMS 상태 업데이트
     if (airtableId) {
@@ -209,7 +249,11 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify({
             fields: {
-              smsStatus: smsResult.success ? "발송완료" : "발송실패",
+              smsStatus: isSpamInquiry
+                ? "스팸스킵"
+                : smsResult.success
+                  ? "발송완료"
+                  : "발송실패",
               smsError: smsResult.error || "",
               smsSentAt: new Date().toISOString(),
             },
@@ -218,14 +262,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. 텔레그램 알림
-    await sendTelegram(
-      name || "-",
-      cleanPhone,
-      company || "",
-      industry || "",
-      smsResult.success,
-    );
+    // 4. 텔레그램 알림 (스팸 업종은 간소화)
+    if (isSpamInquiry) {
+      await sendTelegramSpam(matchedKeyword || "", name || "-", cleanPhone);
+    } else {
+      await sendTelegram(
+        name || "-",
+        cleanPhone,
+        company || "",
+        industry || "",
+        smsResult.success,
+      );
+    }
 
     return NextResponse.json({
       ok: true,
