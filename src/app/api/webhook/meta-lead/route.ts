@@ -226,7 +226,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. SMS 발송 (스팸 업종은 스킵)
-    let smsResult = { success: false, error: "" };
+    let smsResult: { success: boolean; error?: string } = {
+      success: false,
+      error: "",
+    };
     if (isSpamInquiry) {
       console.log(`[webhook] SMS 스킵 (스팸 업종): ${matchedKeyword}`);
       smsResult = { success: false, error: "스팸업종 스킵" };
