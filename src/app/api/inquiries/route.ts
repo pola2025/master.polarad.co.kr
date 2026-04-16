@@ -104,17 +104,32 @@ export async function GET(request: NextRequest) {
         })(),
         { headers, cache: "no-store" },
       ),
-      // Meta 광고 리드 (createdTime 기본 정렬, sort 필드 없음)
-      fetch(
-        (() => {
+      // Meta 광고 리드 (최신순 정렬 — 전체 페이지네이션)
+      (async () => {
+        const allRecords: MetaLeadRecord[] = [];
+        let offset: string | undefined;
+        do {
           const url = new URL(
             `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}`,
           );
-          url.searchParams.set("maxRecords", "100");
-          return url.toString();
-        })(),
-        { headers, cache: "no-store" },
-      ),
+          url.searchParams.set("pageSize", "100");
+          url.searchParams.set("sort[0][field]", "created_at");
+          url.searchParams.set("sort[0][direction]", "desc");
+          if (offset) url.searchParams.set("offset", offset);
+          const res = await fetch(url.toString(), {
+            headers,
+            cache: "no-store",
+          });
+          if (!res.ok) {
+            console.error("Meta 리드 조회 실패:", await res.text());
+            break;
+          }
+          const data = await res.json();
+          allRecords.push(...(data.records || []));
+          offset = data.offset;
+        } while (offset);
+        return { ok: true, records: allRecords };
+      })(),
       // 브랜드분석 리포트 (inquiryId + emailOpenedAt + status)
       brandReportBaseId && brandReportTableId
         ? fetch(
@@ -169,12 +184,14 @@ export async function GET(request: NextRequest) {
       console.error("홈페이지 리드 조회 실패:", await websiteRes.text());
     }
 
-    // Meta 광고 리드 처리
+    // Meta 광고 리드 처리 (pagination 결과)
     const metaInquiries = [];
-    if (metaRes.ok) {
-      const data = await metaRes.json();
-      const records: MetaLeadRecord[] = data.records || [];
-      for (const record of records) {
+    const metaResult = metaRes as unknown as {
+      ok: boolean;
+      records: MetaLeadRecord[];
+    };
+    if (metaResult.ok && metaResult.records) {
+      for (const record of metaResult.records) {
         metaInquiries.push({
           id: `meta_${record.id}`,
           source: "meta" as const,
@@ -203,8 +220,6 @@ export async function GET(request: NextRequest) {
           createdAt: record.createdTime,
         });
       }
-    } else {
-      console.error("Meta 리드 조회 실패:", await metaRes.text());
     }
 
     // 브랜드분석 리포트 매핑 (inquiryId → { emailOpenedAt, reportStatus, sentAt })
