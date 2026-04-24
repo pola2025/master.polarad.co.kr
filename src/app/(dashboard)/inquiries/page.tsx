@@ -300,6 +300,37 @@ export default function InquiriesPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [blacklistedPhones, setBlacklistedPhones] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // 카드 블랙리스트 매칭용 전화번호 정규화 (lib/blacklist.ts와 동일 로직)
+  function normalizePhoneClient(raw: string): string {
+    if (!raw) return "";
+    let cleaned = String(raw).replace(/[^\d+]/g, "");
+    if (cleaned.startsWith("+82")) cleaned = "0" + cleaned.slice(3);
+    if (cleaned.startsWith("82") && cleaned.length === 12)
+      cleaned = "0" + cleaned.slice(2);
+    return cleaned.replace(/\D/g, "");
+  }
+
+  async function fetchBlacklistedPhones() {
+    try {
+      const res = await fetch("/api/inquiries/blacklist", {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const set = new Set<string>();
+      for (const e of data.entries || []) {
+        const n = normalizePhoneClient(e.phone);
+        if (n) set.add(n);
+      }
+      setBlacklistedPhones(set);
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function fetchInquiries() {
     setLoading(true);
@@ -311,6 +342,8 @@ export default function InquiriesPage() {
       setInquiries(data.inquiries || []);
       setStats(data.stats || { total: 0, thisMonth: 0 });
       if (data.monthlyStats) setMonthlyStats(data.monthlyStats);
+      // 블랙리스트 set도 같이 갱신
+      fetchBlacklistedPhones();
     } catch {
       setError("문의 데이터를 불러오지 못했습니다.");
     } finally {
@@ -780,6 +813,15 @@ export default function InquiriesPage() {
         setError(data.error || "블랙리스트 등록 실패");
         return;
       }
+      // 카드 즉시 어둡게 표시되도록 set에 추가
+      const normalized = normalizePhoneClient(inquiry.phone);
+      if (normalized) {
+        setBlacklistedPhones((prev) => {
+          const next = new Set(prev);
+          next.add(normalized);
+          return next;
+        });
+      }
       setAddBlacklistDialog({ open: false, inquiry: null, reason: "" });
     } catch {
       setError("블랙리스트 등록 중 오류가 발생했습니다.");
@@ -796,6 +838,18 @@ export default function InquiriesPage() {
       if (!res.ok) {
         setError("블랙리스트 해제 실패");
         return;
+      }
+      // 카드 시각도 즉시 복구 — 해당 entry의 phone을 set에서 제거
+      const removed = blacklistEntries.find((e) => e.id === id);
+      if (removed) {
+        const normalized = normalizePhoneClient(removed.phone);
+        if (normalized) {
+          setBlacklistedPhones((prev) => {
+            const next = new Set(prev);
+            next.delete(normalized);
+            return next;
+          });
+        }
       }
       setBlacklistEntries((prev) => prev.filter((e) => e.id !== id));
     } catch {
@@ -1308,8 +1362,14 @@ export default function InquiriesPage() {
                     const wizard = parseWizardMessage(inquiry.message);
                     const memoCount = parseMemos(inquiry.memo).length;
                     const isNew = isNewInquiry(inquiry.status);
+                    const isBlocked =
+                      !!inquiry.phone &&
+                      blacklistedPhones.has(
+                        normalizePhoneClient(inquiry.phone),
+                      );
                     // 활성 조건: 홈페이지/구글=항상, Meta=문자회신 체크된 것만
                     const isActive =
+                      !isBlocked &&
                       inquiry.status !== "계약완료" &&
                       inquiry.status !== "보류" &&
                       (inquiry.source !== "meta" || inquiry.smsReply);
@@ -1319,27 +1379,40 @@ export default function InquiriesPage() {
                       <Card
                         key={inquiry.id}
                         className={`cursor-pointer overflow-hidden transition-all hover:shadow-md group relative ${
-                          isActive
-                            ? inquiry.source === "meta"
-                              ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
-                              : inquiry.source === "google_ads"
-                                ? "ring-1 ring-green-400 bg-green-50/60 dark:bg-green-950/20 border-l-2 border-l-green-500"
-                                : "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
-                            : ""
+                          isBlocked
+                            ? "ring-1 ring-red-700 bg-zinc-900/10 border-l-4 border-l-red-700"
+                            : isActive
+                              ? inquiry.source === "meta"
+                                ? "ring-1 ring-[#0668E1] bg-blue-50/60 dark:bg-blue-950/20 border-l-2 border-l-[#0668E1]"
+                                : inquiry.source === "google_ads"
+                                  ? "ring-1 ring-green-400 bg-green-50/60 dark:bg-green-950/20 border-l-2 border-l-green-500"
+                                  : "ring-1 ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20 border-l-2 border-l-orange-500"
+                              : ""
                         }`}
                         onClick={() => setSelectedInquiry(inquiry)}
                       >
-                        {/* 계약완료: 초록 오버레이 */}
-                        {isContract && (
+                        {/* 블랙리스트: 검정 오버레이 (가장 진하게) — 다른 오버레이 우선 */}
+                        {isBlocked ? (
+                          <div className="absolute inset-0 bg-black/80 pointer-events-none z-10 rounded-[inherit]" />
+                        ) : isContract ? (
+                          /* 계약완료: 초록 오버레이 */
                           <div className="absolute inset-0 bg-emerald-900/40 pointer-events-none z-10 rounded-[inherit]" />
+                        ) : (
+                          !isActive && (
+                            /* 보류/Meta미회신: 검정 오버레이 */
+                            <div className="absolute inset-0 bg-black/50 pointer-events-none z-10 rounded-[inherit]" />
+                          )
                         )}
-                        {/* 보류/Meta미회신: 검정 오버레이 */}
-                        {!isActive && !isContract && (
-                          <div className="absolute inset-0 bg-black/50 pointer-events-none z-10 rounded-[inherit]" />
+                        {/* 블랙리스트 뱃지 (오버레이 위에 표시) */}
+                        {isBlocked && (
+                          <div className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold text-white bg-red-700 shadow-md">
+                            <Ban className="h-3 w-3" />
+                            블랙리스트
+                          </div>
                         )}
                         {/* 우선순위 스트라이프 */}
                         <div
-                          className={`h-[3px] w-full ${getStripeColor(inquiry.status)}`}
+                          className={`h-[3px] w-full ${isBlocked ? "bg-red-700" : getStripeColor(inquiry.status)}`}
                         />
 
                         <CardContent className="p-4">
@@ -1560,8 +1633,8 @@ export default function InquiriesPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  title="블랙리스트 등록"
-                                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-amber-600"
+                                  title="이 번호를 블랙리스트에 등록"
+                                  className="h-7 px-2 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setAddBlacklistDialog({
@@ -1571,7 +1644,8 @@ export default function InquiriesPage() {
                                     });
                                   }}
                                 >
-                                  <Ban className="h-3.5 w-3.5" />
+                                  <Ban className="h-3.5 w-3.5 mr-1" />
+                                  <span className="text-xs">블랙리스트</span>
                                 </Button>
                               )}
                               <AlertDialog>
@@ -1643,24 +1717,54 @@ export default function InquiriesPage() {
           {selectedInquiry && (
             <>
               <DialogHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback>
                         {selectedInquiry.name.slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <DialogTitle className="text-lg">
+                    <div className="min-w-0">
+                      <DialogTitle className="text-lg truncate">
                         {selectedInquiry.name}
                       </DialogTitle>
                       {selectedInquiry.company && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground truncate">
                           {selectedInquiry.company}
                         </p>
                       )}
                     </div>
                   </div>
+                  {selectedInquiry.phone &&
+                    (blacklistedPhones.has(
+                      normalizePhoneClient(selectedInquiry.phone),
+                    ) ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="shrink-0 mr-8 border-red-700 text-red-700 bg-red-50"
+                      >
+                        <Ban className="h-3.5 w-3.5 mr-1.5" />
+                        블랙리스트 등록됨
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 mr-8 border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                        onClick={() =>
+                          setAddBlacklistDialog({
+                            open: true,
+                            inquiry: selectedInquiry,
+                            reason: "",
+                          })
+                        }
+                      >
+                        <Ban className="h-3.5 w-3.5 mr-1.5" />
+                        블랙리스트 등록
+                      </Button>
+                    ))}
                 </div>
               </DialogHeader>
 
