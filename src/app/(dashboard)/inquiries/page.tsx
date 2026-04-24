@@ -28,6 +28,8 @@ import {
   Handshake,
   FileSignature,
   Package,
+  Ban,
+  ShieldAlert,
 } from "lucide-react";
 import {
   Card,
@@ -724,6 +726,83 @@ export default function InquiriesPage() {
     }
   }
 
+  // ── 블랙리스트 ─────────────────────────────────────
+  interface BlacklistEntry {
+    id: string;
+    phone: string;
+    name: string;
+    reason: string;
+    source: string;
+    createdAt: string;
+  }
+  const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false);
+  const [blacklistEntries, setBlacklistEntries] = useState<BlacklistEntry[]>(
+    [],
+  );
+  const [blacklistLoading, setBlacklistLoading] = useState(false);
+  const [addBlacklistDialog, setAddBlacklistDialog] = useState<{
+    open: boolean;
+    inquiry: Inquiry | null;
+    reason: string;
+  }>({ open: false, inquiry: null, reason: "" });
+
+  async function loadBlacklist() {
+    setBlacklistLoading(true);
+    try {
+      const res = await fetch("/api/inquiries/blacklist", {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      setBlacklistEntries(data.entries || []);
+    } catch {
+      setError("블랙리스트 조회에 실패했습니다.");
+    } finally {
+      setBlacklistLoading(false);
+    }
+  }
+
+  async function handleAddBlacklist() {
+    const inquiry = addBlacklistDialog.inquiry;
+    if (!inquiry || !inquiry.phone) return;
+    try {
+      const res = await fetch("/api/inquiries/blacklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: inquiry.phone,
+          name: inquiry.name,
+          reason: addBlacklistDialog.reason,
+          source: inquiry.source === "meta" ? "Meta" : "홈페이지",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "블랙리스트 등록 실패");
+        return;
+      }
+      setAddBlacklistDialog({ open: false, inquiry: null, reason: "" });
+    } catch {
+      setError("블랙리스트 등록 중 오류가 발생했습니다.");
+    }
+  }
+
+  async function handleRemoveBlacklist(id: string) {
+    try {
+      const res = await fetch("/api/inquiries/blacklist", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        setError("블랙리스트 해제 실패");
+        return;
+      }
+      setBlacklistEntries((prev) => prev.filter((e) => e.id !== id));
+    } catch {
+      setError("블랙리스트 해제 중 오류가 발생했습니다.");
+    }
+  }
+
   async function handleGenerateBrandReport() {
     if (!selectedInquiry) return;
     setGeneratingReport(true);
@@ -802,18 +881,30 @@ export default function InquiriesPage() {
             홈페이지 접수 및 Meta 광고 리드를 통합 관리합니다.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchInquiries}
-          disabled={loading}
-          className="self-end sm:self-auto"
-        >
-          <RefreshCw
-            className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-          />
-          새로고침
-        </Button>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setBlacklistDialogOpen(true);
+              loadBlacklist();
+            }}
+          >
+            <ShieldAlert className="h-4 w-4 mr-2" />
+            블랙리스트
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchInquiries}
+            disabled={loading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+            />
+            새로고침
+          </Button>
+        </div>
       </div>
 
       {/* 1행: 접수 통계 (소스별 필터) */}
@@ -1465,6 +1556,24 @@ export default function InquiriesPage() {
                                 )}
                             </div>
                             <div className="flex items-center gap-1 relative z-20">
+                              {inquiry.phone && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="블랙리스트 등록"
+                                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-amber-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAddBlacklistDialog({
+                                      open: true,
+                                      inquiry,
+                                      reason: "",
+                                    });
+                                  }}
+                                >
+                                  <Ban className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
@@ -2230,6 +2339,121 @@ export default function InquiriesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 블랙리스트 등록 다이얼로그 */}
+      <AlertDialog
+        open={addBlacklistDialog.open}
+        onOpenChange={(open) =>
+          setAddBlacklistDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-amber-600" />
+              블랙리스트 등록
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {addBlacklistDialog.inquiry?.name || "-"} ·{" "}
+              {addBlacklistDialog.inquiry?.phone || ""}
+              <br />
+              <span className="text-xs">
+                등록 후 이 번호로 접수되는 모든 건은 메일·SMS 발송이 차단되고,
+                내부에는 텔레그램 알림만 전송됩니다.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <label className="text-sm font-medium mb-1 block">
+              사유 (선택)
+            </label>
+            <Textarea
+              placeholder="예: 반복 스팸, 욕설, 동종업체 등"
+              value={addBlacklistDialog.reason}
+              onChange={(e) =>
+                setAddBlacklistDialog((prev) => ({
+                  ...prev,
+                  reason: e.target.value,
+                }))
+              }
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handleAddBlacklist}
+            >
+              등록
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 블랙리스트 관리 모달 */}
+      <Dialog open={blacklistDialogOpen} onOpenChange={setBlacklistDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              블랙리스트 관리
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {blacklistLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : blacklistEntries.length === 0 ? (
+              <div className="text-center py-12 text-sm text-muted-foreground">
+                등록된 블랙리스트가 없습니다.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {blacklistEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-start justify-between gap-3 p-3 border rounded-md bg-muted/30"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">
+                          {entry.name || "-"}
+                        </span>
+                        <code className="text-xs text-muted-foreground">
+                          {entry.phone}
+                        </code>
+                        {entry.source && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {entry.source}
+                          </Badge>
+                        )}
+                      </div>
+                      {entry.reason && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {entry.reason}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {new Date(entry.createdAt).toLocaleString("ko-KR")}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleRemoveBlacklist(entry.id)}
+                    >
+                      해제
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

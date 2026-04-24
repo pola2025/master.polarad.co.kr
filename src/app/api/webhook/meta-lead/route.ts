@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { sendLMS } from "@/lib/ncp-sens";
+import { isBlacklisted } from "@/lib/blacklist";
 
 const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN!;
 const META_BASE_ID = "appyUK6euzEJ5yrGX";
@@ -74,6 +75,27 @@ async function sendTelegram(
     }
   } catch (e) {
     console.error("텔레그램 실패:", e);
+  }
+}
+
+async function sendTelegramBlacklist(name: string, phone: string) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_LEAD_CHAT_ID) return;
+  try {
+    const msg = `⚫ [webhook/meta-lead] 블랙리스트 사용자 접수\n${name || "-"} ${phone}`;
+    await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_LEAD_CHAT_ID,
+          text: msg,
+          disable_web_page_preview: true,
+        }),
+      },
+    );
+  } catch (e) {
+    console.error("텔레그램 블랙리스트 알림 실패:", e);
   }
 }
 
@@ -182,6 +204,12 @@ export async function POST(request: NextRequest) {
     const cleanPhone = formatPhone(phone);
     console.log(`[webhook] Meta 리드 접수: ${name} | ${cleanPhone}`);
 
+    // ── 블랙리스트 체크 (메일/SMS 스킵, 텔레그램만 알림) ──
+    const isBlocked = await isBlacklisted(cleanPhone);
+    if (isBlocked) {
+      console.log(`[webhook] 블랙리스트 차단: ${name} ${cleanPhone}`);
+    }
+
     // ── 스팸 키워드 판별 (보험/렌트/분양 → SMS 스킵 + Airtable 보류) ──
     const SPAM_KEYWORDS = ["보험", "렌트카", "렌트", "분양", "아파트분양"];
     const allText = [name, company, industry, adName].join(" ");
@@ -210,7 +238,11 @@ export async function POST(request: NextRequest) {
             company: company || "",
             industry: industry || "",
             Adname: adName || "",
-            ...(isSpamInquiry ? { Status: "Hold" } : {}),
+            ...(isBlocked
+              ? { Status: "Hold", memo: "[블랙리스트]" }
+              : isSpamInquiry
+                ? { Status: "Hold" }
+                : {}),
           },
           typecast: true,
         }),
@@ -225,12 +257,15 @@ export async function POST(request: NextRequest) {
       console.error("Airtable 저장 실패:", await airtableRes.text());
     }
 
-    // 2. SMS 발송 (스팸 업종은 스킵)
+    // 2. SMS 발송 (블랙리스트/스팸 업종은 스킵)
     let smsResult: { success: boolean; error?: string } = {
       success: false,
       error: "",
     };
-    if (isSpamInquiry) {
+    if (isBlocked) {
+      console.log(`[webhook] SMS 스킵 (블랙리스트): ${cleanPhone}`);
+      smsResult = { success: false, error: "블랙리스트 스킵" };
+    } else if (isSpamInquiry) {
       console.log(`[webhook] SMS 스킵 (스팸 업종): ${matchedKeyword}`);
       smsResult = { success: false, error: "스팸업종 스킵" };
     } else {
@@ -252,11 +287,13 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify({
             fields: {
-              smsStatus: isSpamInquiry
-                ? "스팸스킵"
-                : smsResult.success
-                  ? "발송완료"
-                  : "발송실패",
+              smsStatus: isBlocked
+                ? "블랙리스트"
+                : isSpamInquiry
+                  ? "스팸스킵"
+                  : smsResult.success
+                    ? "발송완료"
+                    : "발송실패",
               smsError: smsResult.error || "",
               smsSentAt: new Date().toISOString(),
             },
@@ -265,8 +302,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. 텔레그램 알림 (스팸 업종은 간소화)
-    if (isSpamInquiry) {
+    // 4. 텔레그램 알림 (블랙리스트/스팸 업종은 간소화)
+    if (isBlocked) {
+      await sendTelegramBlacklist(name || "-", cleanPhone);
+    } else if (isSpamInquiry) {
       await sendTelegramSpam(matchedKeyword || "", name || "-", cleanPhone);
     } else {
       await sendTelegram(
