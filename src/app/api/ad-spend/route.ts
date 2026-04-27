@@ -1,51 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { d1All, d1Run, newId, nowIso } from "@/lib/d1-client";
 
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
-const BASE_ID = "appSGHxitRzYPE43H";
-const TABLE_ID = "tblmk9oQZQty3rrOx";
-
-const FIELD = {
-  month: "fld0vAkbSSJnXv4xc",
-  metaAmount: "fldRbfo5ibHeLYPUz",
-  googleAmount: "fldAfCZ2QKhSVWcBW",
-  memo: "fld1qzA3UtWKmCJJX",
-} as const;
+interface AdSpendRow {
+  id: string;
+  month: string;
+  meta_amount: number;
+  google_amount: number;
+  memo: string;
+}
 
 export async function GET(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const month = request.nextUrl.searchParams.get("month");
-    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`);
-    url.searchParams.set("returnFieldsByFieldId", "true");
-    url.searchParams.set("maxRecords", "100");
-    if (month) {
-      url.searchParams.set("filterByFormula", `{${FIELD.month}}="${month}"`);
-    }
+    const sql = month
+      ? `SELECT id, month, meta_amount, google_amount, memo FROM ad_spend WHERE month = ? LIMIT 100`
+      : `SELECT id, month, meta_amount, google_amount, memo FROM ad_spend ORDER BY month DESC LIMIT 100`;
+    const rows = await d1All<AdSpendRow>(sql, month ? [month] : []);
 
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      return NextResponse.json({ error: "조회 실패" }, { status: 500 });
-    }
-
-    const data = await res.json();
-    const records = (data.records || []).map(
-      (r: {
-        id: string;
-        fields: Record<string, string | number | undefined>;
-      }) => ({
-        id: r.id,
-        month: String(r.fields[FIELD.month] ?? ""),
-        metaAmount: (r.fields[FIELD.metaAmount] as number) ?? 0,
-        googleAmount: (r.fields[FIELD.googleAmount] as number) ?? 0,
-        memo: String(r.fields[FIELD.memo] ?? ""),
-      }),
-    );
+    const records = rows.map((r) => ({
+      id: r.id,
+      month: r.month || "",
+      metaAmount: r.meta_amount || 0,
+      googleAmount: r.google_amount || 0,
+      memo: r.memo || "",
+    }));
 
     return NextResponse.json({ records });
   } catch {
@@ -54,49 +32,41 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const body = await request.json();
-    const fields: Record<string, string | number> = {};
-    if (body.month) fields["month"] = body.month;
-    if (body.metaAmount !== undefined) fields["metaAmount"] = body.metaAmount;
-    if (body.googleAmount !== undefined)
-      fields["googleAmount"] = body.googleAmount;
-    if (body.memo) fields["memo"] = body.memo;
+    if (!body.month) {
+      return NextResponse.json({ error: "month 필요" }, { status: 400 });
+    }
+    const id = newId();
+    const now = nowIso();
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
+    await d1Run(
+      `INSERT INTO ad_spend (id, month, meta_amount, google_amount, memo, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(month) DO UPDATE SET
+         meta_amount = excluded.meta_amount,
+         google_amount = excluded.google_amount,
+         memo = excluded.memo,
+         updated_at = excluded.updated_at`,
+      [
+        id,
+        String(body.month),
+        Number(body.metaAmount) || 0,
+        Number(body.googleAmount) || 0,
+        String(body.memo || ""),
+        now,
+        now,
+      ],
     );
 
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("AdSpend 생성 실패:", err);
-      return NextResponse.json({ error: "생성 실패" }, { status: 500 });
-    }
-
-    const result = await res.json();
-    return NextResponse.json({ id: result.id });
-  } catch {
+    return NextResponse.json({ id });
+  } catch (error) {
+    console.error("AdSpend 생성 오류:", error);
     return NextResponse.json({ error: "서버 오류" }, { status: 500 });
   }
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const body = await request.json();
     const { id, ...updates } = body;
@@ -104,26 +74,35 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
-    const fields: Record<string, string | number> = {};
-    if (updates.metaAmount !== undefined)
-      fields["metaAmount"] = updates.metaAmount;
-    if (updates.googleAmount !== undefined)
-      fields["googleAmount"] = updates.googleAmount;
-    if (updates.memo !== undefined) fields["memo"] = updates.memo;
+    const fieldMap: Record<string, string> = {
+      metaAmount: "meta_amount",
+      googleAmount: "google_amount",
+      memo: "memo",
+      month: "month",
+    };
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
+    const sets: string[] = [];
+    const params: (string | number)[] = [];
+    for (const [key, value] of Object.entries(updates)) {
+      const col = fieldMap[key];
+      if (col && value !== undefined) {
+        sets.push(`${col} = ?`);
+        params.push(value as string | number);
+      }
+    }
+    if (sets.length === 0) {
+      return NextResponse.json({ error: "수정할 필드 없음" }, { status: 400 });
+    }
+
+    sets.push("updated_at = ?");
+    params.push(nowIso());
+    params.push(id);
+
+    const result = await d1Run(
+      `UPDATE ad_spend SET ${sets.join(", ")} WHERE id = ?`,
+      params,
     );
-
-    if (!res.ok) {
+    if (!result.meta?.changes) {
       return NextResponse.json({ error: "업데이트 실패" }, { status: 500 });
     }
 

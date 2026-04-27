@@ -1,69 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
+import { d1All, d1First, d1Run, newId, nowIso } from "@/lib/d1-client";
 
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
-const BASE_ID = "appSGHxitRzYPE43H";
-const TABLE_ID = "tblah736yhUWmW40E";
-const META_BASE_ID = "appyUK6euzEJ5yrGX";
-const META_TABLE_ID = "tblxTgGtVkLpniFbb";
-const LEAD_TABLE_NAME = "Lead";
-
-// Revenue 변경 시 해당 접수(inquiry)의 contractAmount를 동기화
+// Revenue 변경 시 해당 inquiry(lead/meta_lead)의 contract_amount 동기화
 async function syncInquiryAmount(inquiryId: string) {
-  if (!inquiryId || !AIRTABLE_API_TOKEN) return;
-
+  if (!inquiryId) return;
   try {
     // 해당 inquiryId의 모든 Revenue 합산
-    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`);
-    url.searchParams.set("returnFieldsByFieldId", "true");
-    url.searchParams.set("maxRecords", "100");
-    url.searchParams.set("filterByFormula", `{inquiryId}="${inquiryId}"`);
-
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-    });
-    if (!res.ok) return;
-
-    const data = await res.json();
-    const totalAmount = (data.records || []).reduce(
-      (sum: number, r: { fields: Record<string, number | undefined> }) =>
-        sum + ((r.fields["fldTKcF6XkcbHwpXH"] as number) ?? 0),
-      0,
+    const sum = await d1First<{ total: number }>(
+      "SELECT COALESCE(SUM(amount), 0) AS total FROM revenue WHERE inquiry_id = ?",
+      [inquiryId],
     );
+    const totalAmount = sum?.total ?? 0;
 
-    // inquiry 업데이트 (Meta vs Lead 구분)
+    // inquiry 테이블 결정 (Meta vs Lead)
     const isMeta = inquiryId.startsWith("meta_");
     const realId = isMeta ? inquiryId.replace("meta_", "") : inquiryId;
-    const baseId = isMeta ? META_BASE_ID : BASE_ID;
-    const tableId = isMeta
-      ? META_TABLE_ID
-      : encodeURIComponent(LEAD_TABLE_NAME);
+    const table = isMeta ? "meta_lead" : "lead";
 
-    await fetch(`https://api.airtable.com/v0/${baseId}/${tableId}/${realId}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        fields: { contractAmount: totalAmount },
-        typecast: true,
-      }),
-    });
-  } catch {
-    // 동기화 실패해도 매출 수정 자체는 성공으로 처리
+    await d1Run(
+      `UPDATE ${table} SET contract_amount = ?, updated_at = ? WHERE id = ?`,
+      [totalAmount, nowIso(), realId],
+    );
+  } catch (e) {
+    console.error("syncInquiryAmount 실패:", e);
   }
 }
 
-const FIELD = {
-  clientName: "fldREus4uqEzNiqoT",
-  type: "fldyxQyXDMQJEtcWe",
-  amount: "fldTKcF6XkcbHwpXH",
-  productName: "fldFKjPBk6kXWAYvE",
-  inquiryId: "fldDJA4liQLbkiKHF",
-  clientId: "fldfk4xtKuxHxItFM",
-  date: "fldZqGnvLCbBDKNSp",
-  memo: "fld9GG8GxvdDSTdhe",
-} as const;
+interface RevenueRow {
+  id: string;
+  client_name: string;
+  type: string;
+  amount: number;
+  product_name: string;
+  inquiry_id: string;
+  client_id: string;
+  date: string;
+  memo: string;
+  created_at: string;
+}
 
 interface RevenueRecord {
   id: string;
@@ -79,45 +53,27 @@ interface RevenueRecord {
 }
 
 export async function GET() {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
-    const headers = { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` };
-    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`);
-    url.searchParams.set("returnFieldsByFieldId", "true");
-    url.searchParams.set("maxRecords", "500");
-    url.searchParams.set("sort[0][field]", FIELD.date);
-    url.searchParams.set("sort[0][direction]", "desc");
-
-    const res = await fetch(url.toString(), { headers, cache: "no-store" });
-    if (!res.ok) {
-      console.error("Revenue 조회 실패:", await res.text());
-      return NextResponse.json({ error: "조회 실패" }, { status: 500 });
-    }
-
-    const data = await res.json();
-    const records: RevenueRecord[] = (data.records || []).map(
-      (r: {
-        id: string;
-        createdTime: string;
-        fields: Record<string, string | number | undefined>;
-      }) => ({
-        id: r.id,
-        clientName: String(r.fields[FIELD.clientName] ?? ""),
-        type: String(r.fields[FIELD.type] ?? ""),
-        amount: (r.fields[FIELD.amount] as number) ?? 0,
-        productName: String(r.fields[FIELD.productName] ?? ""),
-        inquiryId: String(r.fields[FIELD.inquiryId] ?? ""),
-        clientId: String(r.fields[FIELD.clientId] ?? ""),
-        date: String(r.fields[FIELD.date] ?? ""),
-        memo: String(r.fields[FIELD.memo] ?? ""),
-        createdAt: r.createdTime,
-      }),
+    const rows = await d1All<RevenueRow>(
+      `SELECT id, client_name, type, amount, product_name, inquiry_id, client_id, date, memo, created_at
+       FROM revenue
+       ORDER BY date DESC, created_at DESC
+       LIMIT 500`,
     );
 
-    // 통계
+    const records: RevenueRecord[] = rows.map((r) => ({
+      id: r.id,
+      clientName: r.client_name || "",
+      type: r.type || "",
+      amount: r.amount || 0,
+      productName: r.product_name || "",
+      inquiryId: r.inquiry_id || "",
+      clientId: r.client_id || "",
+      date: r.date || "",
+      memo: r.memo || "",
+      createdAt: r.created_at,
+    }));
+
     const totalRevenue = records.reduce((sum, r) => sum + r.amount, 0);
     const byType = records.reduce(
       (acc, r) => {
@@ -130,11 +86,7 @@ export async function GET() {
 
     return NextResponse.json({
       records,
-      stats: {
-        total: records.length,
-        totalRevenue,
-        byType,
-      },
+      stats: { total: records.length, totalRevenue, byType },
     });
   } catch (error) {
     console.error("Revenue 오류:", error);
@@ -143,43 +95,35 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const body = await request.json();
-    const fields: Record<string, string | number> = {};
+    const id = newId();
+    const now = nowIso();
 
-    if (body.clientName) fields.clientName = body.clientName;
-    if (body.type) fields.type = body.type;
-    if (body.amount !== undefined) fields.amount = body.amount;
-    if (body.productName) fields.productName = body.productName;
-    if (body.inquiryId) fields.inquiryId = body.inquiryId;
-    if (body.clientId) fields.clientId = body.clientId;
-    if (body.date) fields.date = body.date;
-    if (body.memo) fields.memo = body.memo;
-
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
+    await d1Run(
+      `INSERT INTO revenue
+        (id, inquiry_id, client_id, client_name, type, product_name, amount, date, memo, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        String(body.inquiryId || ""),
+        String(body.clientId || ""),
+        String(body.clientName || ""),
+        String(body.type || ""),
+        String(body.productName || ""),
+        Number(body.amount) || 0,
+        String(body.date || ""),
+        String(body.memo || ""),
+        now,
+        now,
+      ],
     );
 
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Revenue 생성 실패:", err);
-      return NextResponse.json({ error: "생성 실패" }, { status: 500 });
+    if (body.inquiryId) {
+      await syncInquiryAmount(String(body.inquiryId));
     }
 
-    const result = await res.json();
-    return NextResponse.json({ id: result.id });
+    return NextResponse.json({ id });
   } catch (error) {
     console.error("Revenue 생성 오류:", error);
     return NextResponse.json({ error: "서버 오류" }, { status: 500 });
@@ -187,10 +131,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const body = await request.json();
     const { id, ...updates } = body;
@@ -198,40 +138,50 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
-    const fields: Record<string, string | number> = {};
-    if (updates.clientName !== undefined)
-      fields.clientName = updates.clientName;
-    if (updates.type !== undefined) fields.type = updates.type;
-    if (updates.amount !== undefined) fields.amount = updates.amount;
-    if (updates.productName !== undefined)
-      fields.productName = updates.productName;
-    if (updates.memo !== undefined) fields.memo = updates.memo;
-    if (updates.date !== undefined) fields.date = updates.date;
+    const fieldMap: Record<string, string> = {
+      clientName: "client_name",
+      type: "type",
+      amount: "amount",
+      productName: "product_name",
+      memo: "memo",
+      date: "date",
+      inquiryId: "inquiry_id",
+      clientId: "client_id",
+    };
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
+    const sets: string[] = [];
+    const params: (string | number)[] = [];
+    for (const [key, value] of Object.entries(updates)) {
+      const col = fieldMap[key];
+      if (col && value !== undefined) {
+        sets.push(`${col} = ?`);
+        params.push(value as string | number);
+      }
+    }
+
+    if (sets.length === 0) {
+      return NextResponse.json({ error: "수정할 필드 없음" }, { status: 400 });
+    }
+
+    sets.push("updated_at = ?");
+    params.push(nowIso());
+    params.push(id);
+
+    const result = await d1Run(
+      `UPDATE revenue SET ${sets.join(", ")} WHERE id = ?`,
+      params,
     );
-
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Revenue 수정 실패:", err);
+    if (!result.meta?.changes) {
       return NextResponse.json({ error: "수정 실패" }, { status: 500 });
     }
 
-    // 수정된 레코드의 inquiryId를 가져와서 접수 금액 동기화
-    const updated = await res.json();
-    const inquiryId =
-      updated.fields?.inquiryId || updated.fields?.[FIELD.inquiryId] || "";
-    if (inquiryId) {
-      await syncInquiryAmount(inquiryId);
+    // 수정된 레코드의 inquiry_id 조회 → 동기화
+    const updated = await d1First<{ inquiry_id: string }>(
+      "SELECT inquiry_id FROM revenue WHERE id = ?",
+      [id],
+    );
+    if (updated?.inquiry_id) {
+      await syncInquiryAmount(updated.inquiry_id);
     }
 
     return NextResponse.json({ ok: true });
@@ -242,39 +192,25 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const { id } = await request.json();
     if (!id) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
-    // 삭제 전 inquiryId 조회
-    const getRes = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}?returnFieldsByFieldId=true`,
-      { headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` } },
-    );
-    const record = getRes.ok ? await getRes.json() : null;
-    const inquiryId = record?.fields?.[FIELD.inquiryId] || "";
-
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-      },
+    // 삭제 전 inquiry_id 조회
+    const target = await d1First<{ inquiry_id: string }>(
+      "SELECT inquiry_id FROM revenue WHERE id = ?",
+      [id],
     );
 
-    if (!res.ok) {
+    const result = await d1Run("DELETE FROM revenue WHERE id = ?", [id]);
+    if (!result.meta?.changes) {
       return NextResponse.json({ error: "삭제 실패" }, { status: 500 });
     }
 
-    // 삭제 후 접수 금액 동기화
-    if (inquiryId) {
-      await syncInquiryAmount(inquiryId);
+    if (target?.inquiry_id) {
+      await syncInquiryAmount(target.inquiry_id);
     }
 
     return NextResponse.json({ ok: true });

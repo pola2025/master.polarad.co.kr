@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { d1First, d1Run, nowIso } from "@/lib/d1-client";
 
 /**
  * 이메일 수신확인 트래킹 픽셀
  * GET /api/email-tracking/[id]?t=report|contract
  *
- * 1x1 투명 PNG를 반환하면서 Airtable에 열람 시각을 기록 + 텔레그램 알림
+ * 1x1 투명 PNG를 반환하면서 D1 brand_reports에 열람 시각 기록 + 텔레그램 알림
  */
 
 // 1x1 투명 PNG (68 bytes)
@@ -13,7 +14,7 @@ const TRANSPARENT_PIXEL = Buffer.from(
   "base64",
 );
 
-// Airtable record ID 포맷 검증
+// rec ID 포맷 검증 (Airtable 시절 마이그된 ID + 신규 newId() 모두 동일 형식)
 const VALID_ID = /^rec[a-zA-Z0-9]{14}$/;
 
 export async function GET(
@@ -22,7 +23,6 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  // ID 포맷 검증 — 유효하지 않으면 픽셀만 반환 (기록 안함)
   if (!VALID_ID.test(id)) {
     return new NextResponse(TRANSPARENT_PIXEL, {
       status: 200,
@@ -53,54 +53,45 @@ export async function GET(
 }
 
 async function recordOpen(id: string, type: string) {
-  const now = new Date().toISOString();
+  const now = nowIso();
 
   if (type === "report") {
-    const token = process.env.AIRTABLE_API_TOKEN;
-    const baseId = process.env.BRAND_REPORT_BASE_ID;
-    const tableId = process.env.BRAND_REPORT_TABLE_ID;
-
-    if (!token || !baseId || !tableId) return;
-
-    // 1. 기존 레코드 조회 (중복 알림 방지 + 리포트 정보)
-    const getRes = await fetch(
-      `https://api.airtable.com/v0/${baseId}/${tableId}/${id}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
+    // 1. 기존 레코드 조회
+    const record = await d1First<{
+      business_name: string;
+      contact_name: string;
+      industry: string;
+      sent_at: string | null;
+      email_opened_at: string | null;
+    }>(
+      `SELECT business_name, contact_name, industry, sent_at, email_opened_at
+       FROM brand_reports WHERE id = ?`,
+      [id],
     );
 
-    if (!getRes.ok) {
+    if (!record) {
       console.error("[email-tracking] Record not found:", id);
       return;
     }
 
-    const record = await getRes.json();
-    const fields = record.fields as Record<string, string>;
-    const alreadyOpened = !!fields.emailOpenedAt;
+    const alreadyOpened = !!record.email_opened_at;
 
-    // 2. 최초 열람 시에만 Airtable 기록 (재열람 시 덮어쓰지 않음)
+    // 2. 최초 열람 시에만 D1 기록
     if (!alreadyOpened) {
-      await fetch(`https://api.airtable.com/v0/${baseId}/${tableId}/${id}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fields: { emailOpenedAt: now },
-        }),
-      });
+      await d1Run(
+        "UPDATE brand_reports SET email_opened_at = ?, updated_at = ? WHERE id = ?",
+        [now, now, id],
+      );
 
       console.log(`[email-tracking] Report ${id} first opened at ${now}`);
 
-      // 3. 발송 완료된 건만 텔레그램 알림 (미발송 건 오알림 방지)
-      if (fields.sentAt) {
+      // 3. 발송 완료된 건만 텔레그램 알림
+      if (record.sent_at) {
         await notifyTelegram({
-          businessName: fields.businessName || "알 수 없음",
-          contactName: fields.contactName || "",
-          industry: fields.industry || "",
-          sentAt: fields.sentAt,
+          businessName: record.business_name || "알 수 없음",
+          contactName: record.contact_name || "",
+          industry: record.industry || "",
+          sentAt: record.sent_at,
           openedAt: now,
         });
       }
@@ -121,7 +112,6 @@ async function notifyTelegram(info: {
   const chatId = process.env.TELEGRAM_LEAD_CHAT_ID;
   if (!botToken || !chatId) return;
 
-  // 발송~열람 소요시간 계산
   let elapsed = "";
   if (info.sentAt) {
     const sent = new Date(info.sentAt).getTime();
@@ -150,11 +140,11 @@ async function notifyTelegram(info: {
   });
 
   const lines = [
-    `[email-tracking] \u2709\uFE0F <b>\uC218\uC2E0\uD655\uC778</b>`,
+    `[email-tracking] ✉️ <b>수신확인</b>`,
     `<b>${info.businessName}</b>${info.contactName ? ` (${info.contactName})` : ""}`,
-    info.industry ? `\uC5C5\uC885: ${info.industry}` : "",
-    `\uC5F4\uB78C: ${openedKST}`,
-    elapsed ? `\uBC1C\uC1A1 \u2192 \uC5F4\uB78C: ${elapsed}` : "",
+    info.industry ? `업종: ${info.industry}` : "",
+    `열람: ${openedKST}`,
+    elapsed ? `발송 → 열람: ${elapsed}` : "",
   ].filter(Boolean);
 
   try {

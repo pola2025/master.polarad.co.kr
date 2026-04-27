@@ -1,0 +1,24 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "polarad-d1-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "b520cb8ed3989e8182bdb020ade36495"
+
+# D1 binding — `wrangler d1 create polarad-main` 실행 후 받은 database_id를 채워주세요.
+[[d1_databases]]
+binding = "DB"
+database_name = "polarad-main"
+database_id = "34c3517e-d564-486d-95a4-c2e04f183388"
+migrations_dir = "migrations"
+
+# 시크릿 (wrangler secret put 으로 주입)
+# - INTERNAL_TOKEN  : Next.js ↔ Worker 인증 토큰 (timing-safe 비교)
+# - TELEGRAM_BOT_TOKEN : 보안 알림용 (선택)
+# - TELEGRAM_CHAT_ID    : 보안 알림용 (선택)
+
+[observability]
+enabled = true
+
+[placement]
+mode = "smart"

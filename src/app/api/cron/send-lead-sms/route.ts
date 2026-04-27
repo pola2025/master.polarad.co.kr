@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendLMS } from "@/lib/ncp-sens";
+import { d1All, d1Run, nowIso } from "@/lib/d1-client";
 
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN!;
-const META_BASE_ID = "appyUK6euzEJ5yrGX";
-const META_TABLE_ID = "tblxTgGtVkLpniFbb";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_LEAD_CHAT_ID = "-1003280236380";
 
@@ -68,7 +66,6 @@ const SMS_MESSAGE = `안녕하세요.
 polarad.co.kr`;
 
 function formatPhone(phone: string): string {
-  // 공백, 하이픈, 괄호 등 모든 비숫자 제거 (+ 제외)
   let cleaned = phone.replace(/[^\d+]/g, "");
   if (cleaned.startsWith("+82")) {
     cleaned = "0" + cleaned.slice(3);
@@ -77,11 +74,10 @@ function formatPhone(phone: string): string {
 }
 
 /**
- * Meta 리드 Airtable에서 SMS 미발송 건을 찾아 자동 발송
+ * D1 meta_lead에서 SMS 미발송 건 자동 발송
  * Vercel Cron: 5분마다 실행
  */
 export async function GET(request: Request) {
-  // Vercel Cron 인증 (필수)
   if (!process.env.CRON_SECRET) {
     console.error("[cron] CRON_SECRET 환경변수 미설정");
     return NextResponse.json(
@@ -95,31 +91,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    // SMS 미발송 건 조회 (smsStatus가 비어있는 레코드)
-    const url = new URL(
-      `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}`,
+    // SMS 미발송 건 조회 (sms_status 비어있는 레코드, 최대 10건)
+    const records = await d1All<{
+      id: string;
+      name: string;
+      phone: string;
+    }>(
+      `SELECT id, name, phone FROM meta_lead
+       WHERE phone != '' AND (sms_status IS NULL OR sms_status = '')
+       ORDER BY created_at ASC LIMIT 10`,
     );
-    url.searchParams.set(
-      "filterByFormula",
-      "AND({phone} != '', OR({smsStatus} = '', {smsStatus} = BLANK()))",
-    );
-    url.searchParams.set("maxRecords", "10");
-
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("Airtable 조회 실패:", err);
-      return NextResponse.json(
-        { error: "Airtable 조회 실패" },
-        { status: 500 },
-      );
-    }
-
-    const data = await res.json();
-    const records = data.records || [];
 
     if (records.length === 0) {
       return NextResponse.json({ message: "발송 대상 없음", sent: 0 });
@@ -128,8 +109,8 @@ export async function GET(request: Request) {
     const results = [];
 
     for (const record of records) {
-      const phone = record.fields.phone;
-      const name = record.fields.Name || "";
+      const phone = record.phone;
+      const name = record.name || "";
       if (!phone) continue;
 
       const cleanPhone = formatPhone(phone);
@@ -138,30 +119,25 @@ export async function GET(request: Request) {
       );
       const smsResult = await sendLMS(cleanPhone, SMS_MESSAGE);
 
-      // 접수 알림 텔레그램 전송 (SMS 성공 여부와 무관하게 항상 발송)
+      // 접수 알림 텔레그램 전송
       await notifyTelegram(name, cleanPhone, smsResult.success);
 
-      // Airtable에 발송 결과 기록
-      const updateRes = await fetch(
-        `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}/${record.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fields: {
-              smsStatus: smsResult.success ? "발송완료" : "발송실패",
-              smsError: smsResult.error || "",
-              smsSentAt: new Date().toISOString(),
-            },
-          }),
-        },
-      );
-
-      if (!updateRes.ok) {
-        console.error("Airtable 상태 업데이트 실패:", await updateRes.text());
+      // D1 상태 업데이트
+      try {
+        await d1Run(
+          `UPDATE meta_lead
+           SET sms_status = ?, sms_error = ?, sms_sent_at = ?, updated_at = ?
+           WHERE id = ?`,
+          [
+            smsResult.success ? "발송완료" : "발송실패",
+            smsResult.error || "",
+            nowIso(),
+            nowIso(),
+            record.id,
+          ],
+        );
+      } catch (e) {
+        console.error("D1 상태 업데이트 실패:", e);
       }
 
       results.push({

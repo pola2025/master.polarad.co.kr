@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { sendLMS } from "@/lib/ncp-sens";
 import { isBlacklisted } from "@/lib/blacklist";
+import { d1Run, newId, nowIso } from "@/lib/d1-client";
 
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN!;
-const META_BASE_ID = "appyUK6euzEJ5yrGX";
-const META_TABLE_ID = "tblxTgGtVkLpniFbb";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_LEAD_CHAT_ID = "-1003280236380";
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
@@ -120,11 +118,6 @@ async function sendTelegramSpam(keyword: string, name: string, phone: string) {
   }
 }
 
-/**
- * Make(Integromat)에서 호출하는 Meta Lead 접수 webhook
- * POST body: { name, phone, company?, industry?, adName?, secret? }
- * → Airtable 저장 + SMS 발송 + 텔레그램 알림
- */
 async function sendTelegramError(error: string, ip: string) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_LEAD_CHAT_ID) return;
   try {
@@ -149,6 +142,11 @@ async function sendTelegramError(error: string, ip: string) {
   } catch {}
 }
 
+/**
+ * Make(Integromat)에서 호출하는 Meta Lead 접수 webhook
+ * POST body: { name, phone, company?, industry?, adName?, secret? }
+ * → D1 meta_lead 저장 + SMS 발송 + 텔레그램 알림
+ */
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -204,13 +202,13 @@ export async function POST(request: NextRequest) {
     const cleanPhone = formatPhone(phone);
     console.log(`[webhook] Meta 리드 접수: ${name} | ${cleanPhone}`);
 
-    // ── 블랙리스트 체크 (메일/SMS 스킵, 텔레그램만 알림) ──
+    // ── 블랙리스트 체크 ──
     const isBlocked = await isBlacklisted(cleanPhone);
     if (isBlocked) {
       console.log(`[webhook] 블랙리스트 차단: ${name} ${cleanPhone}`);
     }
 
-    // ── 스팸 키워드 판별 (보험/렌트/분양 → SMS 스킵 + Airtable 보류) ──
+    // ── 스팸 키워드 판별 ──
     const SPAM_KEYWORDS = ["보험", "렌트카", "렌트", "분양", "아파트분양"];
     const allText = [name, company, industry, adName].join(" ");
     const isSpamInquiry = SPAM_KEYWORDS.some((kw) => allText.includes(kw));
@@ -222,42 +220,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Airtable 저장
-    const airtableRes = await fetch(
-      `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fields: {
-            Name: name || "",
-            phone: phone,
-            company: company || "",
-            industry: industry || "",
-            Adname: adName || "",
-            ...(isBlocked
-              ? { Status: "Hold", memo: "[블랙리스트]" }
-              : isSpamInquiry
-                ? { Status: "Hold" }
-                : {}),
-          },
-          typecast: true,
-        }),
-      },
-    );
+    // 1. D1 meta_lead 저장
+    const id = newId();
+    const initialStatus = isBlocked || isSpamInquiry ? "Hold" : "Todo";
+    const initialMemo = isBlocked ? "[블랙리스트]" : "";
 
-    let airtableId = "";
-    if (airtableRes.ok) {
-      const result = await airtableRes.json();
-      airtableId = result.id;
-    } else {
-      console.error("Airtable 저장 실패:", await airtableRes.text());
+    try {
+      await d1Run(
+        `INSERT INTO meta_lead
+          (id, name, phone, company, industry, ad_name, status, memo, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          name,
+          phone, // 원본 phone 저장 (formatPhone 결과 아닌, +82… 형태)
+          company,
+          industry,
+          adName,
+          initialStatus,
+          initialMemo,
+          nowIso(),
+          nowIso(),
+        ],
+      );
+    } catch (e) {
+      console.error("D1 meta_lead 저장 실패:", e);
     }
 
-    // 2. SMS 발송 (블랙리스트/스팸 업종은 스킵)
+    // 2. SMS 발송
     let smsResult: { success: boolean; error?: string } = {
       success: false,
       error: "",
@@ -275,34 +265,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Airtable SMS 상태 업데이트
-    if (airtableId) {
-      await fetch(
-        `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}/${airtableId}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fields: {
-              smsStatus: isBlocked
-                ? "블랙리스트"
-                : isSpamInquiry
-                  ? "스팸스킵"
-                  : smsResult.success
-                    ? "발송완료"
-                    : "발송실패",
-              smsError: smsResult.error || "",
-              smsSentAt: new Date().toISOString(),
-            },
-          }),
-        },
+    // 3. SMS 상태 업데이트
+    try {
+      await d1Run(
+        `UPDATE meta_lead
+         SET sms_status = ?, sms_error = ?, sms_sent_at = ?, updated_at = ?
+         WHERE id = ?`,
+        [
+          isBlocked
+            ? "블랙리스트"
+            : isSpamInquiry
+              ? "스팸스킵"
+              : smsResult.success
+                ? "발송완료"
+                : "발송실패",
+          smsResult.error || "",
+          nowIso(),
+          nowIso(),
+          id,
+        ],
       );
+    } catch (e) {
+      console.error("D1 meta_lead SMS 상태 업데이트 실패:", e);
     }
 
-    // 4. 텔레그램 알림 (블랙리스트/스팸 업종은 간소화)
+    // 4. 텔레그램 알림
     if (isBlocked) {
       await sendTelegramBlacklist(name || "-", cleanPhone);
     } else if (isSpamInquiry) {
@@ -319,7 +306,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      airtableId,
+      id,
       sms: smsResult.success,
       phone: cleanPhone,
     });

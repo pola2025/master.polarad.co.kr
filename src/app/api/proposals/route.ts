@@ -1,67 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
+import { d1All, d1Run, nowIso } from "@/lib/d1-client";
 
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
-const PROPOSALS_BASE_ID = "appSGHxitRzYPE43H";
-const TABLE_NAME = "Proposals";
-
-interface AirtableRecord {
+interface ProposalRow {
   id: string;
-  createdTime: string;
-  fields: Record<string, string | number | boolean | undefined>;
+  slug: string;
+  title: string;
+  subtitle: string;
+  client_name: string;
+  amount: number;
+  products: string;
+  date: string;
+  status: string;
+  views: number;
+  theme_color: string;
+  password: string;
+  created_at: string;
 }
 
-// GET: 제안서 목록 조회
 export async function GET() {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json(
-      { error: "AIRTABLE_API_TOKEN이 설정되지 않았습니다." },
-      { status: 500 },
-    );
-  }
-
   try {
-    const headers = { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` };
-    const url = `https://api.airtable.com/v0/${PROPOSALS_BASE_ID}/${encodeURIComponent(TABLE_NAME)}?sort%5B0%5D%5Bfield%5D=date&sort%5B0%5D%5Bdirection%5D=desc`;
+    const rows = await d1All<ProposalRow>(
+      `SELECT id, slug, title, subtitle, client_name, amount, products, date,
+              status, views, theme_color, password, created_at
+       FROM proposals
+       ORDER BY date DESC, created_at DESC`,
+    );
 
-    const res = await fetch(url, { headers, cache: "no-store" });
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: data.error?.message || "Airtable 요청 실패" },
-        { status: res.status },
-      );
-    }
-
-    const proposals = (data.records || []).map((r: AirtableRecord) => ({
+    const proposals = rows.map((r) => ({
       id: r.id,
-      slug: r.fields.slug || "",
-      title: r.fields.title || "",
-      subtitle: r.fields.subtitle || "",
-      clientName: r.fields.clientName || "",
-      amount: r.fields.amount || "",
-      products: r.fields.products || "",
-      date: r.fields.date || "",
-      status: r.fields.status || "공개",
-      views: r.fields.views || 0,
-      themeColor: r.fields.themeColor || "#1e3a5f",
-      hasPassword: !!r.fields.password,
-      createdTime: r.createdTime,
+      slug: r.slug || "",
+      title: r.title || "",
+      subtitle: r.subtitle || "",
+      clientName: r.client_name || "",
+      amount: r.amount || 0,
+      products: r.products || "",
+      date: r.date || "",
+      status: r.status || "공개",
+      views: r.views || 0,
+      themeColor: r.theme_color || "#1e3a5f",
+      hasPassword: !!r.password,
+      createdTime: r.created_at,
     }));
 
     return NextResponse.json({
       proposals,
       stats: {
         total: proposals.length,
-        public: proposals.filter((p: { status: string }) => p.status === "공개")
-          .length,
-        private: proposals.filter(
-          (p: { status: string }) => p.status === "비공개",
-        ).length,
-        totalViews: proposals.reduce(
-          (sum: number, p: { views: number }) => sum + p.views,
-          0,
-        ),
+        public: proposals.filter((p) => p.status === "공개").length,
+        private: proposals.filter((p) => p.status === "비공개").length,
+        totalViews: proposals.reduce((sum, p) => sum + p.views, 0),
       },
     });
   } catch (error) {
@@ -73,15 +60,7 @@ export async function GET() {
   }
 }
 
-// PATCH: 상태 토글 (공개/비공개)
 export async function PATCH(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json(
-      { error: "AIRTABLE_API_TOKEN이 설정되지 않았습니다." },
-      { status: 500 },
-    );
-  }
-
   try {
     const body = await request.json();
     const { recordId, status, amount, products } = body;
@@ -93,36 +72,39 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const fields: Record<string, string> = {};
-    if (status !== undefined) fields.status = status;
-    if (amount !== undefined) fields.amount = amount;
-    if (products !== undefined) fields.products = products;
+    const sets: string[] = [];
+    const params: (string | number)[] = [];
 
-    if (Object.keys(fields).length === 0) {
+    if (status !== undefined) {
+      sets.push("status = ?");
+      params.push(String(status));
+    }
+    if (amount !== undefined) {
+      sets.push("amount = ?");
+      params.push(Number(amount) || 0);
+    }
+    if (products !== undefined) {
+      sets.push("products = ?");
+      params.push(String(products));
+    }
+
+    if (sets.length === 0) {
       return NextResponse.json(
         { error: "변경할 필드가 없습니다." },
         { status: 400 },
       );
     }
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${PROPOSALS_BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${recordId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields }),
-      },
-    );
+    sets.push("updated_at = ?");
+    params.push(nowIso());
+    params.push(recordId);
 
-    if (!res.ok) {
-      const data = await res.json();
-      return NextResponse.json(
-        { error: data.error?.message || "상태 변경 실패" },
-        { status: res.status },
-      );
+    const result = await d1Run(
+      `UPDATE proposals SET ${sets.join(", ")} WHERE id = ?`,
+      params,
+    );
+    if (!result.meta?.changes) {
+      return NextResponse.json({ error: "상태 변경 실패" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
@@ -132,18 +114,9 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE: 제안서 삭제 (Airtable 레코드)
 export async function DELETE(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json(
-      { error: "AIRTABLE_API_TOKEN이 설정되지 않았습니다." },
-      { status: 500 },
-    );
-  }
-
   try {
     const { recordId } = await request.json();
-
     if (!recordId) {
       return NextResponse.json(
         { error: "recordId가 필요합니다." },
@@ -151,20 +124,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${PROPOSALS_BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${recordId}`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-      },
-    );
-
-    if (!res.ok) {
-      const data = await res.json();
-      return NextResponse.json(
-        { error: data.error?.message || "삭제 실패" },
-        { status: res.status },
-      );
+    const result = await d1Run("DELETE FROM proposals WHERE id = ?", [
+      recordId,
+    ]);
+    if (!result.meta?.changes) {
+      return NextResponse.json({ error: "삭제 실패" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, deleted: true });

@@ -1,53 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { d1All, d1Run } from "@/lib/d1-client";
 
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
-const INQUIRIES_BASE_ID = "appSGHxitRzYPE43H";
-const TABLE_NAME = "Lead";
-
-// Meta 광고 리드 Airtable
-const META_BASE_ID = "appyUK6euzEJ5yrGX";
-const META_TABLE_ID = "tblxTgGtVkLpniFbb";
-
-// 홈페이지 Lead 테이블 필드 ID (GET 조회 시 returnFieldsByFieldId 사용)
-const LEAD_FIELD = {
-  no: "fld7CbcVauaT7IDx9", // no (autoNumber)
-  name: "fldUN2yE6ZQ7Va0k3", // 이름
-  company: "fldeCS89KPgXt5WA1", // 회사명
-  email: "fldPKhfjjbymNWwTK", // 이메일
-  phone: "fldB52uB94H0jDEwb", // 연락처
-  message: "fld18al2hhL8tpIVB", // 문의내용
-  privacy: "fldqQsavvM1NXrXQ2", // 개인정보 수집 및 이용동의
-  memo: "fldkndO9W3b5Zz7Q5", // memo
-  status: "fldizxBavcuneSV7D", // status (singleSelect)
-  contractAmount: "fldTGFqEK8dS6WnOs", // contractAmount
-} as const;
-
-interface AirtableRecord {
-  id: string;
-  createdTime: string;
-  fields: Record<string, string | number | boolean | undefined>;
-}
-
-interface MetaLeadRecord {
-  id: string;
-  createdTime: string;
-  fields: {
-    Name?: string;
-    phone?: string;
-    company?: string;
-    industry?: string;
-    Adname?: string;
-    memo?: string;
-    Status?: string;
-    smsStatus?: string;
-    smsSentAt?: string;
-    smsError?: string;
-    smsReply?: boolean;
-    contractAmount?: number;
-  };
-}
-
-// Airtable 영문 Status ↔ 한글 상태 매핑 (홈페이지/Meta 공통)
+// Airtable 영문 Status ↔ 한글 상태 매핑 (호환성)
 const EN_STATUS_TO_KR: Record<string, string> = {
   Todo: "신규",
   "In progress": "상담중",
@@ -63,7 +17,6 @@ const KR_STATUS_TO_EN: Record<string, string> = {
 };
 
 function formatMetaPhone(phone: string): string {
-  // +821012345678 → 010-1234-5678
   if (phone.startsWith("+82")) {
     const local = "0" + phone.slice(3);
     if (local.length === 11) {
@@ -74,174 +27,131 @@ function formatMetaPhone(phone: string): string {
   return phone;
 }
 
+interface LeadRow {
+  id: string;
+  no: number;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  message: string;
+  memo: string;
+  status: string;
+  contract_amount: number;
+  created_at: string;
+}
+
+interface MetaLeadRow {
+  id: string;
+  name: string;
+  phone: string;
+  company: string;
+  industry: string;
+  ad_name: string;
+  status: string;
+  memo: string;
+  sms_status: string;
+  sms_sent_at: string;
+  sms_error: string;
+  sms_reply: number;
+  contract_amount: number;
+  created_at: string;
+}
+
+interface BrandReportRow {
+  inquiry_id: string;
+  email_opened_at: string | null;
+  report_status: string;
+  sent_at: string | null;
+}
+
+interface RevenueRow {
+  amount: number;
+  date: string;
+}
+
 export async function GET(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json(
-      { error: "AIRTABLE_API_TOKEN이 설정되지 않았습니다." },
-      { status: 500 },
-    );
-  }
-
   try {
-    const headers = { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` };
-
-    // 세 Airtable을 병렬로 조회 (홈페이지 + Meta + 브랜드분석)
-    const brandReportBaseId = process.env.BRAND_REPORT_BASE_ID;
-    const brandReportTableId = process.env.BRAND_REPORT_TABLE_ID;
-
-    const [websiteRes, metaRes, brandReportRes] = await Promise.all([
-      // 홈페이지 접수 리드 (필드 ID로 조회 — 필드명 인코딩 깨짐 대응)
-      fetch(
-        (() => {
-          const url = new URL(
-            `https://api.airtable.com/v0/${INQUIRIES_BASE_ID}/${encodeURIComponent(TABLE_NAME)}`,
-          );
-          url.searchParams.set("returnFieldsByFieldId", "true");
-          url.searchParams.set("sort[0][field]", LEAD_FIELD.no);
-          url.searchParams.set("sort[0][direction]", "desc");
-          url.searchParams.set("maxRecords", "100");
-          return url.toString();
-        })(),
-        { headers, cache: "no-store" },
+    // 4개 테이블 병렬 조회
+    const [leads, metas, reports, revenues] = await Promise.all([
+      d1All<LeadRow>(
+        `SELECT id, no, name, company, email, phone, message, memo, status, contract_amount, created_at
+         FROM lead ORDER BY no DESC LIMIT 100`,
       ),
-      // Meta 광고 리드 (최신순 정렬 — 전체 페이지네이션)
-      (async () => {
-        const allRecords: MetaLeadRecord[] = [];
-        let offset: string | undefined;
-        do {
-          const url = new URL(
-            `https://api.airtable.com/v0/${META_BASE_ID}/${META_TABLE_ID}`,
-          );
-          url.searchParams.set("pageSize", "100");
-          url.searchParams.set("sort[0][field]", "created_at");
-          url.searchParams.set("sort[0][direction]", "desc");
-          if (offset) url.searchParams.set("offset", offset);
-          const res = await fetch(url.toString(), {
-            headers,
-            cache: "no-store",
-          });
-          if (!res.ok) {
-            console.error("Meta 리드 조회 실패:", await res.text());
-            break;
-          }
-          const data = await res.json();
-          allRecords.push(...(data.records || []));
-          offset = data.offset;
-        } while (offset);
-        return { ok: true, records: allRecords };
-      })(),
-      // 브랜드분석 리포트 (inquiryId + emailOpenedAt + status)
-      brandReportBaseId && brandReportTableId
-        ? fetch(
-            (() => {
-              const url = new URL(
-                `https://api.airtable.com/v0/${brandReportBaseId}/${brandReportTableId}`,
-              );
-              url.searchParams.set("maxRecords", "500");
-              url.searchParams.set("fields[]", "inquiryId");
-              url.searchParams.append("fields[]", "emailOpenedAt");
-              url.searchParams.append("fields[]", "status");
-              url.searchParams.append("fields[]", "sentAt");
-              return url.toString();
-            })(),
-            { headers, cache: "no-store" },
-          )
-        : Promise.resolve(null),
+      d1All<MetaLeadRow>(
+        `SELECT id, name, phone, company, industry, ad_name, status, memo,
+                sms_status, sms_sent_at, sms_error, sms_reply, contract_amount, created_at
+         FROM meta_lead ORDER BY created_at DESC`,
+      ),
+      d1All<BrandReportRow>(
+        `SELECT inquiry_id, email_opened_at, status AS report_status, sent_at
+         FROM brand_reports WHERE inquiry_id != ''`,
+      ),
+      d1All<RevenueRow>("SELECT amount, date FROM revenue"),
     ]);
 
-    // 홈페이지 리드 처리 (필드 ID 기반)
-    const websiteInquiries = [];
-    if (websiteRes.ok) {
-      const data = await websiteRes.json();
-      const records: AirtableRecord[] = data.records || [];
-      for (const record of records) {
-        const f = record.fields;
-        const msg = String(f[LEAD_FIELD.message] ?? "");
-        const isGoogleAds = msg.includes("[구글광고");
-        websiteInquiries.push({
-          id: record.id,
-          source: isGoogleAds ? ("google_ads" as const) : ("website" as const),
-          no: (f[LEAD_FIELD.no] as number) ?? 0,
-          name: String(f[LEAD_FIELD.name] ?? "-"),
-          company: String(f[LEAD_FIELD.company] ?? ""),
-          email: String(f[LEAD_FIELD.email] ?? ""),
-          phone: String(f[LEAD_FIELD.phone] ?? ""),
-          message: msg,
-          memo: String(f[LEAD_FIELD.memo] ?? ""),
-          status:
-            EN_STATUS_TO_KR[String(f[LEAD_FIELD.status] ?? "")] ??
-            String(f[LEAD_FIELD.status] ?? ""),
-          contractAmount: (f[LEAD_FIELD.contractAmount] as number) ?? 0,
-          adName: "",
-          industry: "",
-          smsStatus: "",
-          smsSentAt: "",
-          smsReply: false,
-          createdAt: record.createdTime,
-        });
-      }
-    } else {
-      console.error("홈페이지 리드 조회 실패:", await websiteRes.text());
-    }
+    // 홈페이지 리드 처리
+    const websiteInquiries = leads.map((l) => {
+      const isGoogleAds = (l.message || "").includes("[구글광고");
+      return {
+        id: l.id,
+        source: isGoogleAds ? ("google_ads" as const) : ("website" as const),
+        no: l.no,
+        name: l.name || "-",
+        company: l.company || "",
+        email: l.email || "",
+        phone: l.phone || "",
+        message: l.message || "",
+        memo: l.memo || "",
+        status: EN_STATUS_TO_KR[l.status] ?? l.status,
+        contractAmount: l.contract_amount || 0,
+        adName: "",
+        industry: "",
+        smsStatus: "",
+        smsSentAt: "",
+        smsReply: false,
+        createdAt: l.created_at,
+      };
+    });
 
-    // Meta 광고 리드 처리 (pagination 결과)
-    const metaInquiries = [];
-    const metaResult = metaRes as unknown as {
-      ok: boolean;
-      records: MetaLeadRecord[];
-    };
-    if (metaResult.ok && metaResult.records) {
-      for (const record of metaResult.records) {
-        metaInquiries.push({
-          id: `meta_${record.id}`,
-          source: "meta" as const,
-          no: 0,
-          name: record.fields.Name ?? "-",
-          company: record.fields.company ?? "",
-          email: "",
-          phone: record.fields.phone
-            ? formatMetaPhone(record.fields.phone)
-            : "",
-          message: record.fields.industry
-            ? `[Meta 광고] 업종: ${record.fields.industry}`
-            : "[Meta 광고]",
-          memo: record.fields.memo ?? "",
-          status:
-            EN_STATUS_TO_KR[record.fields.Status ?? ""] ??
-            record.fields.Status ??
-            "",
-          adName: record.fields.Adname ?? "",
-          industry: record.fields.industry ?? "",
-          smsStatus: record.fields.smsStatus ?? "",
-          smsSentAt: record.fields.smsSentAt ?? "",
-          smsError: record.fields.smsError ?? "",
-          smsReply: record.fields.smsReply ?? false,
-          contractAmount: record.fields.contractAmount ?? 0,
-          createdAt: record.createdTime,
-        });
-      }
-    }
+    // Meta 광고 리드 처리 (id에 meta_ prefix 부여 — 기존 호환)
+    const metaInquiries = metas.map((m) => ({
+      id: `meta_${m.id}`,
+      source: "meta" as const,
+      no: 0,
+      name: m.name || "-",
+      company: m.company || "",
+      email: "",
+      phone: m.phone ? formatMetaPhone(m.phone) : "",
+      message: m.industry ? `[Meta 광고] 업종: ${m.industry}` : "[Meta 광고]",
+      memo: m.memo || "",
+      status: EN_STATUS_TO_KR[m.status] ?? m.status,
+      adName: m.ad_name || "",
+      industry: m.industry || "",
+      smsStatus: m.sms_status || "",
+      smsSentAt: m.sms_sent_at || "",
+      smsError: m.sms_error || "",
+      smsReply: !!m.sms_reply,
+      contractAmount: m.contract_amount || 0,
+      createdAt: m.created_at,
+    }));
 
-    // 브랜드분석 리포트 매핑 (inquiryId → { emailOpenedAt, reportStatus, sentAt })
+    // 브랜드 리포트 매핑
     const reportMap = new Map<
       string,
       { emailOpenedAt: string; reportStatus: string; sentAt: string }
     >();
-    if (brandReportRes && brandReportRes.ok) {
-      const data = await brandReportRes.json();
-      for (const r of data.records || []) {
-        const f = r.fields as Record<string, string>;
-        if (f.inquiryId) {
-          reportMap.set(f.inquiryId, {
-            emailOpenedAt: f.emailOpenedAt || "",
-            reportStatus: f.status || "",
-            sentAt: f.sentAt || "",
-          });
-        }
+    for (const r of reports) {
+      if (r.inquiry_id) {
+        reportMap.set(r.inquiry_id, {
+          emailOpenedAt: r.email_opened_at || "",
+          reportStatus: r.report_status || "",
+          sentAt: r.sent_at || "",
+        });
       }
     }
 
-    // 날짜 기준 통합 정렬 (최신순) + 브랜드분석 조인
+    // 통합 정렬 + 브랜드분석 조인
     const inquiries = [...websiteInquiries, ...metaInquiries]
       .map((inquiry) => {
         const realId = inquiry.id.startsWith("meta_")
@@ -270,36 +180,12 @@ export async function GET(request: NextRequest) {
     const pureWebsiteInquiries = websiteInquiries.filter(
       (i) => i.source === "website",
     );
-
     const contractInquiries = inquiries.filter((i) => i.status === "계약완료");
 
-    // Revenue 테이블에서 매출 데이터 (Single Source of Truth)
-    let revenueRecords: { amount: number; date: string }[] = [];
-    try {
-      const revUrl = new URL(
-        `https://api.airtable.com/v0/appSGHxitRzYPE43H/tblah736yhUWmW40E`,
-      );
-      revUrl.searchParams.set("returnFieldsByFieldId", "true");
-      revUrl.searchParams.set("maxRecords", "500");
-      const revRes = await fetch(revUrl.toString(), {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-      });
-      if (revRes.ok) {
-        const revData = await revRes.json();
-        revenueRecords = (revData.records || []).map(
-          (r: { fields: Record<string, number | string | undefined> }) => ({
-            amount: (r.fields["fldTKcF6XkcbHwpXH"] as number) ?? 0,
-            date: String(r.fields["fldZqGnvLCbBDKNSp"] ?? ""),
-          }),
-        );
-      }
-    } catch {
-      // Revenue 조회 실패 시 기존 contractAmount 합산으로 폴백
-    }
-
+    // Revenue 합계 (Single Source of Truth)
     const revenueTotalRevenue =
-      revenueRecords.length > 0
-        ? revenueRecords.reduce((sum, r) => sum + r.amount, 0)
+      revenues.length > 0
+        ? revenues.reduce((sum, r) => sum + (r.amount || 0), 0)
         : contractInquiries.reduce(
             (sum, i) => sum + (i.contractAmount || 0),
             0,
@@ -335,12 +221,11 @@ export async function GET(request: NextRequest) {
     const monthMeta = monthInquiries.filter((i) => i.source === "meta");
     const monthGoogle = monthInquiries.filter((i) => i.source === "google_ads");
 
-    // 월별 매출도 Revenue 기준
     const monthRevenue =
-      revenueRecords.length > 0
-        ? revenueRecords
+      revenues.length > 0
+        ? revenues
             .filter((r) => r.date && r.date.startsWith(targetMonth))
-            .reduce((sum, r) => sum + r.amount, 0)
+            .reduce((sum, r) => sum + (r.amount || 0), 0)
         : monthContracts.reduce((sum, i) => sum + (i.contractAmount || 0), 0);
 
     const monthlyStats = {
@@ -365,10 +250,6 @@ export async function GET(request: NextRequest) {
 
 // 메모/상태 업데이트
 export async function PATCH(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
@@ -391,46 +272,47 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "ID가 필요합니다." }, { status: 400 });
     }
 
-    // Meta 리드인지 확인
     const isMeta = id.startsWith("meta_");
     const realId = isMeta ? id.replace("meta_", "") : id;
-    const baseId = isMeta ? META_BASE_ID : INQUIRIES_BASE_ID;
-    const tableId = isMeta ? META_TABLE_ID : encodeURIComponent(TABLE_NAME);
+    const table = isMeta ? "meta_lead" : "lead";
 
-    const fields: Record<string, string | boolean | number> = {};
-    if (isMeta) {
-      if (memo !== undefined) fields["memo"] = memo;
-      if (status !== undefined)
-        fields["Status"] = KR_STATUS_TO_EN[status] ?? status;
-      if (smsReply !== undefined) fields["smsReply"] = smsReply;
-      if (contractAmount !== undefined)
-        fields["contractAmount"] = contractAmount;
-    } else {
-      if (memo !== undefined) fields["memo"] = memo;
-      if (status !== undefined)
-        fields["status"] = KR_STATUS_TO_EN[status] ?? status;
-      if (contractAmount !== undefined)
-        fields["contractAmount"] = contractAmount;
+    const sets: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (memo !== undefined) {
+      sets.push("memo = ?");
+      params.push(memo);
+    }
+    if (status !== undefined) {
+      sets.push("status = ?");
+      params.push(KR_STATUS_TO_EN[status] ?? status);
+    }
+    if (isMeta && smsReply !== undefined) {
+      sets.push("sms_reply = ?");
+      params.push(smsReply ? 1 : 0);
+    }
+    if (contractAmount !== undefined) {
+      sets.push("contract_amount = ?");
+      params.push(contractAmount);
     }
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${baseId}/${tableId}/${realId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
+    if (sets.length === 0) {
+      return NextResponse.json({ error: "수정할 필드 없음" }, { status: 400 });
+    }
+
+    sets.push("updated_at = ?");
+    params.push(new Date().toISOString());
+    params.push(realId);
+
+    const result = await d1Run(
+      `UPDATE ${table} SET ${sets.join(", ")} WHERE id = ?`,
+      params,
     );
 
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Airtable 업데이트 실패:", err);
+    if (!result.meta?.changes) {
       return NextResponse.json(
-        { error: "업데이트에 실패했습니다." },
-        { status: 500 },
+        { error: "해당 ID를 찾을 수 없습니다." },
+        { status: 404 },
       );
     }
 
@@ -446,10 +328,6 @@ export async function PATCH(request: NextRequest) {
 
 // 문의 삭제
 export async function DELETE(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
@@ -468,25 +346,13 @@ export async function DELETE(request: NextRequest) {
 
     const isMeta = id.startsWith("meta_");
     const realId = isMeta ? id.replace("meta_", "") : id;
-    const baseId = isMeta ? META_BASE_ID : INQUIRIES_BASE_ID;
-    const tableId = isMeta ? META_TABLE_ID : encodeURIComponent(TABLE_NAME);
+    const table = isMeta ? "meta_lead" : "lead";
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${baseId}/${tableId}/${realId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-        },
-      },
-    );
-
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Airtable 삭제 실패:", err);
+    const result = await d1Run(`DELETE FROM ${table} WHERE id = ?`, [realId]);
+    if (!result.meta?.changes) {
       return NextResponse.json(
-        { error: "삭제에 실패했습니다." },
-        { status: 500 },
+        { error: "해당 ID를 찾을 수 없습니다." },
+        { status: 404 },
       );
     }
 

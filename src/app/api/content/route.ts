@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import Airtable from "airtable";
-
-// Airtable 설정 - 폴라애드 콘텐츠 Base
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
-const POLARAD_BASE_ID = "appbqw2GAixv7vSBV";
-const TABLE_NAME = "뉴스레터";
+import { d1All, d1Run, nowIso } from "@/lib/d1-client";
 
 // 프론트엔드 캐시 무효화 설정
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://polarad.co.kr";
 const REVALIDATE_TOKEN = process.env.REVALIDATE_TOKEN;
 
-// 프론트엔드 캐시 무효화 함수
 async function revalidateFrontend(slug?: string) {
   try {
     const response = await fetch(`${FRONTEND_URL}/api/revalidate`, {
@@ -19,38 +13,21 @@ async function revalidateFrontend(slug?: string) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${REVALIDATE_TOKEN}`,
       },
-      body: JSON.stringify({
-        type: "marketing-news",
-        slug,
-      }),
+      body: JSON.stringify({ type: "marketing-news", slug }),
     });
-
     if (response.ok) {
       console.log("[Revalidate] Frontend cache cleared successfully");
       return true;
-    } else {
-      console.warn(
-        "[Revalidate] Failed to clear frontend cache:",
-        response.status,
-      );
-      return false;
     }
+    console.warn(
+      "[Revalidate] Failed to clear frontend cache:",
+      response.status,
+    );
+    return false;
   } catch (error) {
     console.error("[Revalidate] Error calling frontend:", error);
     return false;
   }
-}
-
-function getBase() {
-  if (!AIRTABLE_API_TOKEN) {
-    throw new Error("AIRTABLE_API_TOKEN is not configured");
-  }
-
-  Airtable.configure({
-    apiKey: AIRTABLE_API_TOKEN,
-  });
-
-  return Airtable.base(POLARAD_BASE_ID);
 }
 
 export interface ContentItem {
@@ -70,40 +47,49 @@ export interface ContentItem {
   instagramPosted: boolean;
 }
 
+interface ContentRow {
+  id: string;
+  date: string;
+  title: string;
+  category: string;
+  content: string;
+  tags: string;
+  seo_keywords: string;
+  published_at: string | null;
+  status: string;
+  slug: string;
+  description: string;
+  thumbnail_url: string;
+  views: number;
+  instagram_posted: number;
+}
+
 export async function GET() {
   try {
-    if (!AIRTABLE_API_TOKEN) {
-      return NextResponse.json(
-        { error: "AIRTABLE_API_TOKEN is not configured" },
-        { status: 500 },
-      );
-    }
+    const rows = await d1All<ContentRow>(
+      `SELECT id, date, title, category, content, tags, seo_keywords, published_at,
+              status, slug, description, thumbnail_url, views, instagram_posted
+       FROM content
+       ORDER BY date DESC, created_at DESC`,
+    );
 
-    const base = getBase();
-    const records = await base(TABLE_NAME)
-      .select({
-        sort: [{ field: "date", direction: "desc" }],
-      })
-      .all();
-
-    const contents: ContentItem[] = records.map((record) => ({
-      id: record.id,
-      date: (record.get("date") as string) || "",
-      title: (record.get("title") as string) || "",
-      category: (record.get("category") as string) || "",
-      content: (record.get("content") as string) || "",
-      tags: (record.get("tags") as string) || "",
-      seoKeywords: (record.get("seoKeywords") as string) || "",
-      publishedAt: (record.get("publishedAt") as string) || "",
-      status: (record.get("status") as string) || "draft",
-      slug: (record.get("slug") as string) || "",
-      description: (record.get("description") as string) || "",
-      thumbnailUrl: (record.get("thumbnailUrl") as string) || "",
-      views: (record.get("views") as number) || 0,
-      instagramPosted: (record.get("instagram_posted") as boolean) || false,
+    const contents: ContentItem[] = rows.map((r) => ({
+      id: r.id,
+      date: r.date || "",
+      title: r.title || "",
+      category: r.category || "",
+      content: r.content || "",
+      tags: r.tags || "",
+      seoKeywords: r.seo_keywords || "",
+      publishedAt: r.published_at || "",
+      status: r.status || "draft",
+      slug: r.slug || "",
+      description: r.description || "",
+      thumbnailUrl: r.thumbnail_url || "",
+      views: r.views || 0,
+      instagramPosted: !!r.instagram_posted,
     }));
 
-    // 통계 계산
     const stats = {
       totalPosts: contents.length,
       publishedPosts: contents.filter((c) => c.status === "published").length,
@@ -112,7 +98,6 @@ export async function GET() {
       totalViews: contents.reduce((sum, c) => sum + c.views, 0),
     };
 
-    // 카테고리별 집계
     const categoryMap = new Map<string, number>();
     contents.forEach((c) => {
       if (c.category) {
@@ -120,17 +105,10 @@ export async function GET() {
       }
     });
     const categories = Array.from(categoryMap.entries()).map(
-      ([name, count]) => ({
-        name,
-        count,
-      }),
+      ([name, count]) => ({ name, count }),
     );
 
-    return NextResponse.json({
-      contents,
-      stats,
-      categories,
-    });
+    return NextResponse.json({ contents, stats, categories });
   } catch (error) {
     console.error("Content API Error:", error);
     return NextResponse.json(
@@ -140,19 +118,10 @@ export async function GET() {
   }
 }
 
-// 콘텐츠 수정
 export async function PUT(request: NextRequest) {
   try {
-    if (!AIRTABLE_API_TOKEN) {
-      return NextResponse.json(
-        { error: "AIRTABLE_API_TOKEN is not configured" },
-        { status: 500 },
-      );
-    }
-
     const body = await request.json();
     const { id, ...fields } = body;
-
     if (!id) {
       return NextResponse.json(
         { error: "Record ID is required" },
@@ -160,34 +129,53 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const base = getBase();
+    const fieldMap: Record<string, string> = {
+      title: "title",
+      content: "content",
+      category: "category",
+      status: "status",
+      slug: "slug",
+      description: "description",
+      tags: "tags",
+      seoKeywords: "seo_keywords",
+      thumbnailUrl: "thumbnail_url",
+      date: "date",
+      publishedAt: "published_at",
+    };
 
-    // Airtable 필드명 매핑
-    const airtableFields: Record<string, unknown> = {};
-    if (fields.title !== undefined) airtableFields.title = fields.title;
-    if (fields.content !== undefined) airtableFields.content = fields.content;
-    if (fields.category !== undefined)
-      airtableFields.category = fields.category;
-    if (fields.status !== undefined) airtableFields.status = fields.status;
-    if (fields.slug !== undefined) airtableFields.slug = fields.slug;
-    if (fields.description !== undefined)
-      airtableFields.description = fields.description;
-    if (fields.tags !== undefined) airtableFields.tags = fields.tags;
-    if (fields.seoKeywords !== undefined)
-      airtableFields.seoKeywords = fields.seoKeywords;
-    if (fields.thumbnailUrl !== undefined)
-      airtableFields.thumbnailUrl = fields.thumbnailUrl;
-    if (fields.date !== undefined) airtableFields.date = fields.date;
-    if (fields.publishedAt !== undefined)
-      airtableFields.publishedAt = fields.publishedAt;
-    if (fields.instagramPosted !== undefined)
-      airtableFields.instagram_posted = fields.instagramPosted;
+    const sets: string[] = [];
+    const params: (string | number)[] = [];
+    for (const [key, value] of Object.entries(fields)) {
+      const col = fieldMap[key];
+      if (col && value !== undefined) {
+        sets.push(`${col} = ?`);
+        params.push(value as string | number);
+      }
+    }
+    if (fields.instagramPosted !== undefined) {
+      sets.push("instagram_posted = ?");
+      params.push(fields.instagramPosted ? 1 : 0);
+    }
+    if (sets.length === 0) {
+      return NextResponse.json(
+        { error: "No fields to update" },
+        { status: 400 },
+      );
+    }
 
-    await base(TABLE_NAME).update(id, airtableFields);
+    sets.push("updated_at = ?");
+    params.push(nowIso());
+    params.push(id);
 
-    // 프론트엔드 캐시 무효화 (백그라운드 실행)
-    const slug = fields.slug as string | undefined;
-    revalidateFrontend(slug).catch(() => {});
+    const result = await d1Run(
+      `UPDATE content SET ${sets.join(", ")} WHERE id = ?`,
+      params,
+    );
+    if (!result.meta?.changes) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    revalidateFrontend(fields.slug as string | undefined).catch(() => {});
 
     return NextResponse.json({
       success: true,
@@ -204,19 +192,10 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// 콘텐츠 삭제
 export async function DELETE(request: NextRequest) {
   try {
-    if (!AIRTABLE_API_TOKEN) {
-      return NextResponse.json(
-        { error: "AIRTABLE_API_TOKEN is not configured" },
-        { status: 500 },
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-
     if (!id) {
       return NextResponse.json(
         { error: "Record ID is required" },
@@ -224,10 +203,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const base = getBase();
-    await base(TABLE_NAME).destroy(id);
+    const result = await d1Run("DELETE FROM content WHERE id = ?", [id]);
+    if (!result.meta?.changes) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
-    // 프론트엔드 캐시 무효화 (백그라운드 실행)
     revalidateFrontend().catch(() => {});
 
     return NextResponse.json({

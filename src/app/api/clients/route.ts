@@ -1,28 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { d1All, d1Run, newId, nowIso } from "@/lib/d1-client";
 
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN;
-const BASE_ID = "appSGHxitRzYPE43H";
-const TABLE_ID = "tblU7SxW9gPYZe3go";
-
-// 필드 ID 매핑 (GET 조회 시 returnFieldsByFieldId 사용)
-const CLIENT_FIELD = {
-  company: "fld3Rrdc1UQlisuoh",
-  contactName: "fldOIUV6bdhadA8Dm",
-  phone: "fldLnI7WptoofefNS",
-  email: "fldddejh3NEAq8qqy",
-  industry: "fldZExtohzEeRyHaW",
-  website: "fld0ya6eOzBdg0DB7",
-  address: "fldZmKoQvroTts8HL",
-  businessNumber: "fld37JErzNdWy66oB",
-  contractAmount: "fldNgX0A7QGd4K35u",
-  contractStart: "fld3J13lSiUNbGCQm",
-  contractEnd: "fldnDqGD6456DP3an",
-  memo: "fldpbqF8p720pDjuO",
-  inquiryId: "fldbhUICqDITeYnVx",
-  status: "fldeyJ2Fa4GdXe6Q3",
-} as const;
-
-// 상태 매핑 (Airtable 영문 ↔ 프론트엔드 한글)
+// 영문 ↔ 한글 status 매핑
 const EN_CLIENT_STATUS_TO_KR: Record<string, string> = {
   Waiting: "대기",
   Active: "진행중",
@@ -37,56 +16,54 @@ const KR_CLIENT_STATUS_TO_EN: Record<string, string> = {
   해지: "Cancelled",
 };
 
+interface ClientRow {
+  id: string;
+  company: string;
+  contact_name: string;
+  phone: string;
+  email: string;
+  industry: string;
+  website: string;
+  address: string;
+  business_number: string;
+  contract_amount: number;
+  contract_start: string;
+  contract_end: string;
+  status: string;
+  memo: string;
+  inquiry_id: string;
+  created_at: string;
+}
+
 export async function GET() {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
-    const headers = { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` };
-    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`);
-    url.searchParams.set("returnFieldsByFieldId", "true");
-    url.searchParams.set("maxRecords", "200");
-
-    const res = await fetch(url.toString(), { headers, cache: "no-store" });
-    if (!res.ok) {
-      console.error("Clients 조회 실패:", await res.text());
-      return NextResponse.json({ error: "조회 실패" }, { status: 500 });
-    }
-
-    const data = await res.json();
-    const records = data.records || [];
-
-    const clients = records.map(
-      (r: {
-        id: string;
-        createdTime: string;
-        fields: Record<string, string | number | undefined>;
-      }) => {
-        const f = r.fields;
-        const rawStatus = String(f[CLIENT_FIELD.status] ?? "");
-        return {
-          id: r.id,
-          company: String(f[CLIENT_FIELD.company] ?? ""),
-          contactName: String(f[CLIENT_FIELD.contactName] ?? ""),
-          phone: String(f[CLIENT_FIELD.phone] ?? ""),
-          email: String(f[CLIENT_FIELD.email] ?? ""),
-          industry: String(f[CLIENT_FIELD.industry] ?? ""),
-          website: String(f[CLIENT_FIELD.website] ?? ""),
-          address: String(f[CLIENT_FIELD.address] ?? ""),
-          businessNumber: String(f[CLIENT_FIELD.businessNumber] ?? ""),
-          contractAmount: (f[CLIENT_FIELD.contractAmount] as number) ?? 0,
-          contractStart: String(f[CLIENT_FIELD.contractStart] ?? ""),
-          contractEnd: String(f[CLIENT_FIELD.contractEnd] ?? ""),
-          status: (EN_CLIENT_STATUS_TO_KR[rawStatus] ?? rawStatus) || "대기",
-          memo: String(f[CLIENT_FIELD.memo] ?? ""),
-          inquiryId: String(f[CLIENT_FIELD.inquiryId] ?? ""),
-          createdAt: r.createdTime,
-        };
-      },
+    const rows = await d1All<ClientRow>(
+      `SELECT id, company, contact_name, phone, email, industry, website, address,
+              business_number, contract_amount, contract_start, contract_end, status, memo,
+              inquiry_id, created_at
+       FROM clients LIMIT 200`,
     );
 
-    // 정렬: 진행중 우선, 그 다음 대기, 나머지
+    const clients = rows.map((r) => ({
+      id: r.id,
+      company: r.company || "",
+      contactName: r.contact_name || "",
+      phone: r.phone || "",
+      email: r.email || "",
+      industry: r.industry || "",
+      website: r.website || "",
+      address: r.address || "",
+      businessNumber: r.business_number || "",
+      contractAmount: r.contract_amount || 0,
+      contractStart: r.contract_start || "",
+      contractEnd: r.contract_end || "",
+      status: (EN_CLIENT_STATUS_TO_KR[r.status] ?? r.status) || "대기",
+      memo: r.memo || "",
+      inquiryId: r.inquiry_id || "",
+      createdAt: r.created_at,
+    }));
+
+    // 정렬: 진행중 우선
     const statusOrder: Record<string, number> = {
       진행중: 0,
       대기: 1,
@@ -94,10 +71,7 @@ export async function GET() {
       해지: 3,
     };
     clients.sort(
-      (
-        a: { status: string; createdAt: string },
-        b: { status: string; createdAt: string },
-      ) =>
+      (a, b) =>
         (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) ||
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
@@ -108,20 +82,15 @@ export async function GET() {
 
     const stats = {
       total: clients.length,
-      active: clients.filter((c: { status: string }) => c.status === "진행중")
-        .length,
-      waiting: clients.filter((c: { status: string }) => c.status === "대기")
-        .length,
-      expiringSoon: clients.filter(
-        (c: { status: string; contractEnd: string }) => {
-          if (c.status !== "진행중" || !c.contractEnd) return false;
-          const end = new Date(c.contractEnd);
-          return end <= oneMonthLater && end >= now;
-        },
-      ).length,
+      active: clients.filter((c) => c.status === "진행중").length,
+      waiting: clients.filter((c) => c.status === "대기").length,
+      expiringSoon: clients.filter((c) => {
+        if (c.status !== "진행중" || !c.contractEnd) return false;
+        const end = new Date(c.contractEnd);
+        return end <= oneMonthLater && end >= now;
+      }).length,
       totalRevenue: clients.reduce(
-        (sum: number, c: { contractAmount: number }) =>
-          sum + (c.contractAmount || 0),
+        (sum, c) => sum + (c.contractAmount || 0),
         0,
       ),
     };
@@ -134,43 +103,31 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const body = await request.json();
-    const fields: Record<string, string | number> = {};
+    const id = newId();
+    const now = nowIso();
 
-    if (body.company) fields["company"] = body.company;
-    if (body.contactName) fields["contactName"] = body.contactName;
-    if (body.phone) fields["phone"] = body.phone;
-    if (body.email) fields["email"] = body.email;
-    if (body.industry) fields["industry"] = body.industry;
-    if (body.contractAmount) fields["contractAmount"] = body.contractAmount;
-    if (body.inquiryId) fields["inquiryId"] = body.inquiryId;
-    fields["status"] = "Waiting";
-
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
+    await d1Run(
+      `INSERT INTO clients
+        (id, company, contact_name, phone, email, industry, contract_amount, inquiry_id, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        String(body.company || ""),
+        String(body.contactName || ""),
+        String(body.phone || ""),
+        String(body.email || ""),
+        String(body.industry || ""),
+        Number(body.contractAmount) || 0,
+        String(body.inquiryId || ""),
+        "Waiting",
+        now,
+        now,
+      ],
     );
 
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Client 생성 실패:", err);
-      return NextResponse.json({ error: "생성 실패" }, { status: 500 });
-    }
-
-    const result = await res.json();
-    return NextResponse.json({ id: result.id });
+    return NextResponse.json({ id });
   } catch (error) {
     console.error("Client 생성 오류:", error);
     return NextResponse.json({ error: "서버 오류" }, { status: 500 });
@@ -178,10 +135,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const body = await request.json();
     const { id, ...updates } = body;
@@ -189,30 +142,50 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
-    const fields: Record<string, string | number> = {};
+    const fieldMap: Record<string, string> = {
+      company: "company",
+      contactName: "contact_name",
+      phone: "phone",
+      email: "email",
+      industry: "industry",
+      website: "website",
+      address: "address",
+      businessNumber: "business_number",
+      contractAmount: "contract_amount",
+      contractStart: "contract_start",
+      contractEnd: "contract_end",
+      memo: "memo",
+      inquiryId: "inquiry_id",
+    };
+
+    const sets: string[] = [];
+    const params: (string | number)[] = [];
     for (const [key, value] of Object.entries(updates)) {
       if (key === "status" && typeof value === "string") {
-        fields["status"] = KR_CLIENT_STATUS_TO_EN[value] ?? value;
-      } else if (value !== undefined) {
-        fields[key] = value as string | number;
+        sets.push("status = ?");
+        params.push(KR_CLIENT_STATUS_TO_EN[value] ?? value);
+      } else {
+        const col = fieldMap[key];
+        if (col && value !== undefined) {
+          sets.push(`${col} = ?`);
+          params.push(value as string | number);
+        }
       }
     }
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
-    );
+    if (sets.length === 0) {
+      return NextResponse.json({ error: "수정할 필드 없음" }, { status: 400 });
+    }
 
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Client 업데이트 실패:", err);
+    sets.push("updated_at = ?");
+    params.push(nowIso());
+    params.push(id);
+
+    const result = await d1Run(
+      `UPDATE clients SET ${sets.join(", ")} WHERE id = ?`,
+      params,
+    );
+    if (!result.meta?.changes) {
       return NextResponse.json({ error: "업데이트 실패" }, { status: 500 });
     }
 
@@ -224,25 +197,14 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!AIRTABLE_API_TOKEN) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
-  }
-
   try {
     const { id } = await request.json();
     if (!id) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${AIRTABLE_API_TOKEN}` },
-      },
-    );
-
-    if (!res.ok) {
+    const result = await d1Run("DELETE FROM clients WHERE id = ?", [id]);
+    if (!result.meta?.changes) {
       return NextResponse.json({ error: "삭제 실패" }, { status: 500 });
     }
 

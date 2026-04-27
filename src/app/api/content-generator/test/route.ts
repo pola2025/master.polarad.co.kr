@@ -1,28 +1,14 @@
-import { NextResponse } from "next/server"
-import type { SourceArticle } from "@/lib/content-generator"
-import { getRandomKeyword } from "@/lib/sns-cs-keywords"
-import Airtable from "airtable"
-
-// Airtable 설정
-const AIRTABLE_API_TOKEN = process.env.AIRTABLE_API_TOKEN
-const POLARAD_BASE_ID = "appbqw2GAixv7vSBV"
-const TABLE_NAME = "뉴스레터"
-
-function getBase() {
-  if (!AIRTABLE_API_TOKEN) {
-    throw new Error("AIRTABLE_API_TOKEN is not configured")
-  }
-  Airtable.configure({ apiKey: AIRTABLE_API_TOKEN })
-  return Airtable.base(POLARAD_BASE_ID)
-}
+import { NextResponse } from "next/server";
+import type { SourceArticle } from "@/lib/content-generator";
+import { getRandomKeyword } from "@/lib/sns-cs-keywords";
+import { d1Run, newId, nowIso } from "@/lib/d1-client";
 
 /**
- * 구글 검색으로 참고 자료 수집 (WebSearch 대신 간단한 mock)
- * 실제 구현에서는 SerpAPI 또는 Google Custom Search API 사용
+ * 구글 검색으로 참고 자료 수집 (mock)
  */
-async function searchGoogleForKeyword(keyword: string): Promise<SourceArticle[]> {
-  // 테스트용 mock 데이터
-  // 실제로는 WebSearch 결과를 파싱하거나 SerpAPI 사용
+async function searchGoogleForKeyword(
+  keyword: string,
+): Promise<SourceArticle[]> {
   return [
     {
       title: `${keyword} - 완벽 해결 가이드`,
@@ -39,68 +25,70 @@ async function searchGoogleForKeyword(keyword: string): Promise<SourceArticle[]>
       url: "https://example.com/guide3",
       snippet: `최근 플랫폼 정책 변경으로 ${keyword} 케이스가 증가하고 있습니다. 예방을 위해서는 커뮤니티 가이드라인을 숙지하고, 의심스러운 활동을 피하는 것이 중요합니다. 문제 발생 시 당황하지 말고 체계적으로 대응하세요.`,
     },
-  ]
+  ];
 }
 
 /**
  * 테스트용 콘텐츠 생성 API
- * GET /api/content-generator/test
+ * GET /api/content-generator/test?keyword=...&save=true
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const keyword = searchParams.get("keyword") || getRandomKeyword()
-    const saveToAirtable = searchParams.get("save") === "true"
+    const { searchParams } = new URL(request.url);
+    const keyword = searchParams.get("keyword") || getRandomKeyword();
+    const saveToD1 = searchParams.get("save") === "true";
 
-    console.log(`[Content Generator] Starting with keyword: ${keyword}`)
+    console.log(`[Content Generator] Starting with keyword: ${keyword}`);
 
-    // 1. 참고 자료 검색
-    const sourceArticles = await searchGoogleForKeyword(keyword)
-    console.log(`[Content Generator] Found ${sourceArticles.length} source articles`)
+    const sourceArticles = await searchGoogleForKeyword(keyword);
+    console.log(
+      `[Content Generator] Found ${sourceArticles.length} source articles`,
+    );
 
-    // 2. 콘텐츠 리라이팅
-    const { rewriteContent, generateThumbnail } = await import("@/lib/content-generator")
-    const rewrittenContent = await rewriteContent(keyword, sourceArticles)
-    console.log(`[Content Generator] Content generated: ${rewrittenContent.title}`)
+    const { rewriteContent, generateThumbnail } =
+      await import("@/lib/content-generator");
+    const rewrittenContent = await rewriteContent(keyword, sourceArticles);
+    console.log(
+      `[Content Generator] Content generated: ${rewrittenContent.title}`,
+    );
 
-    // 3. 썸네일 이미지 생성 (HCTI + Cloudinary)
-    let thumbnailUrl = ""
+    let thumbnailUrl = "";
     try {
-      thumbnailUrl = await generateThumbnail(rewrittenContent.title, keyword)
-      console.log(`[Content Generator] Thumbnail generated: ${thumbnailUrl}`)
+      thumbnailUrl = await generateThumbnail(rewrittenContent.title, keyword);
+      console.log(`[Content Generator] Thumbnail generated: ${thumbnailUrl}`);
     } catch (error) {
-      console.error(`[Content Generator] Thumbnail generation failed:`, error)
-      // 썸네일 생성 실패해도 계속 진행
+      console.error(`[Content Generator] Thumbnail generation failed:`, error);
     }
 
-    const content = {
-      ...rewrittenContent,
-      thumbnailUrl,
-    }
+    const content = { ...rewrittenContent, thumbnailUrl };
 
-    // 4. Airtable 저장 (옵션)
-    let airtableRecordId = null
-    if (saveToAirtable) {
-      const base = getBase()
-      const record = await base(TABLE_NAME).create([
-        {
-          fields: {
-            date: new Date().toISOString().split("T")[0],
-            title: content.title,
-            category: content.category,
-            content: content.content,
-            tags: content.tags,
-            seoKeywords: content.seoKeywords,
-            status: "draft", // 검수 필요
-            slug: content.slug,
-            description: content.description,
-            thumbnailUrl: content.thumbnailUrl,
-            views: 0,
-          },
-        },
-      ])
-      airtableRecordId = record[0].id
-      console.log(`[Content Generator] Saved to Airtable: ${airtableRecordId}`)
+    let recordId: string | null = null;
+    if (saveToD1) {
+      recordId = newId();
+      const now = nowIso();
+      await d1Run(
+        `INSERT INTO content
+          (id, date, title, category, content, tags, seo_keywords, status, slug,
+           description, thumbnail_url, views, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          recordId,
+          new Date().toISOString().split("T")[0],
+          content.title,
+          content.category,
+          content.content,
+          content.tags,
+          content.seoKeywords,
+          "draft",
+          content.slug,
+          content.description,
+          content.thumbnailUrl,
+          0,
+          now,
+          now,
+        ],
+      );
+      console.log(`[Content Generator] Saved to D1: ${recordId}`);
     }
 
     return NextResponse.json({
@@ -117,17 +105,17 @@ export async function GET(request: Request) {
         contentPreview: content.content.substring(0, 500) + "...",
         fullContentLength: content.content.length,
       },
-      airtableRecordId,
-      savedToAirtable: saveToAirtable,
-    })
+      recordId,
+      saved: saveToD1,
+    });
   } catch (error) {
-    console.error("[Content Generator] Error:", error)
+    console.error("[Content Generator] Error:", error);
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }
