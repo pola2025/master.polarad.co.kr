@@ -1710,7 +1710,7 @@ export default function InquiriesPage() {
         onOpenChange={(open) => !open && setSelectedInquiry(null)}
       >
         <DialogContent
-          className="max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden"
+          className="max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden grid-cols-[minmax(0,1fr)]"
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
         >
