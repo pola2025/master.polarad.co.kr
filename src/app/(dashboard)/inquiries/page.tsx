@@ -1710,7 +1710,7 @@ export default function InquiriesPage() {
         onOpenChange={(open) => !open && setSelectedInquiry(null)}
       >
         <DialogContent
-          className="max-w-lg max-h-[85vh] overflow-y-auto"
+          className="max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden"
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
         >
@@ -1796,7 +1796,7 @@ export default function InquiriesPage() {
                     </Badge>
                   )}
                   {selectedInquiry.adName && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground break-all">
                       {selectedInquiry.adName}
                     </span>
                   )}
@@ -1830,37 +1830,41 @@ export default function InquiriesPage() {
 
                 <div className="space-y-1.5">
                   {selectedInquiry.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2 text-sm min-w-0">
+                      <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                       <a
                         href={`mailto:${selectedInquiry.email}`}
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 hover:underline break-all min-w-0"
                       >
                         {selectedInquiry.email}
                       </a>
                     </div>
                   )}
                   {selectedInquiry.phone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2 text-sm min-w-0">
+                      <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                       <a
                         href={`tel:${selectedInquiry.phone}`}
-                        className="hover:underline"
+                        className="hover:underline break-all"
                       >
                         {selectedInquiry.phone}
                       </a>
                     </div>
                   )}
                   {selectedInquiry.company && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedInquiry.company}</span>
+                    <div className="flex items-center gap-2 text-sm min-w-0">
+                      <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="break-words min-w-0">
+                        {selectedInquiry.company}
+                      </span>
                     </div>
                   )}
                   {selectedInquiry.industry && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Megaphone className="h-4 w-4 text-muted-foreground" />
-                      <span>업종: {selectedInquiry.industry}</span>
+                    <div className="flex items-center gap-2 text-sm min-w-0">
+                      <Megaphone className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="break-words min-w-0">
+                        업종: {selectedInquiry.industry}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -1902,28 +1906,36 @@ export default function InquiriesPage() {
                     const wizard = parseWizardMessage(selectedInquiry.message);
                     if (!wizard) {
                       return (
-                        <p className="text-sm whitespace-pre-wrap">
+                        <p className="text-sm whitespace-pre-wrap break-words">
                           {selectedInquiry.message}
                         </p>
                       );
                     }
                     return (
                       <div className="space-y-2">
-                        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+                        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
                           <span className="text-muted-foreground">업종</span>
-                          <span className="font-medium">{wizard.업종}</span>
+                          <span className="font-medium break-words">
+                            {wizard.업종}
+                          </span>
                           <span className="text-muted-foreground">현황</span>
-                          <span className="font-medium">{wizard.현황}</span>
+                          <span className="font-medium break-words">
+                            {wizard.현황}
+                          </span>
                           <span className="text-muted-foreground">예산</span>
-                          <span className="font-medium">{wizard.예산}</span>
+                          <span className="font-medium break-words">
+                            {wizard.예산}
+                          </span>
                           <span className="text-muted-foreground">고민</span>
-                          <span className="font-medium">{wizard.고민}</span>
+                          <span className="font-medium break-words">
+                            {wizard.고민}
+                          </span>
                         </div>
                         <div className="mt-2 px-3 py-2 rounded-md bg-primary/5 border">
                           <span className="text-xs text-muted-foreground">
                             AI 추천
                           </span>
-                          <p className="text-sm font-semibold text-primary">
+                          <p className="text-sm font-semibold text-primary break-words">
                             {wizard.추천}
                           </p>
                         </div>
@@ -1996,7 +2008,7 @@ export default function InquiriesPage() {
                           ) : (
                             <>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm leading-snug">
+                                <p className="text-sm leading-snug break-words">
                                   {entry.text}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground mt-0.5">
