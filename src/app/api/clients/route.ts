@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { d1All, d1Run, newId, nowIso } from "@/lib/d1-client";
+import { d1All, d1First, d1Run, newId, nowIso } from "@/lib/d1-client";
 
 // 영문 ↔ 한글 status 매핑
 const EN_CLIENT_STATUS_TO_KR: Record<string, string> = {
@@ -105,6 +105,19 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const inquiryId = String(body.inquiryId || "");
+
+    // 멱등성: 동일 inquiry_id 거래처가 이미 있으면 기존 id 반환 (중복 INSERT 방지)
+    if (inquiryId) {
+      const existing = await d1First<{ id: string }>(
+        "SELECT id FROM clients WHERE inquiry_id = ? LIMIT 1",
+        [inquiryId],
+      );
+      if (existing?.id) {
+        return NextResponse.json({ id: existing.id, existing: true });
+      }
+    }
+
     const id = newId();
     const now = nowIso();
 
@@ -120,7 +133,7 @@ export async function POST(request: NextRequest) {
         String(body.email || ""),
         String(body.industry || ""),
         Number(body.contractAmount) || 0,
-        String(body.inquiryId || ""),
+        inquiryId,
         "Waiting",
         now,
         now,

@@ -542,17 +542,45 @@ export default function InquiriesPage() {
       setSelectedInquiry((prev) =>
         prev ? { ...prev, status: "계약완료", contractAmount: amount } : prev,
       );
-      // Revenue 테이블에 홈페이지 매출 기록
-      if (amount > 0) {
-        const inq = inquiries.find((i) => i.id === pendingStatusId);
+
+      const inq = inquiries.find((i) => i.id === pendingStatusId);
+
+      // 거래처관리에 자동 등록 (멱등 — 동일 inquiry_id 있으면 skip)
+      // 1회성 계약이므로 contract_amount=0 (월정액 아님). 매출은 revenue 테이블로 추적.
+      if (inq) {
+        const wizard = parseWizardMessage(inq.message);
+        await fetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company: inq.company || "",
+            contactName: inq.name || "",
+            phone: inq.phone || "",
+            email: inq.email || "",
+            industry: wizard?.업종 || inq.industry || "",
+            contractAmount: 0,
+            inquiryId: pendingStatusId,
+          }),
+        }).catch(() => {});
+      }
+
+      // Revenue 테이블에 매출 기록
+      if (amount > 0 && inq) {
         await fetch("/api/revenue", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            clientName: inq?.company || inq?.name || "",
-            type: "홈페이지",
+            clientName: inq.company || inq.name || "",
+            type: inq.source === "meta" ? "메타광고" : "홈페이지",
             amount,
-            productName: extraAmount > 0 ? `홈페이지 + 추가비용` : "홈페이지",
+            productName:
+              extraAmount > 0
+                ? inq.source === "meta"
+                  ? "메타광고 + 추가비용"
+                  : "홈페이지 + 추가비용"
+                : inq.source === "meta"
+                  ? "메타광고"
+                  : "홈페이지",
             inquiryId: pendingStatusId,
             date: new Date().toISOString().split("T")[0],
           }),
@@ -2187,7 +2215,7 @@ export default function InquiriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>계약 완료 처리</AlertDialogTitle>
             <AlertDialogDescription>
-              계약 금액을 입력하면 매출로 집계됩니다. (선택)
+              거래처관리에 자동 등록되고, 입력한 금액은 매출로 집계됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4 space-y-4">
