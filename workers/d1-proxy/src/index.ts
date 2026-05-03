@@ -62,6 +62,39 @@ function getClientIp(request: Request): string {
   );
 }
 
+const D1_RETRY_DELAYS_MS = [100, 300];
+
+function isTransientD1Error(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("network connection lost") ||
+    lower.includes("connection reset") ||
+    lower.includes("connection closed") ||
+    lower.includes("storage caused object to be reset") ||
+    lower.includes("internal error") ||
+    lower.includes("temporarily unavailable") ||
+    lower.includes("timeout")
+  );
+}
+
+async function withD1Retry<T>(op: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= D1_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await op();
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt < D1_RETRY_DELAYS_MS.length && isTransientD1Error(msg)) {
+        await new Promise((r) => setTimeout(r, D1_RETRY_DELAYS_MS[attempt]));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
+}
+
 async function notifyTelegram(env: Env, message: string): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return;
   try {
@@ -108,18 +141,19 @@ async function handleQuery(
   }
 
   try {
-    const stmt = env.DB.prepare(sql).bind(...(params as unknown[]));
-    let result: unknown;
-    if (mode === "first") result = await stmt.first();
-    else if (mode === "run") result = await stmt.run();
-    else result = await stmt.all();
+    const result = await withD1Retry(async () => {
+      const stmt = env.DB.prepare(sql).bind(...(params as unknown[]));
+      if (mode === "first") return await stmt.first();
+      if (mode === "run") return await stmt.run();
+      return await stmt.all();
+    });
     return json({ ok: true, result });
   } catch (err) {
     const errorMessage =
       err instanceof Error ? err.message : "Unknown D1 error";
     await notifyTelegram(
       env,
-      `[master/d1] query 실패\nIP: ${ip}\nSQL: ${sql.slice(0, 120)}\nError: ${errorMessage.slice(0, 200)}`,
+      `[master/d1] query 실패 (retry 소진)\nIP: ${ip}\nSQL: ${sql.slice(0, 120)}\nError: ${errorMessage.slice(0, 200)}`,
     );
     return json(
       { ok: false, error: errorMessage.slice(0, 300) },
@@ -151,17 +185,19 @@ async function handleBatch(
   }
 
   try {
-    const stmts = body.queries.map((q) =>
-      env.DB.prepare(q.sql).bind(...((q.params ?? []) as unknown[])),
-    );
-    const results = await env.DB.batch(stmts);
+    const results = await withD1Retry(async () => {
+      const stmts = body.queries.map((q) =>
+        env.DB.prepare(q.sql).bind(...((q.params ?? []) as unknown[])),
+      );
+      return await env.DB.batch(stmts);
+    });
     return json({ ok: true, results });
   } catch (err) {
     const errorMessage =
       err instanceof Error ? err.message : "Unknown D1 error";
     await notifyTelegram(
       env,
-      `[master/d1] batch 실패\nIP: ${ip}\nSize: ${body.queries.length}\nError: ${errorMessage.slice(0, 200)}`,
+      `[master/d1] batch 실패 (retry 소진)\nIP: ${ip}\nSize: ${body.queries.length}\nError: ${errorMessage.slice(0, 200)}`,
     );
     return json(
       { ok: false, error: errorMessage.slice(0, 300) },

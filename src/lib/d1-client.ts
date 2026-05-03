@@ -48,34 +48,85 @@ function assertConfig(): void {
   }
 }
 
+const RETRY_DELAYS_MS = [100, 300];
+
+function isTransientError(message: string, status: number): boolean {
+  if (status >= 500) return true;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("network connection lost") ||
+    lower.includes("fetch failed") ||
+    lower.includes("connection reset") ||
+    lower.includes("connection closed") ||
+    lower.includes("timeout") ||
+    lower.includes("econnreset")
+  );
+}
+
 async function callProxy<T>(
   path: "/query" | "/batch",
   body: unknown,
 ): Promise<T> {
   assertConfig();
-  const res = await fetch(`${D1_PROXY_URL}${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${D1_PROXY_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  const payload = JSON.stringify(body);
 
-  let data: ProxyResponse<T> | BatchResponse<T>;
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error(`D1 proxy 응답 파싱 실패: HTTP ${res.status}`);
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(`${D1_PROXY_URL}${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${D1_PROXY_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: payload,
+        cache: "no-store",
+      });
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error("D1 proxy fetch 실패");
+      if (
+        attempt < RETRY_DELAYS_MS.length &&
+        isTransientError(lastError.message, 0)
+      ) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+        continue;
+      }
+      throw lastError;
+    }
+
+    let data: ProxyResponse<T> | BatchResponse<T>;
+    try {
+      data = await res.json();
+    } catch {
+      lastError = new Error(`D1 proxy 응답 파싱 실패: HTTP ${res.status}`);
+      if (
+        attempt < RETRY_DELAYS_MS.length &&
+        isTransientError("", res.status)
+      ) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+        continue;
+      }
+      throw lastError;
+    }
+
+    if (!res.ok || !data.ok) {
+      const errMsg = data.error ?? "unknown";
+      lastError = new Error(`D1 proxy 오류 (HTTP ${res.status}): ${errMsg}`);
+      if (
+        attempt < RETRY_DELAYS_MS.length &&
+        isTransientError(errMsg, res.status)
+      ) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+        continue;
+      }
+      throw lastError;
+    }
+
+    return data as T;
   }
 
-  if (!res.ok || !data.ok) {
-    throw new Error(
-      `D1 proxy 오류 (HTTP ${res.status}): ${data.error ?? "unknown"}`,
-    );
-  }
-  return data as T;
+  throw lastError ?? new Error("D1 proxy 호출 실패");
 }
 
 /** SELECT — 모든 행을 배열로 반환. */

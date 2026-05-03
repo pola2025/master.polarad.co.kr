@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { d1All, d1Run, nowIso } from "@/lib/d1-client";
+import { d1All, d1First, d1Run, nowIso } from "@/lib/d1-client";
 
 // 프론트엔드 캐시 무효화 설정
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://polarad.co.kr";
@@ -64,10 +64,45 @@ interface ContentRow {
   instagram_posted: number;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const rows = await d1All<ContentRow>(
-      `SELECT id, date, title, category, content, tags, seo_keywords, published_at,
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    // 단건 조회 — 본문(content) 포함 전체 컬럼
+    if (id) {
+      const row = await d1First<ContentRow>(
+        `SELECT id, date, title, category, content, tags, seo_keywords, published_at,
+                status, slug, description, thumbnail_url, views, instagram_posted
+         FROM content WHERE id = ?`,
+        [id],
+      );
+      if (!row) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      const item: ContentItem = {
+        id: row.id,
+        date: row.date || "",
+        title: row.title || "",
+        category: row.category || "",
+        content: row.content || "",
+        tags: row.tags || "",
+        seoKeywords: row.seo_keywords || "",
+        publishedAt: row.published_at || "",
+        status: row.status || "draft",
+        slug: row.slug || "",
+        description: row.description || "",
+        thumbnailUrl: row.thumbnail_url || "",
+        views: row.views || 0,
+        instagramPosted: !!row.instagram_posted,
+      };
+      return NextResponse.json({ content: item });
+    }
+
+    // 목록 조회 — content(본문 LONGTEXT) 제외. 다이얼로그 열 때 별도 단건 fetch.
+    type ContentListRow = Omit<ContentRow, "content">;
+    const rows = await d1All<ContentListRow>(
+      `SELECT id, date, title, category, tags, seo_keywords, published_at,
               status, slug, description, thumbnail_url, views, instagram_posted
        FROM content
        ORDER BY date DESC, created_at DESC`,
@@ -78,7 +113,7 @@ export async function GET() {
       date: r.date || "",
       title: r.title || "",
       category: r.category || "",
-      content: r.content || "",
+      content: "",
       tags: r.tags || "",
       seoKeywords: r.seo_keywords || "",
       publishedAt: r.published_at || "",
