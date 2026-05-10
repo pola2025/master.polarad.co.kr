@@ -511,6 +511,41 @@ export default function InquiriesPage() {
         prev.map((i) => (i.id === selectedInquiry.id ? { ...i, status } : i)),
       );
       setSelectedInquiry((prev) => (prev ? { ...prev, status } : prev));
+
+      // 보류(진행불가)로 변경 시 자동 블랙리스트 등록 — 추가 접수 차단
+      if (status === "보류" && selectedInquiry.phone) {
+        const normalized = normalizePhoneClient(selectedInquiry.phone);
+        if (normalized && !blacklistedPhones.has(normalized)) {
+          const blSource =
+            selectedInquiry.source === "meta" ? "Meta" : "홈페이지";
+          const wizard = parseWizardMessage(selectedInquiry.message);
+          const industry = wizard?.업종 || selectedInquiry.industry || "";
+          const reason = industry
+            ? `진행불가 업종 (${industry})`
+            : "진행불가 (보류 처리)";
+          try {
+            const blRes = await fetch("/api/inquiries/blacklist", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                phone: selectedInquiry.phone,
+                name: selectedInquiry.name || "",
+                reason,
+                source: blSource,
+              }),
+            });
+            if (blRes.ok) {
+              setBlacklistedPhones((prev) => {
+                const next = new Set(prev);
+                next.add(normalized);
+                return next;
+              });
+            }
+          } catch {
+            /* 블랙리스트 등록 실패는 상태 변경을 막지 않음 */
+          }
+        }
+      }
     } catch {
       setError("상태 변경에 실패했습니다.");
     }
