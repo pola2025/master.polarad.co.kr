@@ -50,6 +50,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  SERVICE_DURATION_MONTH_OPTIONS,
+  type ServiceDurationMonths,
+  calculateServiceEndDate,
+  inferServiceDurationMonths,
+  normalizeServiceDurationMonths,
+} from "@/lib/service-period";
 
 interface Client {
   id: string;
@@ -101,6 +108,8 @@ const DATE_PRESETS = [
   { label: "90일", days: 90 },
 ];
 
+const DEFAULT_MARKETING_DURATION_MONTHS: ServiceDurationMonths = 6;
+
 function formatDate(d: string) {
   if (!d) return "-";
   return new Date(d).toLocaleDateString("ko-KR", {
@@ -116,6 +125,10 @@ function daysRemaining(endDate: string) {
     (new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
   );
   return diff;
+}
+
+function todayDateString() {
+  return new Date().toISOString().split("T")[0];
 }
 
 export default function ClientsPage() {
@@ -137,6 +150,8 @@ export default function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Client>>({});
+  const [startDurationMonths, setStartDurationMonths] =
+    useState<ServiceDurationMonths>(DEFAULT_MARKETING_DURATION_MONTHS);
   const [saving, setSaving] = useState(false);
   interface RevenueItem {
     id: string;
@@ -164,6 +179,74 @@ export default function ClientsPage() {
 
   function selectClientRevenue(clientName: string) {
     setClientRevenue(allRevenue.filter((r) => r.clientName === clientName));
+  }
+
+  function openClientDetail(client: Client) {
+    setSelectedClient(client);
+    setEditing(false);
+    setEditData({});
+    setStartDurationMonths(
+      inferServiceDurationMonths(
+        client.contractStart || todayDateString(),
+        client.contractEnd,
+        DEFAULT_MARKETING_DURATION_MONTHS,
+      ),
+    );
+    selectClientRevenue(client.company);
+  }
+
+  function beginEditClient(client: Client) {
+    setEditing(true);
+    setEditData({
+      company: client.company,
+      contactName: client.contactName,
+      phone: client.phone,
+      email: client.email,
+      industry: client.industry,
+      website: client.website,
+      address: client.address,
+      businessNumber: client.businessNumber,
+      contractAmount: client.contractAmount,
+      contractStart: client.contractStart || todayDateString(),
+      contractEnd:
+        client.contractEnd ||
+        calculateServiceEndDate(
+          client.contractStart || todayDateString(),
+          DEFAULT_MARKETING_DURATION_MONTHS,
+        ),
+      memo: client.memo,
+    });
+  }
+
+  function updateEditContractStart(startDate: string) {
+    setEditData((prev) => {
+      const durationMonths = inferServiceDurationMonths(
+        String(prev.contractStart || selectedClient?.contractStart || todayDateString()),
+        String(prev.contractEnd || selectedClient?.contractEnd || ""),
+        DEFAULT_MARKETING_DURATION_MONTHS,
+      );
+
+      return {
+        ...prev,
+        contractStart: startDate,
+        contractEnd: calculateServiceEndDate(startDate, durationMonths),
+      };
+    });
+  }
+
+  function updateEditContractDuration(value: string) {
+    const durationMonths = normalizeServiceDurationMonths(value);
+    setEditData((prev) => {
+      const contractStart = String(
+        prev.contractStart || selectedClient?.contractStart || todayDateString(),
+      );
+
+      return {
+        ...prev,
+        contractStart,
+        contractEnd: calculateServiceEndDate(contractStart, durationMonths),
+      };
+    });
   }
 
   async function fetchClients() {
@@ -195,11 +278,12 @@ export default function ClientsPage() {
     fetchAllRevenue();
   }, []);
 
-  async function handleStartMarketing(client: Client) {
-    const today = new Date().toISOString().split("T")[0];
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 6);
-    const end = endDate.toISOString().split("T")[0];
+  async function handleStartMarketing(
+    client: Client,
+    durationMonths: ServiceDurationMonths = DEFAULT_MARKETING_DURATION_MONTHS,
+  ) {
+    const today = todayDateString();
+    const end = calculateServiceEndDate(today, durationMonths);
 
     try {
       const res = await fetch("/api/clients", {
@@ -209,6 +293,7 @@ export default function ClientsPage() {
           id: client.id,
           status: "진행중",
           contractStart: today,
+          contractDurationMonths: durationMonths,
           contractEnd: end,
         }),
       });
@@ -481,6 +566,13 @@ export default function ClientsPage() {
             const days = daysRemaining(client.contractEnd);
             const isExpiringSoon = days !== null && days >= 0 && days <= 30;
             const isExpired = days !== null && days < 0;
+            const serviceMonths = client.contractStart
+              ? inferServiceDurationMonths(
+                  client.contractStart,
+                  client.contractEnd,
+                  DEFAULT_MARKETING_DURATION_MONTHS,
+                )
+              : null;
             return (
               <Card
                 key={client.id}
@@ -491,12 +583,7 @@ export default function ClientsPage() {
                       ? "ring-1 ring-yellow-400 border-l-2 border-l-yellow-500"
                       : ""
                 }`}
-                onClick={() => {
-                  setSelectedClient(client);
-                  setEditing(false);
-                  setEditData({});
-                  selectClientRevenue(client.company);
-                }}
+                onClick={() => openClientDetail(client)}
               >
                 {(client.status === "만료" || client.status === "해지") && (
                   <div className="absolute inset-0 bg-black/40 pointer-events-none z-10 rounded-[inherit]" />
@@ -567,6 +654,9 @@ export default function ClientsPage() {
                       <CalendarDays className="h-3 w-3" />
                       {formatDate(client.contractStart)} ~{" "}
                       {formatDate(client.contractEnd)}
+                      {serviceMonths && (
+                        <span className="text-[10px]">· {serviceMonths}개월</span>
+                      )}
                       {isExpiringSoon && (
                         <Badge
                           variant="destructive"
@@ -599,7 +689,10 @@ export default function ClientsPage() {
                           className="h-7 px-2 text-green-600 opacity-0 group-hover:opacity-100"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleStartMarketing(client);
+                            handleStartMarketing(
+                              client,
+                              DEFAULT_MARKETING_DURATION_MONTHS,
+                            );
                           }}
                         >
                           <Play className="h-3.5 w-3.5 mr-1" />
@@ -684,20 +777,7 @@ export default function ClientsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          setEditing(true);
-                          setEditData({
-                            company: selectedClient.company,
-                            contactName: selectedClient.contactName,
-                            phone: selectedClient.phone,
-                            email: selectedClient.email,
-                            industry: selectedClient.industry,
-                            website: selectedClient.website,
-                            address: selectedClient.address,
-                            businessNumber: selectedClient.businessNumber,
-                            memo: selectedClient.memo,
-                          });
-                        }}
+                        onClick={() => beginEditClient(selectedClient)}
                       >
                         <Pencil className="h-3.5 w-3.5 mr-1" />
                         편집
@@ -753,13 +833,54 @@ export default function ClientsPage() {
 
                 {/* 마케팅시작 버튼 */}
                 {selectedClient.status === "대기" && (
-                  <Button
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => handleStartMarketing(selectedClient)}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    마케팅 시작 (오늘부터 6개월)
-                  </Button>
+                  <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                    <div className="grid grid-cols-[1fr_120px] gap-2 items-end">
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          상품 기간
+                        </label>
+                        <Select
+                          value={String(startDurationMonths)}
+                          onValueChange={(value) =>
+                            setStartDurationMonths(
+                              normalizeServiceDurationMonths(value),
+                            )
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SERVICE_DURATION_MONTH_OPTIONS.map((months) => (
+                              <SelectItem key={months} value={String(months)}>
+                                {months}개월
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <span className="block">종료일</span>
+                        <span className="font-medium text-foreground">
+                          {formatDate(
+                            calculateServiceEndDate(
+                              todayDateString(),
+                              startDurationMonths,
+                            ),
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() =>
+                        handleStartMarketing(selectedClient, startDurationMonths)
+                      }
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      마케팅 시작 (오늘부터 {startDurationMonths}개월)
+                    </Button>
+                  </div>
                 )}
 
                 <Separator />
@@ -780,6 +901,13 @@ export default function ClientsPage() {
                       <p className="text-xs text-muted-foreground">
                         {formatDate(selectedClient.contractStart)} ~{" "}
                         {formatDate(selectedClient.contractEnd)}
+                        {" · "}
+                        {inferServiceDurationMonths(
+                          selectedClient.contractStart,
+                          selectedClient.contractEnd,
+                          DEFAULT_MARKETING_DURATION_MONTHS,
+                        )}
+                        개월
                         {(() => {
                           const d = daysRemaining(selectedClient.contractEnd);
                           if (d !== null && d >= 0) return ` (${d}일 남음)`;
@@ -879,6 +1007,94 @@ export default function ClientsPage() {
                         />
                       </div>
                     ))}
+                    <div className="rounded-md border p-3 space-y-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          월 계약 금액
+                        </label>
+                        <Input
+                          type="number"
+                          value={editData.contractAmount ?? ""}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              contractAmount: Number(e.target.value) || 0,
+                            })
+                          }
+                          placeholder="예: 1000000"
+                        />
+                      </div>
+                      {(() => {
+                        const contractStart = String(
+                          editData.contractStart || todayDateString(),
+                        );
+                        const contractEnd = String(editData.contractEnd || "");
+                        const durationMonths = inferServiceDurationMonths(
+                          contractStart,
+                          contractEnd,
+                          DEFAULT_MARKETING_DURATION_MONTHS,
+                        );
+
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground mb-1 block">
+                                시작일
+                              </label>
+                              <Input
+                                type="date"
+                                value={contractStart}
+                                onChange={(e) =>
+                                  updateEditContractStart(e.target.value)
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground mb-1 block">
+                                상품 기간
+                              </label>
+                              <Select
+                                value={String(durationMonths)}
+                                onValueChange={updateEditContractDuration}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SERVICE_DURATION_MONTH_OPTIONS.map(
+                                    (months) => (
+                                      <SelectItem
+                                        key={months}
+                                        value={String(months)}
+                                      >
+                                        {months}개월
+                                      </SelectItem>
+                                    ),
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground mb-1 block">
+                                종료일
+                              </label>
+                              <Input
+                                type="date"
+                                value={
+                                  contractEnd ||
+                                  calculateServiceEndDate(
+                                    contractStart,
+                                    durationMonths,
+                                  )
+                                }
+                                readOnly
+                                className="bg-muted"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div>
                       <label className="text-xs text-muted-foreground mb-1 block">
                         메모

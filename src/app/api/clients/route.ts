@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { d1All, d1First, d1Run, newId, nowIso } from "@/lib/d1-client";
+import { calculateServiceEndDate } from "@/lib/service-period";
 
 // 영문 ↔ 한글 status 매핑
 const EN_CLIENT_STATUS_TO_KR: Record<string, string> = {
@@ -120,11 +121,23 @@ export async function POST(request: NextRequest) {
 
     const id = newId();
     const now = nowIso();
+    const contractStart = String(body.contractStart || "");
+    const contractEnd = String(
+      body.contractEnd ||
+        (contractStart
+          ? calculateServiceEndDate(contractStart, body.contractDurationMonths)
+          : ""),
+    );
+    const status =
+      typeof body.status === "string"
+        ? KR_CLIENT_STATUS_TO_EN[body.status] ?? body.status
+        : "Waiting";
 
     await d1Run(
       `INSERT INTO clients
-        (id, company, contact_name, phone, email, industry, contract_amount, inquiry_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, company, contact_name, phone, email, industry, contract_amount,
+         contract_start, contract_end, inquiry_id, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         String(body.company || ""),
@@ -133,8 +146,10 @@ export async function POST(request: NextRequest) {
         String(body.email || ""),
         String(body.industry || ""),
         Number(body.contractAmount) || 0,
+        contractStart,
+        contractEnd,
         inquiryId,
-        "Waiting",
+        status,
         now,
         now,
       ],
@@ -155,6 +170,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "ID 필요" }, { status: 400 });
     }
 
+    const patchUpdates = { ...updates };
+    if (
+      patchUpdates.contractStart &&
+      patchUpdates.contractDurationMonths &&
+      patchUpdates.contractEnd === undefined
+    ) {
+      patchUpdates.contractEnd = calculateServiceEndDate(
+        String(patchUpdates.contractStart),
+        patchUpdates.contractDurationMonths,
+      );
+    }
+
     const fieldMap: Record<string, string> = {
       company: "company",
       contactName: "contact_name",
@@ -173,7 +200,7 @@ export async function PATCH(request: NextRequest) {
 
     const sets: string[] = [];
     const params: (string | number)[] = [];
-    for (const [key, value] of Object.entries(updates)) {
+    for (const [key, value] of Object.entries(patchUpdates)) {
       if (key === "status" && typeof value === "string") {
         sets.push("status = ?");
         params.push(KR_CLIENT_STATUS_TO_EN[value] ?? value);
