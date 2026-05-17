@@ -21,6 +21,9 @@ const PUBLIC_PATHS = [
   "/api/report/",
   "/api/webhook/",
   "/api/email-tracking/",
+  "/api/public/chat/",
+  "/api/public/schedules",
+  "/chat/",
 ];
 
 // 봇 탐지 패턴 (간소화 버전 - middleware에서 사용)
@@ -178,6 +181,7 @@ export async function middleware(request: NextRequest) {
   const country = request.headers.get("x-vercel-ip-country") || "";
   const pathname = request.nextUrl.pathname;
   const fullUrl = request.nextUrl.toString();
+  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase() || "";
 
   // 공격 패턴 차단 (쿼리스트링 포함)
   if (isAttackRequest(fullUrl)) {
@@ -196,6 +200,21 @@ export async function middleware(request: NextRequest) {
       status: 403,
       headers: { "Content-Type": "text/plain" },
     });
+  }
+
+  if (host === "chat.polarad.co.kr") {
+    if (pathname === "/") {
+      return NextResponse.redirect("https://polarad.co.kr", 308);
+    }
+    if (
+      !pathname.startsWith("/api/") &&
+      !pathname.startsWith("/_next") &&
+      !pathname.includes(".")
+    ) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = `/chat${pathname}`;
+      return NextResponse.rewrite(rewriteUrl);
+    }
   }
 
   // 공개 경로 통과

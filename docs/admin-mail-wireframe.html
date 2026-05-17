@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>폴라애드 관리자 메일 기본 스타일 v1 확정</title>
+    <style>
+      body {
+        margin: 0;
+        background: #e8edf4;
+        color: #182033;
+        font-family:
+          "Pretendard",
+          "Apple SD Gothic Neo",
+          "Malgun Gothic",
+          Arial,
+          sans-serif;
+        letter-spacing: 0;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      .page-header {
+        margin: 0 0 22px;
+      }
+
+      .page-header h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+        line-height: 1.25;
+      }
+
+      .page-header p {
+        margin: 0;
+        color: #5e6778;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+
+      .spec-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 0 0 22px;
+      }
+
+      .spec {
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid #cfd7e5;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .spec b {
+        display: block;
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+
+      .spec span {
+        display: block;
+        color: #5e6778;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        align-items: start;
+      }
+
+      .preview-title {
+        margin: 0 0 10px;
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      .preview-shell {
+        overflow: auto;
+        border: 1px solid #cfd7e5;
+        border-radius: 10px;
+        background: #f3f5f8;
+      }
+
+      .copy-toast {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 10;
+        transform: translateY(12px);
+        opacity: 0;
+        pointer-events: none;
+        border: 1px solid #c7d7fe;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #123b78;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        box-shadow: 0 12px 24px rgba(24, 32, 51, 0.14);
+        transition:
+          opacity 0.16s ease,
+          transform 0.16s ease;
+      }
+
+      .copy-toast.is-visible {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      @media (max-width: 960px) {
+        .spec-grid,
+        .preview-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <h1>관리자 메일 기본 스타일 v1 확정</h1>
+        <p>
+          실제 발송 템플릿은 메일 클라이언트 호환성을 위해 680px 테이블
+          레이아웃, 인라인 스타일, 얇은 테두리 카드, 제한된 강조색만
+          사용합니다.
+        </p>
+      </header>
+
+      <section class="spec-grid" aria-label="스타일 기준">
+        <div class="spec">
+          <b>레이아웃</b>
+          <span>전체 배경 #F3F5F8, 본문 680px, 섹션은 단일 카드 단위</span>
+        </div>
+        <div class="spec">
+          <b>헤더</b>
+          <span>흰색 헤더, 상단 6px 블루 라인, 큰 장식 없이 제목 중심</span>
+        </div>
+        <div class="spec">
+          <b>본문</b>
+          <span>Arial/Malgun Gothic, 15px 본문, 22px 섹션 제목</span>
+        </div>
+        <div class="spec">
+          <b>호환성</b>
+          <span>CSS grid/flex 없이 발송 본문은 table + inline style 기준</span>
+        </div>
+        <div class="spec">
+          <b>카테고리</b>
+          <span>카테고리 뱃지 옆에 발송시점의 날짜와 시간이 함께 표시</span>
+        </div>
+        <div class="spec">
+          <b>하단 프로필</b>
+          <span>홈페이지는 링크, 메일주소와 전화번호는 클릭 복사 대상으로 표시</span>
+        </div>
+      </section>
+
+      <section class="preview-grid">
+        <article>
+          <h2 class="preview-title">Meta 초기 결제 안내 메일</h2>
+          <div class="preview-shell">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#f3f5f8;">
+              <tr>
+                <td align="center" style="padding:24px 12px 34px;">
+                  <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="width:100%;max-width:680px;border-collapse:separate;border-spacing:0;">
+                    <tr>
+                      <td style="padding:0 0 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-top:6px solid #175cd3;border-radius:10px;">
+                          <tr>
+                            <td style="padding:24px 28px 24px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;">
+                              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                <tr>
+                                  <td style="padding:0 0 16px;color:#123b78;font-size:11px;font-weight:700;line-height:1.3;">POLARAD GUIDE</td>
+                                  <td align="right" style="padding:0 0 16px;color:#7a8496;font-size:11px;font-weight:400;line-height:1.3;">mkt@polarad.co.kr</td>
+                                </tr>
+                                <tr>
+                                  <td colspan="2" style="padding:0 0 14px;">
+                                    <span style="display:inline-block;margin:0;padding:6px 10px;border-radius:999px;background:#eef4ff;border:1px solid #c7d7fe;color:#123b78;font-size:12px;font-weight:700;line-height:1.2;">마케팅</span>
+                                    <span style="display:inline-block;width:6px;line-height:1;font-size:0;">&nbsp;</span>
+                                    <span style="display:inline-block;margin:0;padding:6px 10px;border-radius:999px;background:#f8fafc;border:1px solid #d9e0ea;color:#4b5565;font-size:12px;font-weight:500;line-height:1.2;">발송일시 2026.05.16 13:45</span>
+                                  </td>
+                                </tr>
+                              </table>
+                              <p style="margin:0 0 10px;color:#175cd3;font-size:11px;font-weight:700;letter-spacing:.04em;line-height:1.3;">META AD BILLING GUIDE</p>
+                              <h1 style="margin:0;color:#1f2937;font-size:24px;line-height:1.36;font-weight:700;letter-spacing:0;">Meta 광고 초기 결제 안내</h1>
+                              <p style="margin:12px 0 0;color:#4b5565;font-size:15px;line-height:1.68;font-weight:400;">카드 확인 소액, 실제 광고비 청구, 일예산 변동을 구분해서 보시면 결제 내역을 쉽게 확인할 수 있습니다.</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:0 0 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-radius:8px;">
+                          <tr>
+                            <td style="padding:20px 22px 20px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;color:#1f2937;font-size:15px;line-height:1.68;font-weight:400;">
+                              <span style="display:inline-block;margin:0 0 12px;padding:5px 9px;border-radius:999px;background:#eef4ff;color:#123b78;font-size:12px;font-weight:700;line-height:1.2;">핵심 요약</span>
+                              <h2 style="margin:0 0 10px;color:#1f2937;font-size:20px;line-height:1.38;font-weight:700;letter-spacing:0;">처음 보이는 소액은 실제 광고비와 다를 수 있습니다</h2>
+                              <p style="margin:0 0 12px;color:#4b5565;font-size:15px;line-height:1.68;font-weight:400;">카드 등록 직후 보이는 소액은 결제 수단 확인을 위한 임시 승인일 수 있습니다. 실제 광고비는 Meta 광고가 노출되며 누적된 금액이 결제 기준액에 도달할 때 청구됩니다.</p>
+                              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;margin-top:14px;background:#fff7e6;border:1px solid #f2c94c;border-radius:8px;">
+                                <tr>
+                                  <td style="padding:12px 14px;color:#6f5200;font-size:14px;line-height:1.62;font-weight:600;">실제 광고비는 Meta Ads Manager의 Billing &amp; payments, Payment activity에서 영수증과 함께 확인합니다.</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:0 0 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-radius:8px;">
+                          <tr>
+                            <td style="padding:20px 22px 20px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;color:#1f2937;font-size:15px;line-height:1.68;font-weight:400;">
+                              <span style="display:inline-block;margin:0 0 12px;padding:5px 9px;border-radius:999px;background:#eef4ff;color:#123b78;font-size:12px;font-weight:700;line-height:1.2;">일예산</span>
+                              <h2 style="margin:0 0 10px;color:#1f2937;font-size:20px;line-height:1.38;font-weight:700;letter-spacing:0;">일예산은 하루 고정 상한이 아닙니다</h2>
+                              <p style="margin:0 0 12px;color:#4b5565;font-size:15px;line-height:1.68;font-weight:400;">Meta의 일예산은 매일 같은 금액을 강제로 쓰는 방식이 아닙니다. 광고 기회가 많은 날은 더 쓰고 다른 날에 줄이며 주간 기준으로 조정될 수 있습니다.</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:0;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-left:4px solid #175cd3;border-radius:8px;">
+                          <tr>
+                            <td style="padding:14px 18px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;color:#1f2937;font-size:14px;line-height:1.5;">
+                              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                <tr>
+                                  <td valign="middle" width="62" style="padding:0 14px 0 0;">
+                                    <img src="../public/images/mail/polarad-profile.png" width="56" alt="폴라애드 프로필 사진" style="display:block;width:56px;height:auto;border:1px solid #d9e0ea;border-radius:6px;" />
+                                  </td>
+                                  <td valign="middle" style="padding:0 16px 0 0;">
+                                    <strong style="display:block;color:#1f2937;font-size:17px;line-height:1.3;font-weight:700;">폴라애드 <span style="color:#123b78;font-weight:700;">POLARAD</span></strong>
+                                    <span style="display:block;margin-top:4px;color:#4b5565;font-size:13px;line-height:1.4;font-weight:400;">매출향상에 도움이 되는<br />온라인마케팅 대행사</span>
+                                  </td>
+                                  <td valign="middle" width="250" style="padding:0 0 0 16px;border-left:1px solid #e5eaf2;color:#4b5565;font-size:12px;line-height:1.45;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                      <tr>
+                                        <td width="48" style="padding:0 0 4px;color:#7a8496;font-size:11px;font-weight:700;line-height:1.4;">WEB</td>
+                                        <td style="padding:0 0 4px;font-size:12px;line-height:1.4;"><a href="https://polarad.co.kr" target="_blank" rel="noopener" style="color:#175cd3;text-decoration:none;">polarad.co.kr</a></td>
+                                      </tr>
+                                      <tr>
+                                        <td width="48" style="padding:0 0 4px;color:#7a8496;font-size:11px;font-weight:700;line-height:1.4;">MAIL</td>
+                                        <td style="padding:0 0 4px;font-size:12px;line-height:1.4;"><span data-copy-value="mkt@polarad.co.kr" data-copy-label="메일주소" role="button" tabindex="0" title="메일주소 복사" style="display:inline-block;color:#175cd3;text-decoration:none;cursor:pointer;user-select:all;">mkt@polarad.co.kr</span></td>
+                                      </tr>
+                                      <tr>
+                                        <td width="48" style="padding:0;color:#7a8496;font-size:11px;font-weight:700;line-height:1.4;">TEL</td>
+                                        <td style="padding:0;font-size:12px;line-height:1.4;"><span data-copy-value="010-9897-9834" data-copy-label="전화번호" role="button" tabindex="0" title="전화번호 복사" style="display:inline-block;color:#175cd3;text-decoration:none;cursor:pointer;user-select:all;">010-9897-9834</span></td>
+                                      </tr>
+                                    </table>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </article>
+
+        <article>
+          <h2 class="preview-title">운영 관리자 기본 안내 메일</h2>
+          <div class="preview-shell">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#f3f5f8;">
+              <tr>
+                <td align="center" style="padding:24px 12px 34px;">
+                  <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="width:100%;max-width:680px;border-collapse:separate;border-spacing:0;">
+                    <tr>
+                      <td style="padding:0 0 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-top:6px solid #175cd3;border-radius:10px;">
+                          <tr>
+                            <td style="padding:24px 28px 24px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;">
+                              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                <tr>
+                                  <td style="padding:0 0 16px;color:#123b78;font-size:11px;font-weight:700;line-height:1.3;">POLARAD GUIDE</td>
+                                  <td align="right" style="padding:0 0 16px;color:#7a8496;font-size:11px;font-weight:400;line-height:1.3;">mkt@polarad.co.kr</td>
+                                </tr>
+                                <tr>
+                                  <td colspan="2" style="padding:0 0 14px;">
+                                    <span style="display:inline-block;margin:0;padding:6px 10px;border-radius:999px;background:#eef4ff;border:1px solid #c7d7fe;color:#123b78;font-size:12px;font-weight:700;line-height:1.2;">기타</span>
+                                    <span style="display:inline-block;width:6px;line-height:1;font-size:0;">&nbsp;</span>
+                                    <span style="display:inline-block;margin:0;padding:6px 10px;border-radius:999px;background:#f8fafc;border:1px solid #d9e0ea;color:#4b5565;font-size:12px;font-weight:500;line-height:1.2;">발송일시 2026.05.16 13:45</span>
+                                  </td>
+                                </tr>
+                              </table>
+                              <p style="margin:0 0 10px;color:#175cd3;font-size:11px;font-weight:700;letter-spacing:.04em;line-height:1.3;">ADMIN BASIC GUIDE</p>
+                              <h1 style="margin:0;color:#1f2937;font-size:24px;line-height:1.36;font-weight:700;letter-spacing:0;">운영 관리자 기본 안내</h1>
+                              <p style="margin:12px 0 0;color:#4b5565;font-size:15px;line-height:1.68;font-weight:400;">텔레그램 앱 설치, 알림방 입장, 스팸 차단 설정, 관리자 로그인 방법을 한 번에 확인하는 기본 가이드입니다.</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:0 0 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-radius:8px;">
+                          <tr>
+                            <td style="padding:20px 22px 20px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;color:#1f2937;font-size:15px;line-height:1.68;font-weight:400;">
+                              <span style="display:inline-block;margin:0 0 12px;padding:5px 9px;border-radius:999px;background:#eef4ff;color:#123b78;font-size:12px;font-weight:700;line-height:1.2;">1. 앱 설치</span>
+                              <h2 style="margin:0 0 10px;color:#1f2937;font-size:20px;line-height:1.38;font-weight:700;letter-spacing:0;">텔레그램 앱 다운로드</h2>
+                              <ol style="margin:8px 0 0;padding-left:22px;color:#4b5565;font-size:15px;line-height:1.68;">
+                                <li style="margin:6px 0;">아이폰은 App Store, 안드로이드는 Play Store를 엽니다.</li>
+                                <li style="margin:6px 0;">Telegram Messenger를 검색해서 설치합니다.</li>
+                                <li style="margin:6px 0;">휴대폰 번호 인증을 완료합니다.</li>
+                              </ol>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:0 0 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-radius:8px;">
+                          <tr>
+                            <td style="padding:20px 22px 20px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;color:#1f2937;font-size:15px;line-height:1.68;font-weight:400;">
+                              <span style="display:inline-block;margin:0 0 12px;padding:5px 9px;border-radius:999px;background:#eef4ff;color:#123b78;font-size:12px;font-weight:700;line-height:1.2;">4. 관리자 접속</span>
+                              <h2 style="margin:0 0 10px;color:#1f2937;font-size:20px;line-height:1.38;font-weight:700;letter-spacing:0;">사용자 아이디와 비밀번호로 로그인</h2>
+                              <ol style="margin:8px 0 0;padding-left:22px;color:#4b5565;font-size:15px;line-height:1.68;">
+                                <li style="margin:6px 0;">관리자 주소를 브라우저에서 엽니다.</li>
+                                <li style="margin:6px 0;">사용자 아이디와 비밀번호를 입력합니다.</li>
+                                <li style="margin:6px 0;">접수 목록, 고객 정보, 처리 상태를 확인합니다.</li>
+                              </ol>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:0;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #d9e0ea;border-left:4px solid #175cd3;border-radius:8px;">
+                          <tr>
+                            <td style="padding:14px 18px;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;color:#1f2937;font-size:14px;line-height:1.5;">
+                              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                <tr>
+                                  <td valign="middle" width="62" style="padding:0 14px 0 0;">
+                                    <img src="../public/images/mail/polarad-profile.png" width="56" alt="폴라애드 프로필 사진" style="display:block;width:56px;height:auto;border:1px solid #d9e0ea;border-radius:6px;" />
+                                  </td>
+                                  <td valign="middle" style="padding:0 16px 0 0;">
+                                    <strong style="display:block;color:#1f2937;font-size:17px;line-height:1.3;font-weight:700;">폴라애드 <span style="color:#123b78;font-weight:700;">POLARAD</span></strong>
+                                    <span style="display:block;margin-top:4px;color:#4b5565;font-size:13px;line-height:1.4;font-weight:400;">매출향상에 도움이 되는<br />온라인마케팅 대행사</span>
+                                  </td>
+                                  <td valign="middle" width="250" style="padding:0 0 0 16px;border-left:1px solid #e5eaf2;color:#4b5565;font-size:12px;line-height:1.45;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                      <tr>
+                                        <td width="48" style="padding:0 0 4px;color:#7a8496;font-size:11px;font-weight:700;line-height:1.4;">WEB</td>
+                                        <td style="padding:0 0 4px;font-size:12px;line-height:1.4;"><a href="https://polarad.co.kr" target="_blank" rel="noopener" style="color:#175cd3;text-decoration:none;">polarad.co.kr</a></td>
+                                      </tr>
+                                      <tr>
+                                        <td width="48" style="padding:0 0 4px;color:#7a8496;font-size:11px;font-weight:700;line-height:1.4;">MAIL</td>
+                                        <td style="padding:0 0 4px;font-size:12px;line-height:1.4;"><span data-copy-value="mkt@polarad.co.kr" data-copy-label="메일주소" role="button" tabindex="0" title="메일주소 복사" style="display:inline-block;color:#175cd3;text-decoration:none;cursor:pointer;user-select:all;">mkt@polarad.co.kr</span></td>
+                                      </tr>
+                                      <tr>
+                                        <td width="48" style="padding:0;color:#7a8496;font-size:11px;font-weight:700;line-height:1.4;">TEL</td>
+                                        <td style="padding:0;font-size:12px;line-height:1.4;"><span data-copy-value="010-9897-9834" data-copy-label="전화번호" role="button" tabindex="0" title="전화번호 복사" style="display:inline-block;color:#175cd3;text-decoration:none;cursor:pointer;user-select:all;">010-9897-9834</span></td>
+                                      </tr>
+                                    </table>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+    <div class="copy-toast" id="copyToast" role="status" aria-live="polite">복사했습니다</div>
+    <script>
+      (function () {
+        var toast = document.getElementById("copyToast");
+        var toastTimer = null;
+
+        function showToast(message) {
+          if (!toast) return;
+          toast.textContent = message;
+          toast.classList.add("is-visible");
+          window.clearTimeout(toastTimer);
+          toastTimer = window.setTimeout(function () {
+            toast.classList.remove("is-visible");
+          }, 1400);
+        }
+
+        function fallbackCopy(value) {
+          var textarea = document.createElement("textarea");
+          textarea.value = value;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "fixed";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textarea);
+        }
+
+        function copyValue(value) {
+          if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(value);
+          }
+          fallbackCopy(value);
+          return Promise.resolve();
+        }
+
+        document.querySelectorAll("[data-copy-value]").forEach(function (element) {
+          function run(event) {
+            event.preventDefault();
+            var value = element.getAttribute("data-copy-value") || "";
+            var label = element.getAttribute("data-copy-label") || "내용";
+            copyValue(value)
+              .then(function () {
+                showToast(label + "를 복사했습니다");
+              })
+              .catch(function () {
+                showToast(label + " 복사에 실패했습니다");
+              });
+          }
+
+          element.addEventListener("click", run);
+          element.addEventListener("keydown", function (event) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            run(event);
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

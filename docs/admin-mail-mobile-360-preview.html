@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>폴라애드 메일 모바일 360px 프리뷰</title>
+    <style>
+      body {
+        margin: 0;
+        background: #e8edf4;
+        color: #1f2937;
+        font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", Arial,
+          sans-serif;
+        letter-spacing: 0;
+      }
+
+      .page {
+        width: min(100% - 24px, 880px);
+        margin: 0 auto;
+        padding: 24px 0 40px;
+      }
+
+      .page h1 {
+        margin: 0 0 10px;
+        font-size: 22px;
+        line-height: 1.35;
+      }
+
+      .page p {
+        margin: 0 0 18px;
+        color: #4b5565;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .phone {
+        width: 360px;
+        max-width: 100%;
+        margin: 0 auto;
+        border: 1px solid #cfd7e5;
+        border-radius: 18px;
+        background: #f3f5f8;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(24, 32, 51, 0.12);
+      }
+
+      .phone-label {
+        padding: 10px 14px;
+        border-bottom: 1px solid #d9e0ea;
+        background: #ffffff;
+        color: #4b5565;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      @media only screen and (max-width: 560px) {
+        .mail-outer-pad {
+          padding: 16px 10px 26px !important;
+        }
+        .mail-container {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+        .mail-header-cell {
+          padding: 20px 18px 22px !important;
+        }
+        .mail-card-cell {
+          padding: 18px 16px !important;
+        }
+        .mail-header-label,
+        .mail-header-from {
+          display: block !important;
+          width: 100% !important;
+          text-align: left !important;
+          padding: 0 0 8px !important;
+        }
+        .mail-header-from {
+          padding-bottom: 0 !important;
+        }
+        .mail-badge-gap {
+          display: block !important;
+          width: 0 !important;
+          height: 6px !important;
+          line-height: 6px !important;
+        }
+        .profile-card-cell {
+          padding: 12px 14px !important;
+        }
+        .profile-contact-cell {
+          padding: 0 0 12px !important;
+          border-bottom: 1px solid #e5eaf2 !important;
+        }
+        .profile-photo-cell {
+          width: 56px !important;
+          padding: 12px 12px 0 0 !important;
+          vertical-align: top !important;
+        }
+        .profile-main-cell {
+          padding: 12px 0 0 !important;
+          vertical-align: top !important;
+        }
+        .profile-contact-table {
+          width: 100% !important;
+        }
+        .profile-contact-label {
+          width: 44px !important;
+        }
+        .profile-contact-value {
+          word-break: break-word !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <h1>메일 모바일 360px 프리뷰</h1>
+      <p>
+        실제 발송 HTML과 같은 모바일 규칙을 적용한 하단 프로필 구조입니다.
+        360px 기준에서 프로필과 연락처가 세로로 정리됩니다.
+      </p>
+
+      <section class="phone" aria-label="360px 모바일 프리뷰">
+        <div class="phone-label">360px mobile preview</div>
+        <table
+          role="presentation"
+          width="100%"
+          cellpadding="0"
+          cellspacing="0"
+          style="border-collapse: collapse; background: #f3f5f8"
+        >
+          <tr>
+            <td class="mail-outer-pad" align="center" style="padding: 24px 12px 34px">
+              <table
+                class="mail-container"
+                role="presentation"
+                width="680"
+                cellpadding="0"
+                cellspacing="0"
+                style="
+                  width: 100%;
+                  max-width: 680px;
+                  border-collapse: separate;
+                  border-spacing: 0;
+                "
+              >
+                <tr>
+                  <td style="padding: 0 0 14px">
+                    <table
+                      role="presentation"
+                      width="100%"
+                      cellpadding="0"
+                      cellspacing="0"
+                      style="
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        background: #ffffff;
+                        border: 1px solid #d9e0ea;
+                        border-top: 6px solid #175cd3;
+                        border-radius: 10px;
+                      "
+                    >
+                      <tr>
+                        <td
+                          class="mail-header-cell"
+                          style="
+                            padding: 24px 28px 24px;
+                            font-family: 'Pretendard', 'Apple SD Gothic Neo',
+                              'Malgun Gothic', Arial, sans-serif;
+                          "
+                        >
+                          <table
+                            role="presentation"
+                            width="100%"
+                            cellpadding="0"
+                            cellspacing="0"
+                            style="border-collapse: collapse"
+                          >
+                            <tr>
+                              <td
+                                class="mail-header-label"
+                                style="
+                                  padding: 0 0 16px;
+                                  color: #123b78;
+                                  font-size: 11px;
+                                  font-weight: 700;
+                                  line-height: 1.3;
+                                "
+                              >
+                                POLARAD GUIDE
+                              </td>
+                              <td
+                                class="mail-header-from"
+                                align="right"
+                                style="
+                                  padding: 0 0 16px;
+                                  color: #7a8496;
+                                  font-size: 11px;
+                                  font-weight: 400;
+                                  line-height: 1.3;
+                                "
+                              >
+                                mkt@polarad.co.kr
+                              </td>
+                            </tr>
+                            <tr>
+                              <td colspan="2" style="padding: 0 0 14px">
+                                <span
+                                  style="
+                                    display: inline-block;
+                                    margin: 0;
+                                    padding: 6px 10px;
+                                    border-radius: 999px;
+                                    background: #eef4ff;
+                                    border: 1px solid #c7d7fe;
+                                    color: #123b78;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    line-height: 1.2;
+                                  "
+                                  >마케팅</span
+                                >
+                                <span
+                                  class="mail-badge-gap"
+                                  style="
+                                    display: inline-block;
+                                    width: 6px;
+                                    line-height: 1;
+                                    font-size: 0;
+                                  "
+                                  >&nbsp;</span
+                                >
+                                <span
+                                  style="
+                                    display: inline-block;
+                                    margin: 0;
+                                    padding: 6px 10px;
+                                    border-radius: 999px;
+                                    background: #f8fafc;
+                                    border: 1px solid #d9e0ea;
+                                    color: #4b5565;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    line-height: 1.2;
+                                  "
+                                  >발송일시 2026.05.16 15:30</span
+                                >
+                              </td>
+                            </tr>
+                          </table>
+                          <p
+                            style="
+                              margin: 0 0 10px;
+                              color: #175cd3;
+                              font-size: 11px;
+                              font-weight: 700;
+                              letter-spacing: 0.04em;
+                              line-height: 1.3;
+                            "
+                          >
+                            POLARAD NOTICE
+                          </p>
+                          <h2
+                            style="
+                              margin: 0;
+                              color: #1f2937;
+                              font-size: 24px;
+                              line-height: 1.36;
+                              font-weight: 700;
+                              letter-spacing: 0;
+                            "
+                          >
+                            안내 메일
+                          </h2>
+                          <p
+                            style="
+                              margin: 12px 0 0;
+                              color: #4b5565;
+                              font-size: 15px;
+                              line-height: 1.68;
+                              font-weight: 400;
+                            "
+                          >
+                            모바일 화면에서도 제목, 본문, 하단 프로필이 밀리지 않도록
+                            확인하는 예시입니다.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding: 0 0 14px">
+                    <table
+                      role="presentation"
+                      width="100%"
+                      cellpadding="0"
+                      cellspacing="0"
+                      style="
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        background: #ffffff;
+                        border: 1px solid #d9e0ea;
+                        border-radius: 8px;
+                      "
+                    >
+                      <tr>
+                        <td
+                          class="mail-card-cell"
+                          style="
+                            padding: 20px 22px 20px;
+                            font-family: 'Pretendard', 'Apple SD Gothic Neo',
+                              'Malgun Gothic', Arial, sans-serif;
+                            color: #1f2937;
+                            font-size: 15px;
+                            line-height: 1.68;
+                            font-weight: 400;
+                          "
+                        >
+                          <span
+                            style="
+                              display: inline-block;
+                              margin: 0 0 12px;
+                              padding: 5px 9px;
+                              border-radius: 999px;
+                              background: #eef4ff;
+                              color: #123b78;
+                              font-size: 12px;
+                              font-weight: 700;
+                              line-height: 1.2;
+                            "
+                            >안내 내용</span
+                          >
+                          <p style="margin: 0 0 12px; color: #4b5565">
+                            고객에게 전달할 안내 내용을 작성하면 이 구조로 표시됩니다.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding: 0">
+                    <table
+                      role="presentation"
+                      width="100%"
+                      cellpadding="0"
+                      cellspacing="0"
+                      style="
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        background: #ffffff;
+                        border: 1px solid #d9e0ea;
+                        border-left: 4px solid #175cd3;
+                        border-radius: 8px;
+                      "
+                    >
+                      <tr>
+                        <td
+                          class="profile-card-cell"
+                          style="
+                            padding: 14px 18px;
+                            font-family: 'Pretendard', 'Apple SD Gothic Neo',
+                              'Malgun Gothic', Arial, sans-serif;
+                            color: #1f2937;
+                            font-size: 14px;
+                            line-height: 1.5;
+                          "
+                        >
+                          <table
+                            role="presentation"
+                            width="100%"
+                            cellpadding="0"
+                            cellspacing="0"
+                            style="border-collapse: collapse"
+                          >
+                            <tr>
+                              <td
+                                class="profile-contact-cell"
+                                colspan="2"
+                                style="
+                                  padding: 0 0 12px;
+                                  border-bottom: 1px solid #e5eaf2;
+                                  color: #4b5565;
+                                  font-size: 12px;
+                                  line-height: 1.45;
+                                "
+                              >
+                                <table
+                                  class="profile-contact-table"
+                                  role="presentation"
+                                  width="100%"
+                                  cellpadding="0"
+                                  cellspacing="0"
+                                  style="border-collapse: collapse"
+                                >
+                                  <tr>
+                                    <td
+                                      class="profile-contact-label"
+                                      width="48"
+                                      style="
+                                        padding: 0 0 4px;
+                                        color: #7a8496;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        line-height: 1.4;
+                                      "
+                                    >
+                                      WEB
+                                    </td>
+                                    <td
+                                      class="profile-contact-value"
+                                      style="
+                                        padding: 0 0 4px;
+                                        font-size: 12px;
+                                        line-height: 1.4;
+                                      "
+                                    >
+                                      <a
+                                        href="https://polarad.co.kr"
+                                        style="color: #175cd3; text-decoration: none"
+                                        >polarad.co.kr</a
+                                      >
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td
+                                      class="profile-contact-label"
+                                      width="48"
+                                      style="
+                                        padding: 0 0 4px;
+                                        color: #7a8496;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        line-height: 1.4;
+                                      "
+                                    >
+                                      MAIL
+                                    </td>
+                                    <td
+                                      class="profile-contact-value"
+                                      style="
+                                        padding: 0 0 4px;
+                                        font-size: 12px;
+                                        line-height: 1.4;
+                                      "
+                                    >
+                                      <span style="color: #175cd3"
+                                        >mkt@polarad.co.kr</span
+                                      >
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td
+                                      class="profile-contact-label"
+                                      width="48"
+                                      style="
+                                        padding: 0;
+                                        color: #7a8496;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        line-height: 1.4;
+                                      "
+                                    >
+                                      TEL
+                                    </td>
+                                    <td
+                                      class="profile-contact-value"
+                                      style="
+                                        padding: 0;
+                                        font-size: 12px;
+                                        line-height: 1.4;
+                                      "
+                                    >
+                                      <span style="color: #175cd3">010-9897-9834</span>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td
+                                class="profile-photo-cell"
+                                valign="top"
+                                width="62"
+                                style="padding: 12px 14px 0 0; vertical-align: top"
+                              >
+                                <img
+                                  src="../public/images/mail/polarad-profile.png"
+                                  width="56"
+                                  alt="폴라애드 프로필 사진"
+                                  style="
+                                    display: block;
+                                    width: 56px;
+                                    height: auto;
+                                    border: 1px solid #d9e0ea;
+                                    border-radius: 6px;
+                                    vertical-align: top;
+                                  "
+                                />
+                              </td>
+                              <td
+                                class="profile-main-cell"
+                                valign="top"
+                                style="padding: 12px 0 0; vertical-align: top"
+                              >
+                                <strong
+                                  style="
+                                    display: block;
+                                    color: #1f2937;
+                                    font-size: 17px;
+                                    line-height: 1.3;
+                                    font-weight: 700;
+                                  "
+                                  >폴라애드
+                                  <span style="color: #123b78; font-weight: 700"
+                                    >POLARAD</span
+                                  ></strong
+                                >
+                                <span
+                                  style="
+                                    display: block;
+                                    margin-top: 4px;
+                                    color: #4b5565;
+                                    font-size: 13px;
+                                    line-height: 1.4;
+                                    font-weight: 400;
+                                  "
+                                  >매출향상에 도움이 되는<br />온라인마케팅 대행사</span
+                                >
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

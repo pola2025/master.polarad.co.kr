@@ -51,15 +51,24 @@ function assertConfig(): void {
 const RETRY_DELAYS_MS = [100, 300];
 
 function isTransientError(message: string, status: number): boolean {
-  if (status >= 500) return true;
   const lower = message.toLowerCase();
+  if (
+    lower.includes("no such table") ||
+    lower.includes("duplicate column") ||
+    lower.includes("no such column") ||
+    lower.includes("syntax error") ||
+    lower.includes("constraint failed")
+  ) {
+    return false;
+  }
   return (
     lower.includes("network connection lost") ||
     lower.includes("fetch failed") ||
     lower.includes("connection reset") ||
     lower.includes("connection closed") ||
     lower.includes("timeout") ||
-    lower.includes("econnreset")
+    lower.includes("econnreset") ||
+    (status >= 500 && !lower.includes("d1_error"))
   );
 }
 

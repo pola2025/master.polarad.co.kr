@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upstash Redis 설정 가이드 (Vercel Marketplace)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .step-done {
+        background: #10b981 !important;
+        color: white;
+      }
+      .copy-btn:active {
+        transform: scale(0.95);
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="max-w-3xl mx-auto py-10 px-6">
+      <h1 class="text-3xl font-bold mb-2">Upstash Redis 설정 가이드</h1>
+      <p class="text-gray-400 mb-8">
+        Vercel Marketplace 경유 &middot; 2026-03 기준 &middot; OTP + Rate
+        Limiting 용
+      </p>
+
+      <!-- Progress -->
+      <div class="flex gap-2 mb-8">
+        <div id="prog-1" class="h-2 flex-1 bg-gray-700 rounded"></div>
+        <div id="prog-2" class="h-2 flex-1 bg-gray-700 rounded"></div>
+        <div id="prog-3" class="h-2 flex-1 bg-gray-700 rounded"></div>
+        <div id="prog-4" class="h-2 flex-1 bg-gray-700 rounded"></div>
+        <div id="prog-5" class="h-2 flex-1 bg-gray-700 rounded"></div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="bg-gray-800 rounded-lg p-6 mb-4">
+        <div class="flex items-center gap-3 mb-4">
+          <span
+            id="check-1"
+            class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold cursor-pointer"
+            onclick="toggleStep(1)"
+            >1</span
+          >
+          <h2 class="text-xl font-semibold">
+            Vercel Marketplace에서 Upstash Redis 추가
+          </h2>
+        </div>
+        <ol class="list-decimal list-inside space-y-2 text-gray-300 ml-4">
+          <li>
+            <a
+              href="https://vercel.com/dashboard"
+              target="_blank"
+              class="text-blue-400 underline"
+              >vercel.com/dashboard</a
+            >
+            접속
+          </li>
+          <li>왼쪽 사이드바에서 <strong>Storage</strong> 클릭</li>
+          <li class="text-yellow-300 font-medium">
+            * 만약 Storage 탭이 없으면: 프로젝트 선택 &rarr; 상단 탭에서 Storage
+            &rarr; Browse Marketplace
+          </li>
+          <li>
+            <strong>Upstash Redis</strong> 선택 &rarr; <strong>Create</strong>
+          </li>
+          <li>
+            설정:
+            <ul class="list-disc list-inside ml-4 mt-1">
+              <li>
+                Name:
+                <code class="bg-gray-700 px-2 py-0.5 rounded"
+                  >polarad-redis</code
+                >
+              </li>
+              <li>
+                Region:
+                <strong class="text-green-400"
+                  >ap-northeast-1 (도쿄 / 한국 최근접)</strong
+                >
+              </li>
+              <li>Type: <strong>Regional</strong> (Global은 유료)</li>
+              <li>Eviction: <strong>Disabled</strong></li>
+            </ul>
+          </li>
+          <li><strong>Create</strong> 클릭</li>
+        </ol>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="bg-gray-800 rounded-lg p-6 mb-4">
+        <div class="flex items-center gap-3 mb-4">
+          <span
+            id="check-2"
+            class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold cursor-pointer"
+            onclick="toggleStep(2)"
+            >2</span
+          >
+          <h2 class="text-xl font-semibold">master-polarad 프로젝트에 연결</h2>
+        </div>
+        <ol class="list-decimal list-inside space-y-2 text-gray-300 ml-4">
+          <li>
+            생성된 Redis 상세 페이지에서 <strong>Connect Project</strong> 클릭
+          </li>
+          <li>
+            프로젝트:
+            <code class="bg-gray-700 px-2 py-0.5 rounded"
+              >master-polarad-co-kr</code
+            >
+            선택
+          </li>
+          <li>
+            Environment: <strong>Production</strong> 체크 (Development도 체크
+            권장)
+          </li>
+          <li><strong>Connect</strong> 클릭</li>
+          <li>
+            자동으로 추가되는 환경변수 확인:
+            <ul class="list-disc list-inside ml-4 mt-1">
+              <li><code>UPSTASH_REDIS_REST_URL</code></li>
+              <li><code>UPSTASH_REDIS_REST_TOKEN</code></li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="bg-gray-800 rounded-lg p-6 mb-4">
+        <div class="flex items-center gap-3 mb-4">
+          <span
+            id="check-3"
+            class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold cursor-pointer"
+            onclick="toggleStep(3)"
+            >3</span
+          >
+          <h2 class="text-xl font-semibold">
+            polasales (polarad) 프로젝트에도 연결
+          </h2>
+        </div>
+        <ol class="list-decimal list-inside space-y-2 text-gray-300 ml-4">
+          <li>
+            같은 Redis 상세 페이지에서 다시 <strong>Connect Project</strong>
+          </li>
+          <li>
+            프로젝트:
+            <code class="bg-gray-700 px-2 py-0.5 rounded">polarad</code>
+            (polasales 프론트엔드) 선택
+          </li>
+          <li><strong>Connect</strong> 클릭</li>
+          <li>
+            같은 <code>UPSTASH_REDIS_REST_URL</code> /
+            <code>UPSTASH_REDIS_REST_TOKEN</code>이 이 프로젝트에도 주입됨
+          </li>
+        </ol>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="bg-gray-800 rounded-lg p-6 mb-4">
+        <div class="flex items-center gap-3 mb-4">
+          <span
+            id="check-4"
+            class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold cursor-pointer"
+            onclick="toggleStep(4)"
+            >4</span
+          >
+          <h2 class="text-xl font-semibold">로컬 개발 환경에 env 가져오기</h2>
+        </div>
+        <p class="text-gray-300 mb-3">터미널에서 각 프로젝트 루트에서 실행:</p>
+
+        <div class="bg-gray-950 rounded p-4 mb-3 relative group">
+          <code class="text-green-400 text-sm"
+            >cd F:\master_polarad<br />vercel env pull .env.local</code
+          >
+          <button
+            class="copy-btn absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-xs px-3 py-1 rounded opacity-0 group-hover:opacity-100 transition"
+            onclick="
+              copyText('cd F:\\master_polarad && vercel env pull .env.local')
+            "
+          >
+            복사
+          </button>
+        </div>
+
+        <div class="bg-gray-950 rounded p-4 mb-3 relative group">
+          <code class="text-green-400 text-sm"
+            >cd F:\polasales\website<br />vercel env pull .env.local</code
+          >
+          <button
+            class="copy-btn absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-xs px-3 py-1 rounded opacity-0 group-hover:opacity-100 transition"
+            onclick="
+              copyText(
+                'cd F:\\polasales\\website && vercel env pull .env.local',
+              )
+            "
+          >
+            복사
+          </button>
+        </div>
+
+        <p class="text-gray-400 text-sm mt-2">
+          * <code>.env.local</code>에 <code>UPSTASH_REDIS_REST_URL</code>과
+          <code>UPSTASH_REDIS_REST_TOKEN</code>이 추가되어야 함
+        </p>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="bg-gray-800 rounded-lg p-6 mb-4">
+        <div class="flex items-center gap-3 mb-4">
+          <span
+            id="check-5"
+            class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold cursor-pointer"
+            onclick="toggleStep(5)"
+            >5</span
+          >
+          <h2 class="text-xl font-semibold">연결 테스트</h2>
+        </div>
+        <p class="text-gray-300 mb-3">
+          클로드에게 알려주면 테스트 실행 후 배포합니다.
+        </p>
+        <div class="bg-gray-950 rounded p-4 relative group">
+          <code class="text-green-400 text-sm"
+            ># 테스트 명령 (클로드가 실행)<br />node -e "const
+            {Redis}=require('@upstash/redis'); const r=new
+            Redis({url:process.env.UPSTASH_REDIS_REST_URL,token:process.env.UPSTASH_REDIS_REST_TOKEN});
+            r.set('test','ok').then(()=>r.get('test')).then(v=>console.log('Redis
+            OK:',v)).catch(e=>console.error(e))"</code
+          >
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-6 mt-8">
+        <h3 class="text-lg font-semibold mb-3">요약</h3>
+        <table class="w-full text-sm">
+          <tr class="border-b border-gray-700">
+            <td class="py-2 text-gray-400">서비스</td>
+            <td class="py-2">Upstash Redis (Vercel Marketplace)</td>
+          </tr>
+          <tr class="border-b border-gray-700">
+            <td class="py-2 text-gray-400">리전</td>
+            <td class="py-2">ap-northeast-1 (도쿄 / 한국 최근접)</td>
+          </tr>
+          <tr class="border-b border-gray-700">
+            <td class="py-2 text-gray-400">무료 한도</td>
+            <td class="py-2">10,000 commands/일, 256MB</td>
+          </tr>
+          <tr class="border-b border-gray-700">
+            <td class="py-2 text-gray-400">용도</td>
+            <td class="py-2">OTP 저장 + 로그인 레이트리밋</td>
+          </tr>
+          <tr class="border-b border-gray-700">
+            <td class="py-2 text-gray-400">환경변수</td>
+            <td class="py-2">
+              <code>UPSTASH_REDIS_REST_URL</code> +
+              <code>UPSTASH_REDIS_REST_TOKEN</code>
+            </td>
+          </tr>
+          <tr>
+            <td class="py-2 text-gray-400">연결 프로젝트</td>
+            <td class="py-2">master-polarad-co-kr + polarad</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      function toggleStep(n) {
+        const el = document.getElementById("check-" + n);
+        const prog = document.getElementById("prog-" + n);
+        if (el.classList.contains("step-done")) {
+          el.classList.remove("step-done");
+          el.textContent = n;
+          prog.classList.remove("bg-green-500");
+          prog.classList.add("bg-gray-700");
+        } else {
+          el.classList.add("step-done");
+          el.textContent = "\u2713";
+          prog.classList.remove("bg-gray-700");
+          prog.classList.add("bg-green-500");
+        }
+      }
+      function copyText(text) {
+        navigator.clipboard.writeText(text);
+      }
+    </script>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { sendLMS } from "@/lib/ncp-sens";
-import { isBlacklisted } from "@/lib/blacklist";
+import { addToBlacklist, isBlacklisted } from "@/lib/blacklist";
 import { d1Run, newId, nowIso } from "@/lib/d1-client";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -97,27 +97,6 @@ async function sendTelegramBlacklist(name: string, phone: string) {
   }
 }
 
-async function sendTelegramSpam(keyword: string, name: string, phone: string) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_LEAD_CHAT_ID) return;
-  try {
-    const msg = `⚠️ [webhook/meta-lead] 진행불가업종 접수 (보류)\n${keyword} ${name} ${phone}`;
-    await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: TELEGRAM_LEAD_CHAT_ID,
-          text: msg,
-          disable_web_page_preview: true,
-        }),
-      },
-    );
-  } catch (e) {
-    console.error("텔레그램 스팸알림 실패:", e);
-  }
-}
-
 async function sendTelegramError(error: string, ip: string) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_LEAD_CHAT_ID) return;
   try {
@@ -203,27 +182,66 @@ export async function POST(request: NextRequest) {
     console.log(`[webhook] Meta 리드 접수: ${name} | ${cleanPhone}`);
 
     // ── 블랙리스트 체크 ──
-    const isBlocked = await isBlacklisted(cleanPhone);
+    let isBlocked = await isBlacklisted(cleanPhone);
     if (isBlocked) {
       console.log(`[webhook] 블랙리스트 차단: ${name} ${cleanPhone}`);
     }
 
-    // ── 스팸 키워드 판별 ──
-    const SPAM_KEYWORDS = ["보험", "렌트카", "렌트", "분양", "아파트분양"];
+    // ── 자동 블랙리스트 키워드 (동종업계 영업 자동 차단) ──
+    // 상위 키워드(대부/렌트/리스/분양 등)가 하위(대부업/렌트카/장기리스/아파트분양)를
+    // includes로 모두 흡수하므로 키워드는 최소한으로 유지
+    const AUTO_BLACKLIST_KEYWORDS = [
+      // 대출/대부
+      "대출",
+      "대부",
+      "사채",
+      "카드론",
+      // 금융
+      "금융",
+      "캐피탈",
+      "채권추심",
+      // 보험
+      "보험",
+      // 렌트/리스 (단독 "리스"는 "리스타트/릴리스/팰리스트" 등 오탐 위험으로 합성어만)
+      "렌트",
+      "렌터카",
+      "렌탈",
+      "자동차리스",
+      "차량리스",
+      "장기리스",
+      "신차리스",
+      "장비리스",
+      // 분양/부동산
+      "분양",
+      "지식산업센터",
+      "부동산",
+    ];
     const allText = [name, company, industry, adName].join(" ");
-    const isSpamInquiry = SPAM_KEYWORDS.some((kw) => allText.includes(kw));
-    const matchedKeyword = SPAM_KEYWORDS.find((kw) => allText.includes(kw));
+    const matchedAutoBlacklist = AUTO_BLACKLIST_KEYWORDS.find((kw) =>
+      allText.includes(kw),
+    );
 
-    if (isSpamInquiry) {
+    if (!isBlocked && matchedAutoBlacklist) {
+      const result = await addToBlacklist({
+        phone: cleanPhone,
+        name,
+        reason: `자동 블랙리스트 (${matchedAutoBlacklist})`,
+        source: "Meta",
+      });
       console.log(
-        `[webhook] 스팸 업종 감지: ${matchedKeyword} | ${name} ${cleanPhone}`,
+        `[webhook] 자동 블랙리스트 등록: ${matchedAutoBlacklist} | ${cleanPhone} | ${result.ok ? "성공" : result.error}`,
       );
+      isBlocked = true;
     }
 
     // 1. D1 meta_lead 저장
     const id = newId();
-    const initialStatus = isBlocked || isSpamInquiry ? "Hold" : "Todo";
-    const initialMemo = isBlocked ? "[블랙리스트]" : "";
+    const initialStatus = isBlocked ? "Hold" : "Todo";
+    const initialMemo = isBlocked
+      ? matchedAutoBlacklist
+        ? `[블랙리스트] 자동 (${matchedAutoBlacklist})`
+        : "[블랙리스트]"
+      : "";
 
     try {
       await d1Run(
@@ -255,9 +273,6 @@ export async function POST(request: NextRequest) {
     if (isBlocked) {
       console.log(`[webhook] SMS 스킵 (블랙리스트): ${cleanPhone}`);
       smsResult = { success: false, error: "블랙리스트 스킵" };
-    } else if (isSpamInquiry) {
-      console.log(`[webhook] SMS 스킵 (스팸 업종): ${matchedKeyword}`);
-      smsResult = { success: false, error: "스팸업종 스킵" };
     } else {
       smsResult = await sendLMS(cleanPhone, SMS_MESSAGE);
       console.log(
@@ -274,11 +289,9 @@ export async function POST(request: NextRequest) {
         [
           isBlocked
             ? "블랙리스트"
-            : isSpamInquiry
-              ? "스팸스킵"
-              : smsResult.success
-                ? "발송완료"
-                : "발송실패",
+            : smsResult.success
+              ? "발송완료"
+              : "발송실패",
           smsResult.error || "",
           nowIso(),
           nowIso(),
@@ -292,8 +305,6 @@ export async function POST(request: NextRequest) {
     // 4. 텔레그램 알림
     if (isBlocked) {
       await sendTelegramBlacklist(name || "-", cleanPhone);
-    } else if (isSpamInquiry) {
-      await sendTelegramSpam(matchedKeyword || "", name || "-", cleanPhone);
     } else {
       await sendTelegram(
         name || "-",

@@ -4,7 +4,17 @@
  */
 
 import nodemailer from "nodemailer";
+import { createHmac } from "crypto";
 import { escapeHtml } from "@/lib/html-escape";
+
+function signEmailTracking(id: string, type: string): string {
+  const secret = process.env.EMAIL_TRACKING_SECRET;
+  if (!secret) return "";
+  return createHmac("sha256", secret)
+    .update(`${id}:${type}`)
+    .digest("hex")
+    .slice(0, 16);
+}
 
 function getTransporter() {
   return nodemailer.createTransport({
@@ -192,7 +202,9 @@ export async function sendBrandReportEmail(params: {
   const senderEmail = process.env.SMTP_USER || "mkt@polarad.co.kr";
   const senderName = process.env.SMTP_FROM_NAME || "폴라애드";
   const subject = `[폴라애드] ${businessName} 브랜드 온라인 검색 평가 리포트`;
-  const trackingPixel = `<img src="${masterUrl}/api/email-tracking/${reportId}?t=report" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
+  const trackingSig = signEmailTracking(reportId, "report");
+  const trackingQs = trackingSig ? `?t=report&s=${trackingSig}` : `?t=report`;
+  const trackingPixel = `<img src="${masterUrl}/api/email-tracking/${reportId}${trackingQs}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
   const html = buildHtmlEmail({
     businessName,
     overallScore,

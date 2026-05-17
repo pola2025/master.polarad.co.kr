@@ -46,6 +46,21 @@ export interface SendSMSResult {
   error?: string;
 }
 
+export function getSensStatus() {
+  return {
+    ready: Boolean(
+      NCP_SERVICE_ID && NCP_ACCESS_KEY && NCP_SECRET_KEY && NCP_SENDER_PHONE,
+    ),
+    senderConfigured: Boolean(NCP_SENDER_PHONE),
+  };
+}
+
+interface NcpSensResponse {
+  requestId?: string;
+  error?: unknown;
+  statusName?: unknown;
+}
+
 export async function sendLMS(
   to: string,
   content: string,
@@ -97,7 +112,7 @@ export async function sendLMS(
       body: JSON.stringify(body),
     });
 
-    let data: any = {};
+    let data: NcpSensResponse = {};
     try {
       data = await res.json();
     } catch {
@@ -136,8 +151,9 @@ export async function sendLMS(
 
     console.log("SMS 발송 성공:", cleanPhone, "| HTTP:", res.status);
     return { success: true, requestId: data.requestId };
-  } catch (error: any) {
-    console.error("SMS 발송 에러:", error?.message || error);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("SMS 발송 에러:", message);
+    return { success: false, error: message };
   }
 }

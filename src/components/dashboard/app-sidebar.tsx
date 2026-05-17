@@ -10,6 +10,7 @@ import {
   Megaphone,
   FileText,
   MessageSquare,
+  MessagesSquare,
   Settings,
   ChevronUp,
   User2,
@@ -19,6 +20,8 @@ import {
   Building2,
   Presentation,
   Banknote,
+  Mail,
+  CalendarClock,
 } from "lucide-react";
 
 import {
@@ -82,6 +85,11 @@ const menuItems = [
     icon: MessageSquare,
   },
   {
+    title: "폴라애드 고객채팅",
+    url: "/chats",
+    icon: MessagesSquare,
+  },
+  {
     title: "제안 관리",
     url: "/proposals",
     icon: Presentation,
@@ -92,6 +100,11 @@ const menuItems = [
     icon: Building2,
   },
   {
+    title: "일정관리",
+    url: "/schedules",
+    icon: CalendarClock,
+  },
+  {
     title: "매출 관리",
     url: "/revenue",
     icon: Banknote,
@@ -100,6 +113,11 @@ const menuItems = [
     title: "브랜드 분석",
     url: "/brand-reports",
     icon: SearchCheck,
+  },
+  {
+    title: "메일함",
+    url: "/mail",
+    icon: Mail,
   },
   {
     title: "설정",

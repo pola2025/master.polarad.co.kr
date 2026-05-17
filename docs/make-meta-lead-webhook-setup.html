@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Make - Meta Lead Webhook 설정 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .copy-btn {
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background-color: #dbeafe;
+      }
+      .copied {
+        background-color: #dcfce7 !important;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 p-8 max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold mb-2">Make - Meta Lead Webhook 설정</h1>
+    <p class="text-gray-600 mb-6">
+      Meta 신규리드 접수 > HTTP Request 모듈 설정값
+    </p>
+
+    <div class="bg-white rounded-lg shadow p-6 space-y-5">
+      <!-- URL -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >URL *</label
+        >
+        <div class="flex gap-2">
+          <input
+            id="url"
+            type="text"
+            readonly
+            value="https://master.polarad.co.kr/api/webhook/meta-lead"
+            class="flex-1 border rounded px-3 py-2 text-sm bg-gray-50 font-mono"
+          />
+          <button
+            class="copy-btn px-3 py-2 border rounded text-sm"
+            onclick="copyField('url', this)"
+          >
+            복사
+          </button>
+        </div>
+      </div>
+
+      <!-- Method -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >Method *</label
+        >
+        <div class="flex gap-2">
+          <input
+            id="method"
+            type="text"
+            readonly
+            value="POST"
+            class="w-32 border rounded px-3 py-2 text-sm bg-gray-50 font-mono"
+          />
+          <button
+            class="copy-btn px-3 py-2 border rounded text-sm"
+            onclick="copyField('method', this)"
+          >
+            복사
+          </button>
+        </div>
+      </div>
+
+      <!-- Headers -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >Headers</label
+        >
+        <table class="w-full text-sm border">
+          <tr class="bg-gray-100">
+            <th class="px-3 py-1.5 text-left border-r">Name</th>
+            <th class="px-3 py-1.5 text-left">Value</th>
+            <th class="w-16"></th>
+          </tr>
+          <tr>
+            <td class="px-3 py-1.5 border-r font-mono">Content-Type</td>
+            <td class="px-3 py-1.5 font-mono" id="header-ct">
+              application/json
+            </td>
+            <td class="px-1">
+              <button
+                class="copy-btn px-2 py-1 border rounded text-xs"
+                onclick="copyText('application/json', this)"
+              >
+                복사
+              </button>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Query Parameters -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >Query Parameters</label
+        >
+        <p class="text-xs text-gray-500 mb-2">없음 (사용 안 함)</p>
+      </div>
+
+      <!-- Body content type -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >Body content type *</label
+        >
+        <div class="flex gap-2">
+          <input
+            type="text"
+            readonly
+            value="application/json"
+            class="w-48 border rounded px-3 py-2 text-sm bg-gray-50 font-mono"
+          />
+        </div>
+      </div>
+
+      <!-- Body input method -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >Body input method *</label
+        >
+        <div class="flex gap-2">
+          <input
+            type="text"
+            readonly
+            value="JSON string"
+            class="w-48 border rounded px-3 py-2 text-sm bg-gray-50 font-mono"
+          />
+        </div>
+      </div>
+
+      <!-- Body content -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >Body content * (JSON)</label
+        >
+        <p class="text-xs text-gray-500 mb-2">
+          Meta 리드 필드를 아래 JSON의 각 값에 매핑하세요.
+          <code class="bg-gray-100 px-1 rounded">{{1.xxx}}</code> 형식으로 Meta
+          모듈의 필드를 연결합니다.
+        </p>
+        <div class="relative">
+          <pre
+            id="body-json"
+            class="bg-gray-900 text-green-400 p-4 rounded text-sm font-mono overflow-x-auto whitespace-pre"
+          >
+{
+  "name": "{{1.full_name}}",
+  "phone": "{{1.phone_number}}",
+  "company": "{{1.company_name}}",
+  "industry": "{{1.industry}}",
+  "adName": "{{1.ad_name}}",
+  "secret": "9a413058bd25f57111d00f26e0fe7a72"
+}</pre
+          >
+          <button
+            class="copy-btn absolute top-2 right-2 px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
+            onclick="copyElement('body-json', this)"
+          >
+            복사
+          </button>
+        </div>
+      </div>
+
+      <!-- Parse response -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1"
+          >Parse response</label
+        >
+        <div class="flex gap-2">
+          <input
+            type="text"
+            readonly
+            value="Yes"
+            class="w-24 border rounded px-3 py-2 text-sm bg-gray-50"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- 필드 매핑 안내 -->
+    <div class="bg-blue-50 rounded-lg p-5 mt-6">
+      <h3 class="font-semibold text-blue-800 mb-2">Meta Lead 필드 매핑 안내</h3>
+      <table class="w-full text-sm">
+        <tr class="border-b">
+          <th class="text-left py-1.5 pr-4 text-blue-700">JSON 키</th>
+          <th class="text-left py-1.5 text-blue-700">설명</th>
+          <th class="text-left py-1.5 text-blue-700">필수</th>
+        </tr>
+        <tr class="border-b">
+          <td class="py-1.5 pr-4 font-mono">name</td>
+          <td>리드 이름 (full_name)</td>
+          <td>권장</td>
+        </tr>
+        <tr class="border-b">
+          <td class="py-1.5 pr-4 font-mono">phone</td>
+          <td>전화번호 (+82 형식 OK)</td>
+          <td class="text-red-600 font-semibold">필수</td>
+        </tr>
+        <tr class="border-b">
+          <td class="py-1.5 pr-4 font-mono">company</td>
+          <td>회사명</td>
+          <td>선택</td>
+        </tr>
+        <tr class="border-b">
+          <td class="py-1.5 pr-4 font-mono">industry</td>
+          <td>업종</td>
+          <td>선택</td>
+        </tr>
+        <tr class="border-b">
+          <td class="py-1.5 pr-4 font-mono">adName</td>
+          <td>광고 이름</td>
+          <td>선택</td>
+        </tr>
+        <tr>
+          <td class="py-1.5 pr-4 font-mono">secret</td>
+          <td>인증 키 (변경 금지)</td>
+          <td class="text-red-600 font-semibold">필수</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- 동작 흐름 -->
+    <div class="bg-green-50 rounded-lg p-5 mt-4">
+      <h3 class="font-semibold text-green-800 mb-2">동작 흐름</h3>
+      <ol class="text-sm text-green-900 space-y-1 list-decimal list-inside">
+        <li>Meta Lead Ad 접수</li>
+        <li>Make가 HTTP Request로 webhook 호출</li>
+        <li>Airtable에 리드 저장</li>
+        <li>SMS 즉시 발송</li>
+        <li>텔레그램 알림 즉시 발송</li>
+      </ol>
+      <p class="text-xs text-green-700 mt-2">
+        * 기존 5분 cron은 백업으로 유지 (webhook 누락 시 보완)
+      </p>
+    </div>
+
+    <script>
+      function copyField(id, btn) {
+        navigator.clipboard.writeText(document.getElementById(id).value);
+        btn.textContent = "완료";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = "복사";
+          btn.classList.remove("copied");
+        }, 1500);
+      }
+      function copyText(text, btn) {
+        navigator.clipboard.writeText(text);
+        btn.textContent = "완료";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = "복사";
+          btn.classList.remove("copied");
+        }, 1500);
+      }
+      function copyElement(id, btn) {
+        navigator.clipboard.writeText(document.getElementById(id).textContent);
+        btn.textContent = "완료!";
+        setTimeout(() => {
+          btn.textContent = "복사";
+        }, 1500);
+      }
+    </script>
+  </body>
+</html>

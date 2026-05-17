@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { d1First, d1Run, nowIso } from "@/lib/d1-client";
+
+function isValidTrackingSig(id: string, type: string, sig: string): boolean {
+  const secret = process.env.EMAIL_TRACKING_SECRET;
+  if (!secret) return true;
+  if (!sig) return false;
+  const expected = createHmac("sha256", secret)
+    .update(`${id}:${type}`)
+    .digest("hex")
+    .slice(0, 16);
+  if (sig.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+}
 
 /**
  * 이메일 수신확인 트래킹 픽셀
@@ -34,11 +47,16 @@ export async function GET(
   }
 
   const type = req.nextUrl.searchParams.get("t") || "report";
+  const sig = req.nextUrl.searchParams.get("s") || "";
 
-  // 비동기로 열람 기록 (응답 지연 없음)
-  recordOpen(id, type).catch((err) =>
-    console.error("[email-tracking] record error:", err),
-  );
+  // 비동기로 열람 기록 (응답 지연 없음). 서명 불일치 시 픽셀만 응답하고 기록 스킵
+  if (isValidTrackingSig(id, type, sig)) {
+    recordOpen(id, type).catch((err) =>
+      console.error("[email-tracking] record error:", err),
+    );
+  } else {
+    console.warn(`[email-tracking] invalid sig for ${id} (t=${type})`);
+  }
 
   return new NextResponse(TRANSPARENT_PIXEL, {
     status: 200,

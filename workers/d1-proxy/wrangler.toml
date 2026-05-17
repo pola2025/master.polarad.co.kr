@@ -12,6 +12,10 @@ database_name = "polarad-main"
 database_id = "34c3517e-d564-486d-95a4-c2e04f183388"
 migrations_dir = "migrations"
 
+[[r2_buckets]]
+binding = "CHAT_FILES"
+bucket_name = "polarad-chat-files"
+
 # 시크릿 (wrangler secret put 으로 주입)
 # - INTERNAL_TOKEN  : Next.js ↔ Worker 인증 토큰 (timing-safe 비교)
 # - TELEGRAM_BOT_TOKEN : 보안 알림용 (선택)

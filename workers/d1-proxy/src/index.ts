@@ -6,6 +6,9 @@
  * 엔드포인트:
  *   POST /query  — 단일 SQL 실행 ({sql, params, mode})
  *   POST /batch  — 트랜잭셔널 batch ({queries: [{sql, params}]})
+ *   POST /r2/put — R2 객체 저장 ({key, contentType, base64})
+ *   POST /r2/get — R2 객체 조회 ({key})
+ *   POST /r2/delete — R2 객체 삭제 ({key})
  *   GET  /health — 헬스체크
  *
  * 보안:
@@ -19,6 +22,7 @@
 
 export interface Env {
   DB: D1Database;
+  CHAT_FILES: R2Bucket;
   INTERNAL_TOKEN: string;
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;
@@ -34,6 +38,17 @@ interface QueryBody {
 
 interface BatchBody {
   queries: { sql: string; params?: unknown[] }[];
+}
+
+interface R2PutBody {
+  key: string;
+  contentType?: string;
+  base64: string;
+  metadata?: Record<string, string>;
+}
+
+interface R2KeyBody {
+  key: string;
 }
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
@@ -206,7 +221,115 @@ async function handleBatch(
   }
 }
 
-export default {
+function validateR2Key(key: unknown): string | null {
+  if (typeof key !== "string") return null;
+  const trimmed = key.trim();
+  if (!trimmed.startsWith("chat/")) return null;
+  if (trimmed.includes("..") || trimmed.includes("\\")) return null;
+  if (trimmed.length < 8 || trimmed.length > 512) return null;
+  return trimmed;
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function handleR2Put(request: Request, env: Env): Promise<Response> {
+  let body: R2PutBody;
+  try {
+    body = (await request.json()) as R2PutBody;
+  } catch {
+    return json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const key = validateR2Key(body.key);
+  if (!key) {
+    return json({ ok: false, error: "Invalid R2 key" }, { status: 400 });
+  }
+  if (typeof body.base64 !== "string" || !body.base64) {
+    return json({ ok: false, error: "base64 required" }, { status: 400 });
+  }
+
+  try {
+    const bytes = base64ToBytes(body.base64);
+    await env.CHAT_FILES.put(key, bytes, {
+      httpMetadata: {
+        contentType: body.contentType || "application/octet-stream",
+      },
+      customMetadata: body.metadata,
+    });
+    return json({ ok: true, result: { key, size: bytes.byteLength } });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown R2 error";
+    return json(
+      { ok: false, error: errorMessage.slice(0, 300) },
+      { status: 500 },
+    );
+  }
+}
+
+async function parseR2KeyRequest(request: Request): Promise<string | Response> {
+  let body: R2KeyBody;
+  try {
+    body = (await request.json()) as R2KeyBody;
+  } catch {
+    return json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const key = validateR2Key(body.key);
+  if (!key) {
+    return json({ ok: false, error: "Invalid R2 key" }, { status: 400 });
+  }
+  return key;
+}
+
+async function handleR2Get(request: Request, env: Env): Promise<Response> {
+  const parsed = await parseR2KeyRequest(request);
+  if (parsed instanceof Response) return parsed;
+
+  try {
+    const object = await env.CHAT_FILES.get(parsed);
+    if (!object) {
+      return json({ ok: false, error: "Object not found" }, { status: 404 });
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("etag", object.httpEtag);
+    headers.set("content-length", String(object.size));
+    headers.set("cache-control", "no-store");
+    return new Response(object.body, { headers });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown R2 error";
+    return json(
+      { ok: false, error: errorMessage.slice(0, 300) },
+      { status: 500 },
+    );
+  }
+}
+
+async function handleR2Delete(request: Request, env: Env): Promise<Response> {
+  const parsed = await parseR2KeyRequest(request);
+  if (parsed instanceof Response) return parsed;
+
+  try {
+    await env.CHAT_FILES.delete(parsed);
+    return json({ ok: true, result: { key: parsed } });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown R2 error";
+    return json(
+      { ok: false, error: errorMessage.slice(0, 300) },
+      { status: 500 },
+    );
+  }
+}
+
+const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const ip = getClientIp(request);
@@ -237,7 +360,12 @@ export default {
 
     if (url.pathname === "/query") return handleQuery(request, env, ip);
     if (url.pathname === "/batch") return handleBatch(request, env, ip);
+    if (url.pathname === "/r2/put") return handleR2Put(request, env);
+    if (url.pathname === "/r2/get") return handleR2Get(request, env);
+    if (url.pathname === "/r2/delete") return handleR2Delete(request, env);
 
     return json({ ok: false, error: "Not found" }, { status: 404 });
   },
 };
+
+export default worker;

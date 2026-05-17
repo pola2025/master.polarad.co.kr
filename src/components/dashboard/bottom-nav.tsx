@@ -6,7 +6,8 @@ import {
   LayoutDashboard,
   BarChart3,
   MessageSquare,
-  Building2,
+  MessagesSquare,
+  CalendarClock,
   Menu,
 } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -15,7 +16,8 @@ const navItems = [
   { label: "홈", href: "/", icon: LayoutDashboard },
   { label: "통계", href: "/analytics", icon: BarChart3 },
   { label: "리드", href: "/inquiries", icon: MessageSquare },
-  { label: "거래처", href: "/clients", icon: Building2 },
+  { label: "고객채팅", href: "/chats", icon: MessagesSquare },
+  { label: "일정", href: "/schedules", icon: CalendarClock },
 ];
 
 export function BottomNav() {

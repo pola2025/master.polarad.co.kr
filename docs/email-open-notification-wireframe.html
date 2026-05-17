@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>수신확인 알림 시스템 - 와이어프레임</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family:
+          "Pretendard",
+          -apple-system,
+          sans-serif;
+      }
+      .wireframe-box {
+        border: 1px dashed #475569;
+      }
+      .flow-arrow {
+        color: #3b82f6;
+      }
+      .section-title {
+        border-left: 3px solid #3b82f6;
+        padding-left: 12px;
+      }
+    </style>
+  </head>
+  <body class="p-6 max-w-5xl mx-auto">
+    <!-- 헤더 -->
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-white mb-2">수신확인 알림 시스템</h1>
+      <p class="text-slate-400 text-sm">
+        이메일 열람 시 관리자에게 실시간 알림 + 대시보드 표시
+      </p>
+    </div>
+
+    <!-- 플로우 다이어그램 -->
+    <div class="mb-10 p-6 rounded-xl bg-slate-800/50 wireframe-box">
+      <h2 class="section-title text-lg font-semibold mb-6">알림 흐름</h2>
+      <div class="flex items-center gap-3 flex-wrap justify-center text-sm">
+        <div
+          class="px-4 py-3 rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 text-center"
+        >
+          <div class="font-semibold">고객</div>
+          <div class="text-xs mt-1">이메일 열람</div>
+        </div>
+        <div class="flow-arrow text-xl">&#8594;</div>
+        <div
+          class="px-4 py-3 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 text-center"
+        >
+          <div class="font-semibold">트래킹 픽셀</div>
+          <div class="text-xs mt-1">/api/email-tracking/[id]</div>
+        </div>
+        <div class="flow-arrow text-xl">&#8594;</div>
+        <div
+          class="px-4 py-3 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30 text-center"
+        >
+          <div class="font-semibold">Airtable 기록</div>
+          <div class="text-xs mt-1">emailOpenedAt 저장</div>
+        </div>
+        <div class="flow-arrow text-xl">&#8594;</div>
+        <div class="flex flex-col gap-2">
+          <div
+            class="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 border border-green-500/30 text-center"
+          >
+            <div class="font-semibold">텔레그램 알림</div>
+            <div class="text-xs">즉시 (NEW)</div>
+          </div>
+          <div
+            class="px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-center"
+          >
+            <div class="font-semibold">대시보드 표시</div>
+            <div class="text-xs">배지 (NEW)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 방안 1: 텔레그램 알림 -->
+    <div class="mb-8 p-6 rounded-xl bg-slate-800/50 wireframe-box">
+      <h2 class="section-title text-lg font-semibold mb-4">
+        방안 1. 텔레그램 즉시 알림
+      </h2>
+      <p class="text-slate-400 text-sm mb-4">
+        트래킹 픽셀 hit 시 텔레그램으로 바로 알림
+      </p>
+
+      <!-- 텔레그램 메시지 목업 -->
+      <div class="max-w-sm mx-auto">
+        <div class="bg-slate-700 rounded-xl p-4 space-y-3">
+          <!-- 메시지 1 -->
+          <div class="bg-slate-600 rounded-lg p-3">
+            <div class="text-xs text-slate-400 mb-1">POLA 리드 알림</div>
+            <div class="text-sm">
+              <span class="text-green-400 font-semibold"
+                >&#x2709;&#xFE0F; 수신확인</span
+              ><br />
+              <span class="text-white font-medium">바른자금파트너스</span>
+              (박재석)<br />
+              <span class="text-slate-300">경영컨설팅 | 브랜드 분석 리포트</span
+              ><br />
+              <span class="text-slate-400 text-xs">열람: 2026.03.25 14:32</span
+              ><br />
+              <span class="text-slate-400 text-xs"
+                >발송: 2026.03.25 10:00 (4시간 32분 후 열람)</span
+              >
+            </div>
+          </div>
+          <!-- 메시지 2 -->
+          <div class="bg-slate-600 rounded-lg p-3">
+            <div class="text-xs text-slate-400 mb-1">POLA 리드 알림</div>
+            <div class="text-sm">
+              <span class="text-green-400 font-semibold"
+                >&#x2709;&#xFE0F; 수신확인</span
+              ><br />
+              <span class="text-white font-medium">토모축구클럽</span>
+              (김철수)<br />
+              <span class="text-slate-300">학원/교육 | 브랜드 분석 리포트</span
+              ><br />
+              <span class="text-slate-400 text-xs">열람: 2026.03.25 09:15</span
+              ><br />
+              <span class="text-slate-400 text-xs"
+                >발송: 2026.03.24 18:00 (15시간 15분 후 열람)</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 방안 2: 대시보드 표시 -->
+    <div class="mb-8 p-6 rounded-xl bg-slate-800/50 wireframe-box">
+      <h2 class="section-title text-lg font-semibold mb-4">
+        방안 2. 대시보드 수신확인 배지
+      </h2>
+      <p class="text-slate-400 text-sm mb-4">
+        브랜드분석 목록 + 리드관리 카드에 수신확인 표시
+      </p>
+
+      <!-- 브랜드분석 목록 목업 -->
+      <div class="mb-6">
+        <h3 class="text-sm font-semibold text-slate-400 mb-3">
+          브랜드분석 목록 (/brand-reports)
+        </h3>
+        <div class="bg-slate-900 rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-700">
+                <th class="text-left p-3">업체명</th>
+                <th class="text-left p-3">업종</th>
+                <th class="text-left p-3">점수</th>
+                <th class="text-left p-3">상태</th>
+                <th class="text-left p-3">수신확인</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-slate-800">
+                <td class="p-3 font-medium text-white">바른자금파트너스</td>
+                <td class="p-3 text-slate-300">경영컨설팅</td>
+                <td class="p-3"><span class="text-yellow-400">-</span></td>
+                <td class="p-3">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-400"
+                    >대기</span
+                  >
+                </td>
+                <td class="p-3"><span class="text-slate-500">-</span></td>
+              </tr>
+              <tr class="border-b border-slate-800 bg-green-500/5">
+                <td class="p-3 font-medium text-white">토모축구클럽</td>
+                <td class="p-3 text-slate-300">학원/교육</td>
+                <td class="p-3"><span class="text-orange-400">46점 D</span></td>
+                <td class="p-3">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400"
+                    >발송완료</span
+                  >
+                </td>
+                <td class="p-3">
+                  <div class="flex items-center gap-1.5">
+                    <span
+                      class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"
+                    ></span>
+                    <span class="text-green-400 text-xs font-medium">열람</span>
+                    <span class="text-slate-500 text-xs">3/25 09:15</span>
+                  </div>
+                </td>
+              </tr>
+              <tr class="border-b border-slate-800">
+                <td class="p-3 font-medium text-white">비비에스</td>
+                <td class="p-3 text-slate-300">경영컨설팅</td>
+                <td class="p-3">
+                  <span class="text-slate-400">유사상호</span>
+                </td>
+                <td class="p-3">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400"
+                    >발송완료</span
+                  >
+                </td>
+                <td class="p-3">
+                  <span class="text-slate-500 text-xs">미열람</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 리드관리 카드 목업 -->
+      <div>
+        <h3 class="text-sm font-semibold text-slate-400 mb-3">
+          리드관리 카드 (/inquiries)
+        </h3>
+        <div class="grid grid-cols-2 gap-4 max-w-2xl">
+          <!-- 수신확인 된 카드 -->
+          <div
+            class="rounded-xl border border-orange-500/40 bg-orange-500/5 overflow-hidden"
+          >
+            <div class="h-[3px] bg-transparent"></div>
+            <div class="p-4">
+              <div class="flex items-start gap-3 mb-2">
+                <div
+                  class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm font-semibold shrink-0"
+                >
+                  박
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-sm text-white">박재석</span>
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500 text-white"
+                      >홈페이지</span
+                    >
+                  </div>
+                  <p class="text-xs text-slate-400">바른자금파트너스</p>
+                </div>
+                <span
+                  class="px-2 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-400"
+                  >신규</span
+                >
+              </div>
+              <p class="text-sm text-slate-400 mb-2 line-clamp-2">
+                경영컨설팅 / 프리미엄 추천
+              </p>
+              <!-- 수신확인 배지 (NEW) -->
+              <div
+                class="mb-2 flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-green-500/10 border border-green-500/20"
+              >
+                <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                <span class="text-green-400 text-xs font-medium"
+                  >리포트 열람</span
+                >
+                <span class="text-slate-500 text-xs ml-auto">3/25 14:32</span>
+              </div>
+              <div
+                class="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-700"
+              >
+                <span>3시간 전</span>
+                <span class="text-slate-600">상세</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 미열람 카드 -->
+          <div
+            class="rounded-xl border border-orange-500/40 bg-orange-500/5 overflow-hidden"
+          >
+            <div class="h-[3px] bg-red-500"></div>
+            <div class="p-4">
+              <div class="flex items-start gap-3 mb-2">
+                <div
+                  class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-semibold shrink-0"
+                >
+                  김
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-sm text-white">김철수</span>
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500 text-white"
+                      >홈페이지</span
+                    >
+                  </div>
+                  <p class="text-xs text-slate-400">비비에스</p>
+                </div>
+                <span
+                  class="px-2 py-0.5 rounded text-xs bg-slate-600 text-slate-300"
+                  >미분류</span
+                >
+              </div>
+              <p class="text-sm text-slate-400 mb-2 line-clamp-2">
+                경영컨설팅 / 유사상호
+              </p>
+              <div
+                class="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-700"
+              >
+                <span>5일 전</span>
+                <span class="text-slate-600">상세</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 구현 스코프 -->
+    <div class="p-6 rounded-xl bg-slate-800/50 wireframe-box">
+      <h2 class="section-title text-lg font-semibold mb-4">구현 범위</h2>
+      <div class="grid md:grid-cols-2 gap-6 text-sm">
+        <div>
+          <h3 class="font-semibold text-green-400 mb-2">
+            1. 텔레그램 즉시 알림
+          </h3>
+          <ul class="space-y-1.5 text-slate-300">
+            <li class="flex items-start gap-2">
+              <span class="text-green-400 mt-0.5">&#9632;</span>
+              <span
+                ><code class="text-xs bg-slate-700 px-1 rounded"
+                  >/api/email-tracking/[id]</code
+                >
+                에서 Airtable 기록 후 텔레그램 발송</span
+              >
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-400 mt-0.5">&#9632;</span>
+              <span
+                >업체명, 담당자, 업종, 열람시각, 발송~열람 소요시간 표시</span
+              >
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-400 mt-0.5">&#9632;</span>
+              <span>중복 알림 방지 (이미 emailOpenedAt이 있으면 스킵)</span>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-semibold text-blue-400 mb-2">2. 대시보드 표시</h3>
+          <ul class="space-y-1.5 text-slate-300">
+            <li class="flex items-start gap-2">
+              <span class="text-blue-400 mt-0.5">&#9632;</span>
+              <span
+                >브랜드분석 목록에 수신확인 컬럼 추가 (열람/미열람 + 시각)</span
+              >
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-blue-400 mt-0.5">&#9632;</span>
+              <span>리드관리 카드에 "리포트 열람" 배지 (초록색)</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-blue-400 mt-0.5">&#9632;</span>
+              <span>inquiries API에서 brandReport 매칭 데이터 조인 필요</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
