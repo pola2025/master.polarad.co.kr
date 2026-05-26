@@ -13,16 +13,49 @@ function safeCompare(a: string, b: string): boolean {
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
+const ALLOWED_ORIGINS: Array<string | RegExp> = [
+  "https://polarad.co.kr",
+  "https://www.polarad.co.kr",
+  /^https:\/\/polarad(-[a-z0-9-]+)?-mkt9834-4301s-projects\.vercel\.app$/,
+];
+
+function getAllowedOrigin(request: Request): string | null {
+  const origin = request.headers.get("origin") || "";
+  if (!origin) return null;
+  const match = ALLOWED_ORIGINS.some((p) =>
+    typeof p === "string" ? p === origin : p.test(origin),
+  );
+  return match ? origin : null;
+}
+
+function corsHeaders(origin: string | null): Record<string, string> {
+  if (!origin) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, x-api-key",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
 export const maxDuration = 60;
 
+export async function OPTIONS(request: NextRequest) {
+  const origin = getAllowedOrigin(request);
+  if (!origin) return new NextResponse(null, { status: 403 });
+  return new NextResponse(null, { status: 204, headers: corsHeaders(origin) });
+}
+
 export async function POST(request: NextRequest) {
+  const origin = getAllowedOrigin(request);
+  const cors = corsHeaders(origin);
+
   // Allow admin_token cookie (admin UI) or x-api-key header (external callers like polarad.co.kr)
   const cronSecret = process.env.CRON_SECRET;
   const apiKey = request.headers.get("x-api-key");
   const isApiKeyAuth = cronSecret && apiKey && safeCompare(apiKey, cronSecret);
-  if (!isApiKeyAuth && !(await requireAuth())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const isCookieAuth = !isApiKeyAuth ? await requireAuth() : false;
 
   try {
     const {
@@ -37,6 +70,18 @@ export async function POST(request: NextRequest) {
       mode, // "pending" = 분석대기만, "analyze" = 즉시 분석 (기본)
     } = await request.json();
 
+    // 인증 정책:
+    // - admin 쿠키 또는 x-api-key 있으면 모든 mode 허용
+    // - 화이트리스트 origin(polarad.co.kr 등)에서 호출 시 mode="pending"만 허용
+    //   (공개 사이트의 fire-and-forget 자동 분석 트리거 — 비용 큰 즉시 분석은 차단)
+    const isPublicPending = !!origin && mode === "pending";
+    if (!isApiKeyAuth && !isCookieAuth && !isPublicPending) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: cors },
+      );
+    }
+
     if (
       !businessName ||
       typeof businessName !== "string" ||
@@ -44,19 +89,19 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "유효하지 않은 업체명" },
-        { status: 400 },
+        { status: 400, headers: cors },
       );
     }
     if (industry && industry.length > 100) {
       return NextResponse.json(
         { error: "유효하지 않은 업종" },
-        { status: 400 },
+        { status: 400, headers: cors },
       );
     }
     if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
       return NextResponse.json(
         { error: "유효하지 않은 이메일" },
-        { status: 400 },
+        { status: 400, headers: cors },
       );
     }
 
@@ -77,7 +122,10 @@ export async function POST(request: NextRequest) {
         ...baseFields,
         [FIELDS.status]: "pending",
       });
-      return NextResponse.json({ success: true, id: recordId });
+      return NextResponse.json(
+        { success: true, id: recordId },
+        { headers: cors },
+      );
     }
 
     // 즉시 분석 모드 (기본)
@@ -120,12 +168,15 @@ export async function POST(request: NextRequest) {
     // Update record with results — throws on failure
     await updateRecord(recordId, updateFields);
 
-    return NextResponse.json({ success: true, id: recordId });
+    return NextResponse.json(
+      { success: true, id: recordId },
+      { headers: cors },
+    );
   } catch (error) {
     console.error("브랜드 리포트 생성 오류:", error);
     return NextResponse.json(
       { error: "서버 오류가 발생했습니다." },
-      { status: 500 },
+      { status: 500, headers: cors },
     );
   }
 }
