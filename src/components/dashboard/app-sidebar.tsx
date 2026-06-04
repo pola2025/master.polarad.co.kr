@@ -10,6 +10,7 @@ import {
   Megaphone,
   FileText,
   MessageSquare,
+  MessageSquareText,
   MessagesSquare,
   Settings,
   ChevronUp,
@@ -22,6 +23,9 @@ import {
   Banknote,
   Mail,
   CalendarClock,
+  Facebook,
+  ScrollText,
+  FileSignature,
 } from "lucide-react";
 
 import {
@@ -65,6 +69,11 @@ const menuItems = [
     icon: DollarSign,
   },
   {
+    title: "Meta광고",
+    url: "/analytics/meta-ads",
+    icon: Facebook,
+  },
+  {
     title: "캠페인 분석",
     url: "/analytics/campaigns",
     icon: Megaphone,
@@ -85,6 +94,11 @@ const menuItems = [
     icon: MessageSquare,
   },
   {
+    title: "영업문자 정리",
+    url: "/phone-messages",
+    icon: MessageSquareText,
+  },
+  {
     title: "폴라애드 고객채팅",
     url: "/chats",
     icon: MessagesSquare,
@@ -98,6 +112,11 @@ const menuItems = [
     title: "거래처 관리",
     url: "/clients",
     icon: Building2,
+  },
+  {
+    title: "전자계약",
+    url: "/contracts",
+    icon: FileSignature,
   },
   {
     title: "일정관리",
@@ -118,6 +137,11 @@ const menuItems = [
     title: "메일함",
     url: "/mail",
     icon: Mail,
+  },
+  {
+    title: "접속 로그",
+    url: "/analytics/access-log",
+    icon: ScrollText,
   },
   {
     title: "설정",
