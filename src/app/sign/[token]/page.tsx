@@ -1,11 +1,9 @@
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { getContractByToken, markOpened } from "@/lib/contracts";
 import { renderContractHtml } from "@/lib/contract-render";
 import { POLARAD_PAYMENT } from "@/lib/contract-payment";
-import { gateValid, gateCookieName, maskEmail } from "@/lib/sign-gate";
 import SignClient from "./SignClient";
-import CodeGate from "./CodeGate";
 import PaymentGuide from "./PaymentGuide";
 
 export const runtime = "nodejs";
@@ -57,20 +55,6 @@ export default async function SignPage({
         tone="red"
       />
     );
-  }
-
-  // 이메일 인증번호 게이트 — 통과 전엔 계약서 내용 비공개
-  if (contract.access_code && contract.party_a_email) {
-    const cookieStore = await cookies();
-    const verified = gateValid(
-      token,
-      cookieStore.get(gateCookieName(token))?.value,
-    );
-    if (!verified) {
-      return (
-        <CodeGate token={token} emailHint={maskEmail(contract.party_a_email)} />
-      );
-    }
   }
 
   // 수신확인 기록(최초 1회)
