@@ -1,11 +1,20 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import type { Metadata } from "next";
 import { getContractByToken, markOpened } from "@/lib/contracts";
 import { renderContractHtml } from "@/lib/contract-render";
 import { POLARAD_PAYMENT } from "@/lib/contract-payment";
+import { gateValid, gateCookieName, maskEmail } from "@/lib/sign-gate";
 import SignClient from "./SignClient";
+import CodeGate from "./CodeGate";
+import PaymentGuide from "./PaymentGuide";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// 검색엔진 인덱싱 차단(토큰 URL 노출 방지)
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 function StatusCard({
   title,
@@ -50,6 +59,20 @@ export default async function SignPage({
     );
   }
 
+  // 이메일 인증번호 게이트 — 통과 전엔 계약서 내용 비공개
+  if (contract.access_code && contract.party_a_email) {
+    const cookieStore = await cookies();
+    const verified = gateValid(
+      token,
+      cookieStore.get(gateCookieName(token))?.value,
+    );
+    if (!verified) {
+      return (
+        <CodeGate token={token} emailHint={maskEmail(contract.party_a_email)} />
+      );
+    }
+  }
+
   // 수신확인 기록(최초 1회)
   try {
     const h = await headers();
@@ -64,20 +87,66 @@ export default async function SignPage({
 
   if (contract.status === "SUBMITTED") {
     return (
-      <StatusCard
-        title="계약서가 제출되었습니다"
-        desc={`계약번호 ${contract.contract_number} · 폴라애드 최종 확인 후 계약확정 안내를 드립니다.`}
-        tone="green"
-      />
+      <div className="min-h-screen bg-gray-100">
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">
+            <h1 className="text-lg font-bold text-green-800">
+              계약서가 제출되었습니다
+            </h1>
+            <p className="mt-2 text-sm text-green-700">
+              계약번호 {contract.contract_number}
+              <br />
+              폴라애드 최종 확인 후 계약확정 안내를 드립니다.
+            </p>
+            <p className="mt-3 text-sm font-medium text-green-800">
+              아직 결제 전이시라면 아래 안내에 따라 계약 금액을 결제해 주세요.
+            </p>
+          </div>
+
+          <PaymentGuide
+            monthlyFee={contract.monthly_fee}
+            periodMonths={contract.period_months}
+            totalFee={contract.total_fee}
+            payment={POLARAD_PAYMENT}
+          />
+
+          <p className="text-center text-xs text-gray-400 pb-8">
+            폴라애드 (POLARAD) · mkt@polarad.co.kr
+          </p>
+        </div>
+      </div>
     );
   }
   if (contract.status === "APPROVED") {
     return (
-      <StatusCard
-        title="계약이 확정되었습니다"
-        desc={`계약번호 ${contract.contract_number} · 최종 계약서가 이메일로 발송되었습니다.`}
-        tone="green"
-      />
+      <div className="min-h-screen bg-gray-100">
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">
+            <h1 className="text-lg font-bold text-green-800">
+              계약이 확정되었습니다
+            </h1>
+            <p className="mt-2 text-sm text-green-700">
+              계약번호 {contract.contract_number}
+              <br />
+              최종 계약서가 이메일로 발송되었습니다.
+            </p>
+            <p className="mt-3 text-sm font-medium text-green-800">
+              아직 결제 전이시라면 아래 안내에 따라 계약 금액을 결제해 주세요.
+            </p>
+          </div>
+
+          <PaymentGuide
+            monthlyFee={contract.monthly_fee}
+            periodMonths={contract.period_months}
+            totalFee={contract.total_fee}
+            payment={POLARAD_PAYMENT}
+          />
+
+          <p className="text-center text-xs text-gray-400 pb-8">
+            폴라애드 (POLARAD) · mkt@polarad.co.kr
+          </p>
+        </div>
+      </div>
     );
   }
   if (contract.status === "REJECTED" || contract.status === "CANCELLED") {
